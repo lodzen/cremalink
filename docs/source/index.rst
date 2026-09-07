@@ -7,12 +7,12 @@ cremalink
    :target: https://pypi.org/project/cremalink-lodzen/
 .. |Python Version| image:: https://img.shields.io/pypi/pyversions/cremalink-lodzen.svg?style=for-the-badge&color=FFE169&labelColor=3776AB
    :target: https://pypi.org/project/cremalink-lodzen/
-.. |License| image:: https://img.shields.io/github/license/miditkl/cremalink?style=for-the-badge&color=success
-   :target: https://github.com/miditkl/cremalink/blob/main/LICENSE
+.. |License| image:: https://img.shields.io/github/license/lodzen/cremalink?style=for-the-badge&color=success
+   :target: https://github.com/lodzen/cremalink/blob/main/LICENSE
 .. |Downloads| image:: https://img.shields.io/pypi/dm/cremalink-lodzen.svg?style=for-the-badge&color=orange
    :target: https://pypi.org/project/cremalink-lodzen/
 .. |Source Code| image:: https://img.shields.io/badge/Source-GitHub-black?style=for-the-badge&logo=github
-   :target: https://github.com/miditkl/cremalink
+   :target: https://github.com/lodzen/cremalink
 
 |PyPI version| |Python Version| |License| |Downloads| |Source Code|
 
@@ -24,7 +24,7 @@ cremalink
 Cremalink provides a unified interface to interact with smart coffee machines via **Local LAN control** or **Cloud API**. It allows for real-time state monitoring and precise command execution.
 
 .. tip::
-   For detailed guides, advanced configuration, and developer deep-dives, please visit our `Project Wiki <https://github.com/miditkl/cremalink/wiki>`_.
+   For detailed guides, advanced configuration, and developer deep-dives, please visit our `Project Wiki <https://github.com/lodzen/cremalink/wiki>`_.
 
 .. note::
    This project was developed with a result-oriented approach, primarily optimized for the De'Longhi PrimaDonna Soul. While the architecture is designed to be extensible, some logic may currently be tightly coupled to this specific model and might not work seamlessly with others yet.
@@ -64,14 +64,14 @@ Cremalink includes an aiohttp-based server for headless environments:
    # Start the server
    cremalink-server --ip 0.0.0.0 --port 10280 --settings_path "conf.json"
 
-More information: `Local Server Setup <https://github.com/miditkl/cremalink/wiki/3.-Local-Server-Setup>`_
+More information: `Local Server Setup <https://github.com/lodzen/cremalink/wiki/3.-Local-Server-Setup>`_
 
 Python API (Local Control)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Connect to your machine directly via your local network for the lowest latency.
 
-More information: `Local Device Usage <https://github.com/miditkl/cremalink/wiki/4.-Local-Device-Usage>`_
+More information: `Local Device Usage <https://github.com/lodzen/cremalink/wiki/4.-Local-Device-Usage>`_
 
 ----
 
@@ -88,7 +88,7 @@ Run the comprehensive test suite using `pytest`:
 
 **Contributing**
 
-Contributions are welcome! If you have a machine profile not yet supported, please check the `Wiki: 5. Adding Custom Devices <https://github.com/miditkl/cremalink/wiki/5.-Adding-Custom-Devices>`_ on how to add new `.json` device definitions.
+Contributions are welcome! If you have a machine profile not yet supported, please check the `Wiki: 5. Adding Custom Devices <https://github.com/lodzen/cremalink/wiki/5.-Adding-Custom-Devices>`_ on how to add new `.json` device definitions.
 
 Currently supported devices:
 
@@ -119,11 +119,11 @@ Technical Foundations, Protocol Research & Inspiration
 📄 License
 ---------
 
-Distributed under the **AGPL-3.0-or-later** License. See `LICENSE <https://github.com/miditkl/cremalink/blob/main/LICENSE>`_ for more information.
+Distributed under the **AGPL-3.0-or-later** License. See `LICENSE <https://github.com/lodzen/cremalink/blob/main/LICENSE>`_ for more information.
 
 ----
 
-Developed by `Midian Tekle Elfu <mailto:developer@midian.tekleelfu.de>`_. Supported by the community.
+Developed by `Daniel <mailto:dalodzik@googlemail.com>`_. Supported by the community.
 
 
 .. toctree::
