@@ -17,11 +17,18 @@ from cremalink.domain import (
     detect_model_id,
 )
 from cremalink.local_server import LocalServer
-from cremalink.local_server_app import ServerSettings, create_app
+from cremalink.local_server_app import (
+    DEFAULT_PORT,
+    EmbeddedLocalServer,
+    ServerSettings,
+    create_app,
+)
 
 __all__ = [
+    "DEFAULT_PORT",
     "Client",
     "Device",
+    "EmbeddedLocalServer",
     "LocalServer",
     "ServerSettings",
     "authenticate_cloud",

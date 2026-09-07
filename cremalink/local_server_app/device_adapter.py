@@ -3,9 +3,10 @@ This module provides an adapter for communicating directly with the coffee
 machine device on the local network. Its main purpose is to handle the
 device registration process.
 """
-from typing import Optional
 
-import httpx
+import ssl
+
+import aiohttp
 
 from cremalink.local_server_app.config import ServerSettings
 from cremalink.local_server_app.state import LocalServerState
@@ -30,19 +31,34 @@ class DeviceAdapter:
         """
         self.settings = settings
         self.logger = logger
-        self._client: Optional[httpx.AsyncClient] = None
+        self._client: aiohttp.ClientSession | None = None
 
-    async def _get_client(self) -> httpx.AsyncClient:
+    def _build_ssl_context(self) -> ssl.SSLContext | bool | None:
         """
-        Provides a singleton instance of an `httpx.AsyncClient`.
+        Translates the CA-path/verify settings into an aiohttp `ssl=` value.
 
-        The client is configured with timeout and SSL verification settings
+        A configured CA path always wins (custom trust root); otherwise
+        `device_register_verify` toggles default certificate verification.
+        """
+        ca_path = self.settings.device_register_ca_path
+        if ca_path:
+            return ssl.create_default_context(cafile=ca_path)
+        if not self.settings.device_register_verify:
+            return False
+        return None
+
+    async def _get_client(self) -> aiohttp.ClientSession:
+        """
+        Provides a singleton instance of an `aiohttp.ClientSession`.
+
+        The session is configured with timeout and SSL verification settings
         from the application configuration.
         """
         if self._client is None:
-            self._client = httpx.AsyncClient(
-                timeout=self.settings.device_register_timeout,
-                verify=self.settings.device_register_ca_path or self.settings.device_register_verify,
+            self._client = aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(
+                    total=self.settings.device_register_timeout
+                ),
             )
         return self._client
 
@@ -61,7 +77,9 @@ class DeviceAdapter:
             ConnectionError: If the HTTP request to the device fails.
         """
         if not self.settings.enable_device_register:
-            self.logger.info("register_skipped", extra={"details": {"reason": "disabled"}})
+            self.logger.info(
+                "register_skipped", extra={"details": {"reason": "disabled"}}
+            )
             return
 
         if not state.device_ip:
@@ -79,18 +97,24 @@ class DeviceAdapter:
         }
         client = await self._get_client()
         try:
-            resp = await client.put(api_url, json=payload)
-            resp.raise_for_status()
-        except httpx.HTTPError as exc:
+            resp = await client.put(
+                api_url, json=payload, ssl=self._build_ssl_context()
+            )
+            async with resp:
+                resp.raise_for_status()
+        except aiohttp.ClientError as exc:
             await state.set_registered(False)
             state.log("local_reg_failed", {"error": str(exc)})
             raise ConnectionError(f"local_reg failed: {exc}") from exc
         else:
             await state.set_registered(True)
-            state.log("local_reg_ok", {"device_ip": state.device_ip, "scheme": state.device_scheme})
+            state.log(
+                "local_reg_ok",
+                {"device_ip": state.device_ip, "scheme": state.device_scheme},
+            )
 
     async def close(self) -> None:
-        """Closes the underlying httpx client if it exists."""
+        """Closes the underlying aiohttp session if it exists."""
         if self._client:
-            await self._client.aclose()
+            await self._client.close()
             self._client = None

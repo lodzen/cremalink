@@ -57,7 +57,7 @@ To include tools for development or testing:
 
 **Integrated API Server**
 
-Cremalink includes a FastAPI-based server for headless environments:
+Cremalink includes an aiohttp-based server for headless environments:
 
 .. code-block:: bash
 
