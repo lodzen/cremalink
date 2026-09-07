@@ -7,10 +7,10 @@ name = "cremalink-lodzen"
 dynamic = ["version"]
 description = "Python library and local API server for monitoring and controlling IoT coffee machines."
 authors = [
-    { name = "Daniel", email = "dalodzik@googlemail.com"},
+    { name = "lodzen", email = "dalodzik@googlemail.com"},
     { name = "Midian Tekle Elfu", email = "developer@midian.tekleelfu.de"},
 ]
-maintainers = [{ name = "Daniel", email = "dalodzik@googlemail.com"}]
+maintainers = [{ name = "lodzen", email = "dalodzik@googlemail.com"}]
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
