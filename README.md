@@ -2,10 +2,10 @@
 
 **A high-performance Python library and local API server for monitoring and controlling IoT coffee machines.**
 
-[![PyPI version](https://img.shields.io/pypi/v/cremalink.svg?style=for-the-badge&color=blue)](https://pypi.org/project/cremalink/)
-[![Python Version](https://img.shields.io/pypi/pyversions/cremalink.svg?style=for-the-badge&color=FFE169&labelColor=3776AB)](https://pypi.org/project/cremalink/)
+[![PyPI version](https://img.shields.io/pypi/v/cremalink-lodzen.svg?style=for-the-badge&color=blue)](https://pypi.org/project/cremalink-lodzen/)
+[![Python Version](https://img.shields.io/pypi/pyversions/cremalink-lodzen.svg?style=for-the-badge&color=FFE169&labelColor=3776AB)](https://pypi.org/project/cremalink-lodzen/)
 [![License](https://img.shields.io/github/license/miditkl/cremalink?style=for-the-badge&color=success)](LICENSE)
-[![Downloads](https://img.shields.io/pypi/dm/cremalink.svg?style=for-the-badge&color=orange)](https://pypi.org/project/cremalink/)
+[![Downloads](https://img.shields.io/pypi/dm/cremalink-lodzen.svg?style=for-the-badge&color=orange)](https://pypi.org/project/cremalink-lodzen/)
 [![Source Code](https://img.shields.io/badge/Source-GitHub-black?style=for-the-badge&logo=github)](https://github.com/miditkl/cremalink)
 
 ---
@@ -28,7 +28,7 @@ Cremalink provides a unified interface to interact with smart coffee machines vi
 Install the package via `pip` (Cremalink requires **Python 3.13+**):
 
 ```bash
-pip install cremalink
+pip install cremalink-lodzen
 
 ```
 
@@ -37,8 +37,8 @@ pip install cremalink
 To include tools for development or testing:
 
 ```bash
-pip install "cremalink[dev]"   # For notebooks and kernel support
-pip install "cremalink[test]"  # For running pytest suites
+pip install "cremalink-lodzen[dev]"   # For notebooks and kernel support
+pip install "cremalink-lodzen[test]"  # For running pytest suites
 
 ```
 

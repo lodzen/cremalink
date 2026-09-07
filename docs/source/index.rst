@@ -3,14 +3,14 @@ cremalink
 
 **A high-performance Python library and local API server for monitoring and controlling IoT coffee machines.**
 
-.. |PyPI version| image:: https://img.shields.io/pypi/v/cremalink.svg?style=for-the-badge&color=blue
-   :target: https://pypi.org/project/cremalink/
-.. |Python Version| image:: https://img.shields.io/pypi/pyversions/cremalink.svg?style=for-the-badge&color=FFE169&labelColor=3776AB
-   :target: https://pypi.org/project/cremalink/
+.. |PyPI version| image:: https://img.shields.io/pypi/v/cremalink-lodzen.svg?style=for-the-badge&color=blue
+   :target: https://pypi.org/project/cremalink-lodzen/
+.. |Python Version| image:: https://img.shields.io/pypi/pyversions/cremalink-lodzen.svg?style=for-the-badge&color=FFE169&labelColor=3776AB
+   :target: https://pypi.org/project/cremalink-lodzen/
 .. |License| image:: https://img.shields.io/github/license/miditkl/cremalink?style=for-the-badge&color=success
    :target: https://github.com/miditkl/cremalink/blob/main/LICENSE
-.. |Downloads| image:: https://img.shields.io/pypi/dm/cremalink.svg?style=for-the-badge&color=orange
-   :target: https://pypi.org/project/cremalink/
+.. |Downloads| image:: https://img.shields.io/pypi/dm/cremalink-lodzen.svg?style=for-the-badge&color=orange
+   :target: https://pypi.org/project/cremalink-lodzen/
 .. |Source Code| image:: https://img.shields.io/badge/Source-GitHub-black?style=for-the-badge&logo=github
    :target: https://github.com/miditkl/cremalink
 
@@ -39,7 +39,7 @@ Install the package via `pip` (Cremalink requires **Python 3.13+**):
 
 .. code-block:: bash
 
-   pip install cremalink
+   pip install cremalink-lodzen
 
 **Optional Dependencies**
 
@@ -47,8 +47,8 @@ To include tools for development or testing:
 
 .. code-block:: bash
 
-   pip install "cremalink[dev]"   # For notebooks and kernel support
-   pip install "cremalink[test]"  # For running pytest suites
+   pip install "cremalink-lodzen[dev]"   # For notebooks and kernel support
+   pip install "cremalink-lodzen[test]"  # For running pytest suites
 
 ----
 

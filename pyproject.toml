@@ -3,7 +3,7 @@ requires = ["setuptools>=80.9.0", "setuptools-scm[simple]>=9.2.2"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "cremalink"
+name = "cremalink-lodzen"
 dynamic = ["version"]
 description = "Python library and local API server for monitoring and controlling IoT coffee machines."
 authors = [{ name = "Midian Tekle Elfu", email = "developer@midian.tekleelfu.de"}]
@@ -41,8 +41,8 @@ classifiers = [
 
 [project.optional-dependencies]
 dev = [
-    "cremalink[test]",
-    "cremalink[docs]",
+    "cremalink-lodzen[test]",
+    "cremalink-lodzen[docs]",
     "ipykernel>=7.2.0",
     "notebook>=7.5.5",
 ]

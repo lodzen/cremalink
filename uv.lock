@@ -383,7 +383,7 @@ wheels = [
 ]
 
 [[package]]
-name = "cremalink"
+name = "cremalink-lodzen"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
@@ -423,8 +423,8 @@ docs = [
 [package.metadata]
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.13.0" },
-    { name = "cremalink", extras = ["docs"], marker = "extra == 'dev'" },
-    { name = "cremalink", extras = ["test"], marker = "extra == 'dev'" },
+    { name = "cremalink-lodzen", extras = ["docs"], marker = "extra == 'dev'" },
+    { name = "cremalink-lodzen", extras = ["test"], marker = "extra == 'dev'" },
     { name = "ipykernel", marker = "extra == 'dev'", specifier = ">=7.2.0" },
     { name = "notebook", marker = "extra == 'dev'", specifier = ">=7.5.5" },
     { name = "pycryptodome", specifier = "==3.23.0" },
