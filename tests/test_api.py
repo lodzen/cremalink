@@ -45,7 +45,12 @@ async def app_client():
 @pytest.mark.asyncio
 async def test_full_flow(app_client):
     client, state = app_client
-    configure_body = {"dsn": "dsn-1", "device_ip": "1.2.3.4", "lan_key": "lan-key", "device_scheme": "https"}
+    configure_body = {
+        "dsn": "dsn-1",
+        "device_ip": "1.2.3.4",
+        "lan_key": "lan-key",
+        "device_scheme": "https",
+    }
     resp = await client.post("/configure", json=configure_body)
     assert resp.status == 200
 
@@ -69,9 +74,13 @@ async def test_full_flow(app_client):
     assert dev_key and dev_iv
 
     monitor_value = base64.b64encode(b"monitor-bytes").decode("utf-8")
-    monitor_datapoint = json.dumps({"data": {"value": monitor_value}}, separators=(",", ":"))
+    monitor_datapoint = json.dumps(
+        {"data": {"value": monitor_value}}, separators=(",", ":")
+    )
     enc_monitor, _ = encrypt_payload(monitor_datapoint, dev_key, dev_iv)
-    resp = await client.post("/local_lan/property/datapoint.json", json={"enc": enc_monitor})
+    resp = await client.post(
+        "/local_lan/property/datapoint.json", json={"enc": enc_monitor}
+    )
     assert resp.status == 200
 
     resp = await client.get("/get_monitor")
@@ -82,10 +91,17 @@ async def test_full_flow(app_client):
 
     dev_iv_rotated = state.dev_iv_seed
     properties_payload = json.dumps(
-        {"data": {"properties": {"prop1": {"property": {"name": "prop1", "value": "v"}}}}}, separators=(",", ":")
+        {
+            "data": {
+                "properties": {"prop1": {"property": {"name": "prop1", "value": "v"}}}
+            }
+        },
+        separators=(",", ":"),
     )
     enc_props, _ = encrypt_payload(properties_payload, dev_key, dev_iv_rotated)
-    resp = await client.post("/local_lan/property/datapoint.json", json={"enc": enc_props})
+    resp = await client.post(
+        "/local_lan/property/datapoint.json", json={"enc": enc_props}
+    )
     assert resp.status == 200
 
     resp = await client.get("/get_properties")
@@ -124,7 +140,9 @@ async def test_server_events_are_redacted_and_forwarded(caplog):
         lan_key="secret-lan-key",
     )
 
-    handler = next(handler for handler in logger.handlers if hasattr(handler, "get_events"))
+    handler = next(
+        handler for handler in logger.handlers if hasattr(handler, "get_events")
+    )
     configured_event = next(
         event for event in handler.get_events() if event["event"] == "configured"
     )

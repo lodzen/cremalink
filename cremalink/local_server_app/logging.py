@@ -3,11 +3,11 @@ This module provides custom logging setup for the local server application,
 including an in-memory ring buffer for recent log events and a redaction
 function for sensitive data.
 """
+
 import json
 import logging
 import threading
 from collections import deque
-from typing import Deque, Dict, List, Optional
 
 
 class RingBufferHandler(logging.Handler):
@@ -19,7 +19,9 @@ class RingBufferHandler(logging.Handler):
     without needing to read from a log file.
     """
 
-    def __init__(self, max_entries: int = 200, forward_logger: logging.Logger | None = None):
+    def __init__(
+        self, max_entries: int = 200, forward_logger: logging.Logger | None = None
+    ):
         """
         Initializes the handler.
 
@@ -29,7 +31,7 @@ class RingBufferHandler(logging.Handler):
         super().__init__()
         self.max_entries = max_entries
         self.forward_logger = forward_logger
-        self._events: Deque[Dict] = deque(maxlen=max_entries)
+        self._events: deque[dict] = deque(maxlen=max_entries)
         self._lock = threading.Lock()  # Lock for thread-safe access to the deque.
 
     def emit(self, record: logging.LogRecord) -> None:
@@ -55,7 +57,7 @@ class RingBufferHandler(logging.Handler):
                 message = f"{message} details={json.dumps(details, sort_keys=True, default=str)}"
             self.forward_logger.log(record.levelno, message)
 
-    def get_events(self) -> List[Dict]:
+    def get_events(self) -> list[dict]:
         """
         Retrieves a thread-safe copy of all events currently in the buffer.
 
@@ -100,9 +102,7 @@ def create_logger(
     return logger
 
 
-def redact(
-    details: Optional[dict], sensitive_values: tuple[str | None, ...] = ()
-) -> dict:
+def redact(details: dict | None, sensitive_values: tuple[str | None, ...] = ()) -> dict:
     """
     Filters a dictionary, replacing values of sensitive keys with '***'.
 

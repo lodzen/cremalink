@@ -3,6 +3,7 @@ This module defines the state management for the local server application.
 It centralizes all runtime data, including device configuration, cryptographic
 keys, command queues, and the latest received device data.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -11,7 +12,7 @@ import json
 import os
 import time
 from collections import deque
-from typing import TYPE_CHECKING, Any, Deque, Dict, Optional
+from typing import TYPE_CHECKING, Any
 
 from cremalink.local_server_app import protocol
 from cremalink.local_server_app.logging import redact
@@ -30,6 +31,7 @@ class LocalServerState:
     An asyncio.Lock is used to prevent race conditions when accessing state
     from different asynchronous tasks.
     """
+
     def __init__(self, settings: ServerSettings, logger):
         """
         Initializes the state with default values.
@@ -41,35 +43,35 @@ class LocalServerState:
         self.settings = settings
         self.logger = logger
         # --- Device Configuration ---
-        self.dsn: Optional[str] = None
-        self.device_ip: Optional[str] = None
+        self.dsn: str | None = None
+        self.device_ip: str | None = None
         self.device_scheme: str = "https"
-        self.lan_key: Optional[str] = None
+        self.lan_key: str | None = None
         # --- Session & Command State ---
         self.seq: int = 0
-        self.command_queue: Deque[str] = deque()
+        self.command_queue: deque[str] = deque()
         self.command_payload: str = protocol.build_empty_payload(self.seq)
-        self.last_command: Optional[str] = None
+        self.last_command: str | None = None
         self.registered: bool = False
 
         # --- Cryptographic Keys & IVs ---
-        self.app_sign_key: Optional[bytes] = None
-        self.app_crypto_key: Optional[bytes] = None
-        self.app_iv_seed: Optional[bytes] = None
-        self.dev_crypto_key: Optional[bytes] = None
-        self.dev_iv_seed: Optional[bytes] = None
+        self.app_sign_key: bytes | None = None
+        self.app_crypto_key: bytes | None = None
+        self.app_iv_seed: bytes | None = None
+        self.dev_crypto_key: bytes | None = None
+        self.dev_iv_seed: bytes | None = None
 
         # --- Key Exchange Parameters ---
         self.random_2: str = self._generate_random_2()
         self.time_2: str = self._generate_time_2()
 
         # --- Data Snapshots ---
-        self.last_monitor: Dict[str, Any] | dict = {}
-        self.last_monitor_raw: Dict[str, Any] = {}
-        self.last_monitor_b64: Optional[str] = None
-        self.last_monitor_received_at: Optional[float] = None
-        self.last_properties: Dict[str, Any] = {}
-        self.last_properties_received_at: Optional[float] = None
+        self.last_monitor: dict[str, Any] | dict = {}
+        self.last_monitor_raw: dict[str, Any] = {}
+        self.last_monitor_b64: str | None = None
+        self.last_monitor_received_at: float | None = None
+        self.last_properties: dict[str, Any] = {}
+        self.last_properties_received_at: float | None = None
         self._monitor_request_pending = False
         self._properties_request_pending = False
         self.monitor_property_name: str = None
@@ -100,8 +102,8 @@ class LocalServerState:
         device_ip: str,
         lan_key: str,
         device_scheme: str = "https",
-        monitor_property_name: Optional[str] = None,
-        data_request_property_name: Optional[str] = None,
+        monitor_property_name: str | None = None,
+        data_request_property_name: str | None = None,
     ) -> None:
         """
         Configures the state with new device details and resets the session.
@@ -148,10 +150,27 @@ class LocalServerState:
             self.last_properties = {}
             self.last_properties_received_at = None
             self._properties_request_pending = False
-        self.log("configured", {"dsn": dsn, "device_ip": device_ip, "scheme": device_scheme})
-        await self._save_server_settings(dsn=self.dsn, device_ip=self.device_ip, lan_key=self.lan_key, device_scheme=self.device_scheme, monitor_property_name=self.monitor_property_name, data_request_property_name=self.data_request_property_name)
+        self.log(
+            "configured", {"dsn": dsn, "device_ip": device_ip, "scheme": device_scheme}
+        )
+        await self._save_server_settings(
+            dsn=self.dsn,
+            device_ip=self.device_ip,
+            lan_key=self.lan_key,
+            device_scheme=self.device_scheme,
+            monitor_property_name=self.monitor_property_name,
+            data_request_property_name=self.data_request_property_name,
+        )
 
-    async def _save_server_settings(self, dsn: str, device_ip: str, lan_key: str, device_scheme: str, monitor_property_name: str, data_request_property_name: str):
+    async def _save_server_settings(
+        self,
+        dsn: str,
+        device_ip: str,
+        lan_key: str,
+        device_scheme: str,
+        monitor_property_name: str,
+        data_request_property_name: str,
+    ):
         if self.settings.server_settings_path == "":
             return
         data = {
@@ -160,7 +179,7 @@ class LocalServerState:
             "lan_key": lan_key,
             "device_scheme": device_scheme,
             "monitor_property_name": monitor_property_name,
-            "data_request_property_name": data_request_property_name
+            "data_request_property_name": data_request_property_name,
         }
         try:
             with open(self.settings.server_settings_path, "w") as f:
@@ -221,7 +240,9 @@ class LocalServerState:
             app_iv_seed,
             dev_crypto_key,
             dev_iv_seed,
-        ) = protocol.derive_keys(self.lan_key, random_1, self.random_2, str(time_1), str(self.time_2))
+        ) = protocol.derive_keys(
+            self.lan_key, random_1, self.random_2, str(time_1), str(self.time_2)
+        )
 
         async with self.lock:
             self.app_sign_key = app_sign_key
@@ -290,7 +311,12 @@ class LocalServerState:
         async with self.lock:
             if self._monitor_request_pending:
                 return
-            self.command_queue.append(json.dumps({"seq_no": protocol.pad_seq(self.seq), "data": monitor_cmd}, separators=(",", ":")))
+            self.command_queue.append(
+                json.dumps(
+                    {"seq_no": protocol.pad_seq(self.seq), "data": monitor_cmd},
+                    separators=(",", ":"),
+                )
+            )
             self._monitor_request_pending = True
         self.log("queue_monitor")
 
@@ -315,12 +341,15 @@ class LocalServerState:
             if self._properties_request_pending:
                 return
             self.command_queue.append(
-                json.dumps({"seq_no": protocol.pad_seq(self.seq), "data": properties_cmd}, separators=(",", ":"))
+                json.dumps(
+                    {"seq_no": protocol.pad_seq(self.seq), "data": properties_cmd},
+                    separators=(",", ":"),
+                )
             )
             self._properties_request_pending = True
         self.log("queue_properties")
 
-    async def next_command_payload(self) -> Dict[str, Any]:
+    async def next_command_payload(self) -> dict[str, Any]:
         """
         Retrieves the next command from the queue for sending to the device.
         If the queue is empty, it returns an empty "heartbeat" payload.
@@ -350,7 +379,9 @@ class LocalServerState:
                 self.last_properties = data_block["properties"]
                 self.last_properties_received_at = time.time()
                 self._properties_request_pending = False
-                self.log("properties_datapoint", {"count": len(data_block["properties"])})
+                self.log(
+                    "properties_datapoint", {"count": len(data_block["properties"])}
+                )
                 return
 
             monitor_value = data_block.get("value")
@@ -370,7 +401,7 @@ class LocalServerState:
                 self.log("monitor_datapoint", {"monitor_keys": list(data_block.keys())})
 
     # --- snapshots ---
-    async def snapshot_monitor(self) -> Dict[str, Any]:
+    async def snapshot_monitor(self) -> dict[str, Any]:
         """Returns the latest monitoring data snapshot."""
         async with self.lock:
             monitor_payload = self.last_monitor_raw or self.last_monitor or {}
@@ -380,23 +411,29 @@ class LocalServerState:
                 "received_at": self.last_monitor_received_at,
             }
 
-    async def snapshot_properties(self) -> Dict[str, Any]:
+    async def snapshot_properties(self) -> dict[str, Any]:
         """Returns the latest properties data snapshot."""
         async with self.lock:
-            return {"properties": self.last_properties, "received_at": self.last_properties_received_at}
+            return {
+                "properties": self.last_properties,
+                "received_at": self.last_properties_received_at,
+            }
 
-    async def get_property_value(self, property_name: str) -> Optional[Any]:
+    async def get_property_value(self, property_name: str) -> Any | None:
         """Retrieves a single property value from the last known snapshot."""
         async with self.lock:
             if property_name in self.last_properties:
                 return self.last_properties[property_name]
             for entry in self.last_properties.values():
-                if isinstance(entry, dict) and entry.get("property", {}).get("name") == property_name:
+                if (
+                    isinstance(entry, dict)
+                    and entry.get("property", {}).get("name") == property_name
+                ):
                     return entry
         return None
 
     # --- logging helper ---
-    def log(self, event: str, details: Optional[dict] = None) -> None:
+    def log(self, event: str, details: dict | None = None) -> None:
         """Convenience method for logging with redacted details."""
         safe_details = redact(details, (self.dsn, self.device_ip, self.lan_key))
         self.logger.info(event, extra={"details": safe_details})

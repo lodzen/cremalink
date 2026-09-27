@@ -106,7 +106,10 @@ class DeviceAdapter:
             raise ConnectionError(f"local_reg failed: {exc}") from exc
         else:
             await state.set_registered(True)
-            state.log("local_reg_ok", {"device_ip": state.device_ip, "scheme": state.device_scheme})
+            state.log(
+                "local_reg_ok",
+                {"device_ip": state.device_ip, "scheme": state.device_scheme},
+            )
 
     async def close(self) -> None:
         """Closes the underlying aiohttp session if it exists."""
