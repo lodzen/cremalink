@@ -119,7 +119,7 @@ class LocalServerState:
                 and self.dev_crypto_key
             )
             if same_device:
-                self.logger.info("configure noop", extra={"details": {"dsn": dsn, "device_ip": device_ip}})
+                self.log("configure_noop", {"dsn": dsn, "device_ip": device_ip})
                 return
 
             # Reset the entire state for the new device configuration.
@@ -148,7 +148,7 @@ class LocalServerState:
             self.last_properties = {}
             self.last_properties_received_at = None
             self._properties_request_pending = False
-        self.logger.info("configured", extra={"details": {"dsn": dsn, "device_ip": device_ip, "scheme": device_scheme}})
+        self.log("configured", {"dsn": dsn, "device_ip": device_ip, "scheme": device_scheme})
         await self._save_server_settings(dsn=self.dsn, device_ip=self.device_ip, lan_key=self.lan_key, device_scheme=self.device_scheme, monitor_property_name=self.monitor_property_name, data_request_property_name=self.data_request_property_name)
 
     async def _save_server_settings(self, dsn: str, device_ip: str, lan_key: str, device_scheme: str, monitor_property_name: str, data_request_property_name: str):
@@ -231,7 +231,7 @@ class LocalServerState:
             self.dev_iv_seed = dev_iv_seed
             self.seq = 0
             self.command_payload = protocol.build_empty_payload(self.seq)
-        self.logger.info("crypto_init", extra={"details": redact({"app_crypto_key": True, "dev_crypto_key": True})})
+        self.log("crypto_init", {"app_crypto_key": True, "dev_crypto_key": True})
 
     # --- state queries ---
     def is_configured(self) -> bool:
@@ -268,7 +268,7 @@ class LocalServerState:
             payload_str = json.dumps(payload, separators=(",", ":"))
             self.command_queue.append(payload_str)
             self.last_command = command
-        self.logger.info("queue_command", extra={"details": {"command": command}})
+        self.log("queue_command", {"command": command})
 
     async def queue_monitor(self) -> None:
         """Adds a request for the device's monitoring status to the queue."""
@@ -292,7 +292,7 @@ class LocalServerState:
                 return
             self.command_queue.append(json.dumps({"seq_no": protocol.pad_seq(self.seq), "data": monitor_cmd}, separators=(",", ":")))
             self._monitor_request_pending = True
-        self.logger.info("queue_monitor")
+        self.log("queue_monitor")
 
     async def queue_properties(self) -> None:
         """Adds a request for all device properties to the queue."""
@@ -318,7 +318,7 @@ class LocalServerState:
                 json.dumps({"seq_no": protocol.pad_seq(self.seq), "data": properties_cmd}, separators=(",", ":"))
             )
             self._properties_request_pending = True
-        self.logger.info("queue_properties")
+        self.log("queue_properties")
 
     async def next_command_payload(self) -> Dict[str, Any]:
         """
@@ -350,7 +350,7 @@ class LocalServerState:
                 self.last_properties = data_block["properties"]
                 self.last_properties_received_at = time.time()
                 self._properties_request_pending = False
-                self.logger.info("properties_datapoint", extra={"details": {"count": len(data_block['properties'])}})
+                self.log("properties_datapoint", {"count": len(data_block["properties"])})
                 return
 
             monitor_value = data_block.get("value")
@@ -360,14 +360,14 @@ class LocalServerState:
                 self.last_monitor_raw = decrypted_json
                 self.last_monitor_received_at = time.time()
                 self._monitor_request_pending = False
-                self.logger.info("monitor_datapoint", extra={"details": {"raw_value_len": len(monitor_value)}})
+                self.log("monitor_datapoint", {"raw_value_len": len(monitor_value)})
             else:
                 self.last_monitor = decrypted_json
                 self.last_monitor_raw = decrypted_json
                 self.last_monitor_b64 = None
                 self.last_monitor_received_at = time.time()
                 self._monitor_request_pending = False
-                self.logger.info("monitor_datapoint", extra={"details": {"monitor_keys": list(data_block.keys())}})
+                self.log("monitor_datapoint", {"monitor_keys": list(data_block.keys())})
 
     # --- snapshots ---
     async def snapshot_monitor(self) -> Dict[str, Any]:
@@ -398,4 +398,5 @@ class LocalServerState:
     # --- logging helper ---
     def log(self, event: str, details: Optional[dict] = None) -> None:
         """Convenience method for logging with redacted details."""
-        self.logger.info(event, extra={"details": redact(details)})
+        safe_details = redact(details, (self.dsn, self.device_ip, self.lan_key))
+        self.logger.info(event, extra={"details": safe_details})

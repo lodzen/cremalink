@@ -3,6 +3,7 @@ This module provides custom logging setup for the local server application,
 including an in-memory ring buffer for recent log events and a redaction
 function for sensitive data.
 """
+import json
 import logging
 import threading
 from collections import deque
@@ -18,7 +19,7 @@ class RingBufferHandler(logging.Handler):
     without needing to read from a log file.
     """
 
-    def __init__(self, max_entries: int = 200):
+    def __init__(self, max_entries: int = 200, forward_logger: logging.Logger | None = None):
         """
         Initializes the handler.
 
@@ -27,6 +28,7 @@ class RingBufferHandler(logging.Handler):
         """
         super().__init__()
         self.max_entries = max_entries
+        self.forward_logger = forward_logger
         self._events: Deque[Dict] = deque(maxlen=max_entries)
         self._lock = threading.Lock()  # Lock for thread-safe access to the deque.
 
@@ -46,6 +48,12 @@ class RingBufferHandler(logging.Handler):
         }
         with self._lock:
             self._events.append(event)
+        if self.forward_logger is not None:
+            details = event["details"]
+            message = record.getMessage()
+            if details:
+                message = f"{message} details={json.dumps(details, sort_keys=True, default=str)}"
+            self.forward_logger.log(record.levelno, message)
 
     def get_events(self) -> List[Dict]:
         """
@@ -58,7 +66,12 @@ class RingBufferHandler(logging.Handler):
             return list(self._events)
 
 
-def create_logger(name: str, ring_size: int) -> logging.Logger:
+def create_logger(
+    name: str,
+    ring_size: int,
+    *,
+    forward_logger: logging.Logger | None = None,
+) -> logging.Logger:
     """
     Creates and configures a logger with the RingBufferHandler.
 
@@ -78,7 +91,7 @@ def create_logger(name: str, ring_size: int) -> logging.Logger:
         return logger
 
     logger.setLevel(logging.INFO)
-    handler = RingBufferHandler(max_entries=ring_size)
+    handler = RingBufferHandler(max_entries=ring_size, forward_logger=forward_logger)
     formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
     handler.setFormatter(formatter)
     logger.addHandler(handler)
@@ -87,7 +100,9 @@ def create_logger(name: str, ring_size: int) -> logging.Logger:
     return logger
 
 
-def redact(details: Optional[dict]) -> dict:
+def redact(
+    details: Optional[dict], sensitive_values: tuple[str | None, ...] = ()
+) -> dict:
     """
     Filters a dictionary, replacing values of sensitive keys with '***'.
 
@@ -104,13 +119,42 @@ def redact(details: Optional[dict]) -> dict:
         return {}
 
     redacted_keys = {
-        "lan_key", "app_crypto_key", "dev_crypto_key", "app_iv_seed",
-        "dev_iv_seed", "enc", "sign"
+        "access_token",
+        "app_crypto_key",
+        "app_iv_seed",
+        "cipher",
+        "command",
+        "decoded_prefix",
+        "device_ip",
+        "dev_crypto_key",
+        "dev_iv_seed",
+        "dsn",
+        "email",
+        "enc",
+        "lan_key",
+        "password",
+        "random_1",
+        "random_2",
+        "refresh_token",
+        "sign",
+        "time_1",
+        "time_2",
     }
-    cleaned = {}
-    for key, value in details.items():
-        if key in redacted_keys:
-            cleaned[key] = "***"
-        else:
-            cleaned[key] = value
-    return cleaned
+    replacements = tuple(value for value in sensitive_values if value)
+
+    def _redact_value(key: str, value):
+        if key.lower() in redacted_keys:
+            return "***"
+        if isinstance(value, dict):
+            return {
+                nested_key: _redact_value(nested_key, nested_value)
+                for nested_key, nested_value in value.items()
+            }
+        if isinstance(value, list):
+            return [_redact_value(key, item) for item in value]
+        if isinstance(value, str):
+            for sensitive_value in replacements:
+                value = value.replace(sensitive_value, "***")
+        return value
+
+    return {key: _redact_value(key, value) for key, value in details.items()}

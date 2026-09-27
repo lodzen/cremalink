@@ -1,5 +1,7 @@
 import base64
 import json
+import logging
+import uuid
 
 import pytest
 import pytest_asyncio
@@ -9,6 +11,7 @@ from cremalink.local_server_app.api import LOCAL_STATE_KEY
 from cremalink.local_server_app.device_adapter import DeviceAdapter
 from cremalink.local_server_app.logging import create_logger
 from cremalink.local_server_app.protocol import encrypt_payload
+from cremalink.local_server_app.state import LocalServerState
 
 
 class FakeAdapter(DeviceAdapter):
@@ -95,3 +98,46 @@ async def test_full_flow(app_client):
 
     resp = await client.get("/health")
     assert await resp.text() == "ok"
+
+
+@pytest.mark.asyncio
+async def test_server_events_are_redacted_and_forwarded(caplog):
+    settings = ServerSettings(
+        server_settings_path="",
+        enable_device_register=False,
+        enable_nudger_job=False,
+        enable_monitor_job=False,
+        enable_rekey_job=False,
+    )
+    ha_logger = logging.getLogger("test_cremalink_forwarded")
+    caplog.set_level(logging.INFO, logger=ha_logger.name)
+    logger = create_logger(
+        f"test_local_server_{uuid.uuid4().hex}",
+        settings.log_ring_size,
+        forward_logger=ha_logger,
+    )
+    state = LocalServerState(settings, logger)
+
+    await state.configure(
+        dsn="secret-dsn",
+        device_ip="192.0.2.20",
+        lan_key="secret-lan-key",
+    )
+
+    handler = next(handler for handler in logger.handlers if hasattr(handler, "get_events"))
+    configured_event = next(
+        event for event in handler.get_events() if event["event"] == "configured"
+    )
+    assert configured_event["details"] == {
+        "dsn": "***",
+        "device_ip": "***",
+        "scheme": "https",
+    }
+    forwarded_message = next(
+        record.getMessage()
+        for record in caplog.records
+        if "configured details=" in record.getMessage()
+    )
+    assert "secret-dsn" not in forwarded_message
+    assert "192.0.2.20" not in forwarded_message
+    assert "secret-lan-key" not in forwarded_message

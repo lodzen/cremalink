@@ -3,15 +3,21 @@ requires = ["setuptools>=80.9.0", "setuptools-scm[simple]>=9.2.2"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "cremalink"
+name = "cremalink-lodzen"
 dynamic = ["version"]
 description = "Python library and local API server for monitoring and controlling IoT coffee machines."
-authors = [{ name = "Midian Tekle Elfu", email = "developer@midian.tekleelfu.de"}]
-maintainers = [{ name = "Midian Tekle Elfu", email = "developer@midian.tekleelfu.de"}]
+authors = [
+    { name = "Midian Tekle Elfu", email = "developer@midian.tekleelfu.de" },
+    { name = "lodzen", email = "dalodzik@googlemail.com" },
+]
+maintainers = [
+    { name = "Midian Tekle Elfu", email = "developer@midian.tekleelfu.de" },
+    { name = "lodzen", email = "dalodzik@googlemail.com" },
+]
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "requests>=2.34.0",
+    "requests>=2.32.5",
     "pycryptodome==3.23.0",
     "aiohttp>=3.13.0",
     "pydantic>=2.12.0",
@@ -41,8 +47,8 @@ classifiers = [
 
 [project.optional-dependencies]
 dev = [
-    "cremalink[test]",
-    "cremalink[docs]",
+    "cremalink-lodzen[test]",
+    "cremalink-lodzen[docs]",
     "ipykernel>=7.2.0",
     "notebook>=7.5.5",
 ]
@@ -76,8 +82,8 @@ exclude = ["tests*", "notebooks*"]
 cremalink-server = "cremalink.local_server:main"
 
 [project.urls]
-homepage = "https://github.com/miditkl/cremalink"
-source = "https://github.com/miditkl/cremalink.git"
-issues = "https://github.com/miditkl/cremalink/issues"
-download = "https://github.com/miditkl/cremalink/archive/refs/heads/main.zip"
-funding = "https://github.com/sponsors/miditkl"
+homepage = "https://github.com/lodzen/cremalink"
+source = "https://github.com/lodzen/cremalink.git"
+issues = "https://github.com/lodzen/cremalink/issues"
+download = "https://github.com/lodzen/cremalink/archive/refs/heads/main.zip"
+funding = "https://github.com/sponsors/lodzen"

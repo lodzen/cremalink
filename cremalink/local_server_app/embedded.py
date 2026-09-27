@@ -31,11 +31,13 @@ from __future__ import annotations
 import contextlib
 import logging
 import socket
+import uuid
 
 from aiohttp import web
 
 from cremalink.local_server_app.api import create_app
 from cremalink.local_server_app.config import ServerSettings
+from cremalink.local_server_app.logging import RingBufferHandler, create_logger
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -96,6 +98,8 @@ class EmbeddedLocalServer:
         device_map_path: str | None = None,
         *,
         advertised_ip: str | None = None,
+        monitor_poll_interval: float = 5.0,
+        event_logger: logging.Logger | None = None,
         preferred_port: int = DEFAULT_PORT,
         port_fallback_range: int = DEFAULT_PORT_FALLBACK_RANGE,
         bind_host: str = "0.0.0.0",
@@ -104,6 +108,17 @@ class EmbeddedLocalServer:
         self.device_ip = device_ip
         self.lan_key = lan_key
         self.device_map_path = device_map_path
+        self.monitor_poll_interval = monitor_poll_interval
+        self._event_logger = create_logger(
+            f"cremalink.embedded.{uuid.uuid4().hex}",
+            200,
+            forward_logger=event_logger,
+        )
+        self._event_handler = next(
+            handler
+            for handler in self._event_logger.handlers
+            if isinstance(handler, RingBufferHandler)
+        )
         self.preferred_port = preferred_port
         self.port_fallback_range = port_fallback_range
         self.bind_host = bind_host
@@ -142,8 +157,9 @@ class EmbeddedLocalServer:
             server_ip=self.bind_host,
             server_port=port,
             advertised_ip=self.advertised_ip,
+            monitor_poll_interval=self.monitor_poll_interval,
         )
-        app = create_app(settings=settings)
+        app = create_app(settings=settings, logger=self._event_logger)
         runner = web.AppRunner(app, shutdown_timeout=SITE_SHUTDOWN_TIMEOUT)
 
         try:
@@ -161,6 +177,10 @@ class EmbeddedLocalServer:
         self._site = site
         self.state = "running"
 
+    def get_recent_events(self) -> list[dict]:
+        """Return a snapshot of this server's sanitized event buffer."""
+        return self._event_handler.get_events()
+
     def _bind_with_fallback(self) -> tuple[socket.socket, int]:
         """Try `preferred_port`, then increment on conflict (FR-007/FR-008)."""
         last_error: OSError | None = None
@@ -171,8 +191,7 @@ class EmbeddedLocalServer:
             except OSError as exc:
                 last_error = exc
                 _LOGGER.warning(
-                    "cremalink embedded server (dsn=%s): port %s unavailable (%s)%s",
-                    self.dsn,
+                    "cremalink embedded server: port %s unavailable (%s)%s",
                     port,
                     exc,
                     ", trying next port" if port < max_port else "",
@@ -180,16 +199,15 @@ class EmbeddedLocalServer:
                 continue
             if port != self.preferred_port:
                 _LOGGER.warning(
-                    "cremalink embedded server (dsn=%s): fell back to port %s "
+                    "cremalink embedded server: fell back to port %s "
                     "(default %s was unavailable)",
-                    self.dsn,
                     port,
                     self.preferred_port,
                 )
             return sock, port
         self.state = "failed"
         raise OSError(
-            f"cremalink embedded server (dsn={self.dsn}): could not bind any port "
+            "cremalink embedded server: could not bind any port "
             f"in {self.preferred_port}-{max_port}: {last_error}"
         )
 

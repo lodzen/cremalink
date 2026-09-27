@@ -91,6 +91,32 @@ async def test_stop_releases_the_port_immediately():
 
 
 @pytest.mark.asyncio
+async def test_monitor_interval_is_passed_to_server_settings(monkeypatch):
+    port = _free_port()
+    created_settings = []
+    create_app = embedded_mod.create_app
+
+    def _capture_settings(*, settings, logger=None):
+        created_settings.append(settings)
+        return create_app(settings=settings, logger=logger)
+
+    monkeypatch.setattr(embedded_mod, "create_app", _capture_settings)
+    server = EmbeddedLocalServer(
+        dsn="dsn-interval",
+        device_ip="127.0.0.1",
+        lan_key="key",
+        preferred_port=port,
+        bind_host="127.0.0.1",
+        monitor_poll_interval=12.0,
+    )
+    await server.start()
+    try:
+        assert created_settings[0].monitor_poll_interval == 12.0
+    finally:
+        await server.stop()
+
+
+@pytest.mark.asyncio
 async def test_two_instances_are_fully_independent():
     """Two simultaneous instances get distinct ports and independent state (FR-006)."""
     port1, port2 = _free_port(), _free_port()
@@ -105,6 +131,15 @@ async def test_two_instances_are_fully_independent():
     try:
         assert server1.bound_port != server2.bound_port
         assert server1.state == server2.state == "running"
+        server1._event_logger.info("server one event")
+        assert any(
+            event["event"] == "server one event"
+            for event in server1.get_recent_events()
+        )
+        assert not any(
+            event["event"] == "server one event"
+            for event in server2.get_recent_events()
+        )
     finally:
         await server1.stop()
         await server2.stop()
