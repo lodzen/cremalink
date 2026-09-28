@@ -15,7 +15,9 @@ from collections import deque
 from typing import TYPE_CHECKING, Any
 
 from cremalink.local_server_app import protocol
-from cremalink.local_server_app.logging import redact
+from cremalink.local_server_app.logging import (
+    log_event,
+)
 
 if TYPE_CHECKING:
     from cremalink.local_server_app.config import ServerSettings
@@ -441,17 +443,22 @@ class LocalServerState:
 
     # --- logging helper ---
     def log(self, event: str, details: dict | None = None) -> None:
-        """Convenience method for logging with redacted details."""
-        safe_details = redact(details, (self.dsn, self.lan_key))
-        self.logger.info(event, extra={"details": safe_details})
+        """Log operational detail separately from the sanitized event buffer."""
+        log_event(
+            self.logger,
+            event,
+            details,
+            diagnostic_sensitive_values=(self.dsn, self.device_ip, self.lan_key),
+            operational_sensitive_values=(self.lan_key,),
+        )
 
     def log_telemetry(self, event: str, details: dict) -> None:
         """Forward redacted telemetry without retaining it in diagnostics."""
-        safe_details = redact(details, (self.dsn, self.lan_key))
-        self.logger.info(
+        log_event(
+            self.logger,
             event,
-            extra={
-                "details": safe_details,
-                "exclude_from_diagnostics": True,
-            },
+            details,
+            diagnostic_sensitive_values=(self.dsn, self.device_ip, self.lan_key),
+            operational_sensitive_values=(self.lan_key,),
+            telemetry=True,
         )

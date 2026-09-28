@@ -37,12 +37,15 @@ from aiohttp import web
 
 from cremalink.local_server_app.api import create_app
 from cremalink.local_server_app.config import ServerSettings
-from cremalink.local_server_app.logging import RingBufferHandler, create_logger
-
-_LOGGER = logging.getLogger(__name__)
+from cremalink.local_server_app.logging import (
+    RingBufferHandler,
+    create_logger,
+    log_event,
+)
 
 #: Default port, matching the standalone server/add-on's historical default.
 DEFAULT_PORT = 10280
+DEFAULT_REKEY_INTERVAL_SECONDS = 60.0
 #: How many ports past the preferred one to try before giving up (FR-007).
 DEFAULT_PORT_FALLBACK_RANGE = 50
 #: Bound on how long stop() can take waiting for in-flight connections to
@@ -99,6 +102,7 @@ class EmbeddedLocalServer:
         *,
         advertised_ip: str | None = None,
         monitor_poll_interval: float = 5.0,
+        nudger_poll_interval: float = 1.0,
         event_logger: logging.Logger | None = None,
         preferred_port: int = DEFAULT_PORT,
         port_fallback_range: int = DEFAULT_PORT_FALLBACK_RANGE,
@@ -109,10 +113,14 @@ class EmbeddedLocalServer:
         self.lan_key = lan_key
         self.device_map_path = device_map_path
         self.monitor_poll_interval = monitor_poll_interval
+        self.nudger_poll_interval = nudger_poll_interval
+        self.rekey_interval_seconds = DEFAULT_REKEY_INTERVAL_SECONDS
         self._event_logger = create_logger(
             f"cremalink.embedded.{uuid.uuid4().hex}",
             200,
             forward_logger=event_logger,
+            diagnostic_sensitive_values=(dsn, device_ip, lan_key, bind_host),
+            operational_sensitive_values=(lan_key,),
         )
         self._event_handler = next(
             handler
@@ -145,31 +153,36 @@ class EmbeddedLocalServer:
 
         if self.advertised_ip is None:
             self.advertised_ip = detect_advertised_ip(self.device_ip)
+        self._event_handler.diagnostic_sensitive_values += (self.advertised_ip,)
 
         sock, port = self._bind_with_fallback()
         self._sock = sock
         self.bound_port = port
 
-        # A fresh, per-instance ServerSettings -- never the process-global
-        # `local_server_app.config.get_settings()` lru_cache singleton, so
-        # simultaneously running instances can never share port/state (FR-006).
-        settings = ServerSettings(
-            server_ip=self.bind_host,
-            server_port=port,
-            advertised_ip=self.advertised_ip,
-            monitor_poll_interval=self.monitor_poll_interval,
-        )
-        app = create_app(settings=settings, logger=self._event_logger)
-        runner = web.AppRunner(app, shutdown_timeout=SITE_SHUTDOWN_TIMEOUT)
-
+        runner: web.AppRunner | None = None
         try:
+            # Never use the cached process-global settings; each server owns
+            # an independent job configuration and lifecycle.
+            settings = ServerSettings(
+                server_ip=self.bind_host,
+                server_port=port,
+                advertised_ip=self.advertised_ip,
+                monitor_poll_interval=self.monitor_poll_interval,
+                nudger_poll_interval=self.nudger_poll_interval,
+                rekey_interval_seconds=self.rekey_interval_seconds,
+            )
+            app = create_app(settings=settings, logger=self._event_logger)
+            runner = web.AppRunner(app, shutdown_timeout=SITE_SHUTDOWN_TIMEOUT)
             await runner.setup()
             site = web.SockSite(runner, sock)
             await site.start()
         except BaseException:
             self.state = "failed"
-            with contextlib.suppress(Exception):
-                await runner.cleanup()
+            if runner is not None:
+                with contextlib.suppress(Exception):
+                    await runner.cleanup()
+            with contextlib.suppress(OSError):
+                sock.close()
             self._sock = None
             raise
 
@@ -181,6 +194,39 @@ class EmbeddedLocalServer:
         """Return a snapshot of this server's sanitized event buffer."""
         return self._event_handler.get_events()
 
+    @property
+    def event_logger(self) -> logging.Logger:
+        """Return this instance's isolated library event logger."""
+        return self._event_logger
+
+    def log(
+        self,
+        event: str,
+        details: dict | None = None,
+        *,
+        level: int = logging.INFO,
+    ) -> None:
+        """Route an integration-owned event through this server's log path."""
+        log_event(
+            self._event_logger,
+            event,
+            details,
+            diagnostic_sensitive_values=(self.dsn, self.device_ip, self.lan_key),
+            operational_sensitive_values=(self.lan_key,),
+            level=level,
+        )
+
+    def log_telemetry(self, event: str, details: dict) -> None:
+        """Forward telemetry through the HA logger without buffering it."""
+        log_event(
+            self._event_logger,
+            event,
+            details,
+            diagnostic_sensitive_values=(self.dsn, self.device_ip, self.lan_key),
+            operational_sensitive_values=(self.lan_key,),
+            telemetry=True,
+        )
+
     def _bind_with_fallback(self) -> tuple[socket.socket, int]:
         """Try `preferred_port`, then increment on conflict (FR-007/FR-008)."""
         last_error: OSError | None = None
@@ -190,19 +236,21 @@ class EmbeddedLocalServer:
                 sock = _bind_socket(self.bind_host, port)
             except OSError as exc:
                 last_error = exc
-                _LOGGER.warning(
-                    "cremalink embedded server: port %s unavailable (%s)%s",
-                    port,
-                    exc,
-                    ", trying next port" if port < max_port else "",
+                self.log(
+                    "embedded_server_port_unavailable",
+                    {
+                        "port": port,
+                        "error": str(exc),
+                        "trying_next_port": port < max_port,
+                    },
+                    level=logging.WARNING,
                 )
                 continue
             if port != self.preferred_port:
-                _LOGGER.warning(
-                    "cremalink embedded server: fell back to port %s "
-                    "(default %s was unavailable)",
-                    port,
-                    self.preferred_port,
+                self.log(
+                    "embedded_server_port_fallback",
+                    {"port": port, "preferred_port": self.preferred_port},
+                    level=logging.WARNING,
                 )
             return sock, port
         self.state = "failed"

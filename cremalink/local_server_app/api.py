@@ -21,7 +21,7 @@ from cremalink.local_server_app.jobs import (
     nudger_job,
     rekey_job,
 )
-from cremalink.local_server_app.logging import create_logger
+from cremalink.local_server_app.logging import create_logger, log_event
 from cremalink.local_server_app.models import (
     CommandPollResponse,
     CommandRequest,
@@ -68,16 +68,23 @@ def create_app(
     """
     # Initialize core components, allowing for dependency injection in tests.
     settings = settings or get_settings()
-    logger = logger or create_logger("local_server", settings.log_ring_size)
+    logger = logger or create_logger(
+        "local_server", settings.log_ring_size, console=True
+    )
     state = LocalServerState(settings, logger)
     adapter = device_adapter or DeviceAdapter(settings, logger)
     stop_event = asyncio.Event()
     jobs = JobManager()
 
-    print(
-        f"Starting cremalink local server on http://{settings.server_ip}:{settings.server_port}..."
+    log_event(
+        logger,
+        "Starting cremalink local server",
+        {
+            "server_ip": settings.server_ip,
+            "server_port": settings.server_port,
+            "advertised_ip": settings.advertised_ip,
+        },
     )
-    print(f"IP address advertised to the coffee machine: {settings.advertised_ip}")
 
     app = web.Application()
     # Exposed for tests/introspection, mirroring the previous FastAPI app.state.* pattern.

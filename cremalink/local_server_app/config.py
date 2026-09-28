@@ -42,6 +42,7 @@ class ServerSettings(BaseSettings):
     # --- Job Interval Settings ---
     nudger_poll_interval: float = Field(
         1.0,
+        gt=0,
         validation_alias="NUDGER_POLL_INTERVAL",
         description="Interval in seconds for the 'nudger' job to poll for command responses.",
     )

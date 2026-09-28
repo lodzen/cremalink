@@ -6,15 +6,19 @@ FR-012 (crash surfaces as failed state), FR-013 (advertised-IP detection).
 """
 
 import asyncio
+import logging
 import socket
+import uuid
 
 import aiohttp
 import pytest
 from cremalink.local_server_app import embedded as embedded_mod
+from cremalink.local_server_app.config import ServerSettings
 from cremalink.local_server_app.embedded import (
     EmbeddedLocalServer,
     detect_advertised_ip,
 )
+from pydantic import ValidationError
 
 
 def _free_port() -> int:
@@ -25,6 +29,11 @@ def _free_port() -> int:
         return sock.getsockname()[1]
     finally:
         sock.close()
+
+
+def test_server_settings_reject_non_positive_job_intervals():
+    with pytest.raises(ValidationError):
+        ServerSettings(nudger_poll_interval=0)
 
 
 @pytest.mark.asyncio
@@ -108,12 +117,38 @@ async def test_monitor_interval_is_passed_to_server_settings(monkeypatch):
         preferred_port=port,
         bind_host="127.0.0.1",
         monitor_poll_interval=12.0,
+        nudger_poll_interval=0.5,
     )
     await server.start()
     try:
         assert created_settings[0].monitor_poll_interval == 12.0
+        assert created_settings[0].nudger_poll_interval == 0.5
+        assert created_settings[0].rekey_interval_seconds == 60.0
+        assert server.rekey_interval_seconds == 60.0
     finally:
         await server.stop()
+
+
+@pytest.mark.asyncio
+async def test_invalid_interval_releases_bound_socket():
+    port = _free_port()
+    server = EmbeddedLocalServer(
+        dsn="dsn-invalid-interval",
+        device_ip="127.0.0.1",
+        lan_key="key",
+        preferred_port=port,
+        bind_host="127.0.0.1",
+        nudger_poll_interval=0,
+    )
+
+    with pytest.raises(ValidationError):
+        await server.start()
+
+    assert server.state == "failed"
+    assert server._sock is None
+    probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    probe.bind(("127.0.0.1", port))
+    probe.close()
 
 
 @pytest.mark.asyncio
@@ -168,6 +203,72 @@ async def test_port_conflict_falls_back_to_next_free_port():
             await server.stop()
     finally:
         blocker.close()
+
+
+@pytest.mark.asyncio
+async def test_port_fallback_warning_uses_per_server_logger(caplog):
+    port = _free_port()
+    blocker = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    blocker.bind(("127.0.0.1", port))
+    blocker.listen()
+    ha_logger = logging.getLogger(f"test_embedded_forward_{uuid.uuid4().hex}")
+    caplog.set_level(logging.WARNING, logger=ha_logger.name)
+    server = EmbeddedLocalServer(
+        dsn="dsn-warning",
+        device_ip="127.0.0.1",
+        lan_key="secret-key",
+        preferred_port=port,
+        port_fallback_range=5,
+        bind_host="127.0.0.1",
+        event_logger=ha_logger,
+    )
+    try:
+        await server.start()
+        forwarded = [
+            record
+            for record in caplog.records
+            if record.name == ha_logger.name
+            and "embedded_server_port_fallback" in record.getMessage()
+        ]
+        buffered = [
+            event
+            for event in server.get_recent_events()
+            if event["event"] == "embedded_server_port_fallback"
+        ]
+        assert len(forwarded) == 1
+        assert len(buffered) == 1
+    finally:
+        await server.stop()
+        blocker.close()
+
+
+def test_embedded_logger_redacts_plain_message_from_buffer(caplog):
+    ha_logger = logging.getLogger(f"test_embedded_message_{uuid.uuid4().hex}")
+    caplog.set_level(logging.INFO, logger=ha_logger.name)
+    server = EmbeddedLocalServer(
+        dsn="secret-dsn",
+        device_ip="192.0.2.40",
+        lan_key="secret-lan-key",
+        advertised_ip="192.0.2.41",
+        event_logger=ha_logger,
+    )
+
+    server.event_logger.info(
+        "device record dsn=secret-dsn device_ip=192.0.2.40 lan_key=secret-lan-key"
+    )
+
+    event = server.get_recent_events()[-1]
+    assert "secret-dsn" not in event["event"]
+    assert "192.0.2.40" not in event["event"]
+    assert "secret-lan-key" not in event["event"]
+    forwarded = next(
+        record.getMessage()
+        for record in caplog.records
+        if record.name == ha_logger.name and "device record" in record.getMessage()
+    )
+    assert "secret-dsn" in forwarded
+    assert "192.0.2.40" in forwarded
+    assert "secret-lan-key" not in forwarded
 
 
 @pytest.mark.asyncio
