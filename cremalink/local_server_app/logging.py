@@ -48,8 +48,9 @@ class RingBufferHandler(logging.Handler):
             "ts": record.created,
             "details": getattr(record, "details", {}),
         }
-        with self._lock:
-            self._events.append(event)
+        if not getattr(record, "exclude_from_diagnostics", False):
+            with self._lock:
+                self._events.append(event)
         if self.forward_logger is not None:
             details = event["details"]
             message = record.getMessage()
@@ -125,7 +126,6 @@ def redact(details: dict | None, sensitive_values: tuple[str | None, ...] = ()) 
         "cipher",
         "command",
         "decoded_prefix",
-        "device_ip",
         "dev_crypto_key",
         "dev_iv_seed",
         "dsn",

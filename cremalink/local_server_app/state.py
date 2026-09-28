@@ -70,6 +70,8 @@ class LocalServerState:
         self.last_monitor_raw: dict[str, Any] = {}
         self.last_monitor_b64: str | None = None
         self.last_monitor_received_at: float | None = None
+        self.last_monitor_command_sent_at: float | None = None
+        self._monitor_command_payloads: set[str] = set()
         self.last_properties: dict[str, Any] = {}
         self.last_properties_received_at: float | None = None
         self._monitor_request_pending = False
@@ -146,6 +148,8 @@ class LocalServerState:
             self.last_monitor_raw = {}
             self.last_monitor_b64 = None
             self.last_monitor_received_at = None
+            self.last_monitor_command_sent_at = None
+            self._monitor_command_payloads.clear()
             self._monitor_request_pending = False
             self.last_properties = {}
             self.last_properties_received_at = None
@@ -311,12 +315,12 @@ class LocalServerState:
         async with self.lock:
             if self._monitor_request_pending:
                 return
-            self.command_queue.append(
-                json.dumps(
-                    {"seq_no": protocol.pad_seq(self.seq), "data": monitor_cmd},
-                    separators=(",", ":"),
-                )
+            payload = json.dumps(
+                {"seq_no": protocol.pad_seq(self.seq), "data": monitor_cmd},
+                separators=(",", ":"),
             )
+            self.command_queue.append(payload)
+            self._monitor_command_payloads.add(payload)
             self._monitor_request_pending = True
         self.log("queue_monitor")
 
@@ -357,6 +361,9 @@ class LocalServerState:
         async with self.lock:
             if self.command_queue:
                 payload = self.command_queue.popleft()
+                if payload in self._monitor_command_payloads:
+                    self._monitor_command_payloads.remove(payload)
+                    self.last_monitor_command_sent_at = time.monotonic()
             else:
                 payload = protocol.build_empty_payload(self.seq)
             current_seq = self.seq
@@ -435,5 +442,16 @@ class LocalServerState:
     # --- logging helper ---
     def log(self, event: str, details: dict | None = None) -> None:
         """Convenience method for logging with redacted details."""
-        safe_details = redact(details, (self.dsn, self.device_ip, self.lan_key))
+        safe_details = redact(details, (self.dsn, self.lan_key))
         self.logger.info(event, extra={"details": safe_details})
+
+    def log_telemetry(self, event: str, details: dict) -> None:
+        """Forward redacted telemetry without retaining it in diagnostics."""
+        safe_details = redact(details, (self.dsn, self.lan_key))
+        self.logger.info(
+            event,
+            extra={
+                "details": safe_details,
+                "exclude_from_diagnostics": True,
+            },
+        )

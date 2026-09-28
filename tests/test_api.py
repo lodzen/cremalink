@@ -148,7 +148,7 @@ async def test_server_events_are_redacted_and_forwarded(caplog):
     )
     assert configured_event["details"] == {
         "dsn": "***",
-        "device_ip": "***",
+        "device_ip": "192.0.2.20",
         "scheme": "https",
     }
     forwarded_message = next(
@@ -157,5 +157,26 @@ async def test_server_events_are_redacted_and_forwarded(caplog):
         if "configured details=" in record.getMessage()
     )
     assert "secret-dsn" not in forwarded_message
-    assert "192.0.2.20" not in forwarded_message
+    assert "192.0.2.20" in forwarded_message
     assert "secret-lan-key" not in forwarded_message
+
+    state.log_telemetry(
+        "device_datapoint_received",
+        {
+            "data": {"value": "clear-monitor-data"},
+            "device_ip": "192.0.2.20",
+            "lan_key": "secret-lan-key",
+        },
+    )
+    telemetry_message = next(
+        record.getMessage()
+        for record in caplog.records
+        if "device_datapoint_received details=" in record.getMessage()
+    )
+    assert "clear-monitor-data" in telemetry_message
+    assert "192.0.2.20" in telemetry_message
+    assert '"lan_key": "***"' in telemetry_message
+    assert "secret-lan-key" not in telemetry_message
+    assert not any(
+        event["event"] == "device_datapoint_received" for event in handler.get_events()
+    )

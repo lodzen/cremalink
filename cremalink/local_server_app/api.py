@@ -3,6 +3,7 @@ This module defines the aiohttp application for the local proxy server.
 It creates all the API endpoints, manages application state, and handles the
 startup and shutdown of background services.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -73,7 +74,9 @@ def create_app(
     stop_event = asyncio.Event()
     jobs = JobManager()
 
-    print(f"Starting cremalink local server on http://{settings.server_ip}:{settings.server_port}...")
+    print(
+        f"Starting cremalink local server on http://{settings.server_ip}:{settings.server_port}..."
+    )
     print(f"IP address advertised to the coffee machine: {settings.advertised_ip}")
 
     app = web.Application()
@@ -103,7 +106,9 @@ def create_app(
             await adapter.register_with_device(state)
         except Exception as exc:
             state.log("local_reg_initial_failed", {"error": str(exc)})
-        return web.json_response({"status": "configured", "dsn": req.dsn, "device_scheme": req.device_scheme})
+        return web.json_response(
+            {"status": "configured", "dsn": req.dsn, "device_scheme": req.device_scheme}
+        )
 
     async def command(request: web.Request) -> web.Response:
         """Queues a command to be sent to the device."""
@@ -141,7 +146,9 @@ def create_app(
         except ConnectionError as exc:
             raise web.HTTPBadGateway(text=str(exc)) from exc
         snapshot = await state.snapshot_properties()
-        return web.json_response(PropertiesResponse.model_validate(snapshot).model_dump())
+        return web.json_response(
+            PropertiesResponse.model_validate(snapshot).model_dump()
+        )
 
     async def get_property(request: web.Request) -> web.Response:
         """Gets a single property value from the last known snapshot."""
@@ -155,7 +162,9 @@ def create_app(
         return web.Response(text="ok")
 
     async def logs(request: web.Request) -> web.Response:
-        ring_handler = next((h for h in logger.handlers if hasattr(h, "get_events")), None)
+        ring_handler = next(
+            (h for h in logger.handlers if hasattr(h, "get_events")), None
+        )
         events = ring_handler.get_events() if ring_handler else []
         return web.json_response({"events": events, "last_command": state.last_command})
 
@@ -164,7 +173,9 @@ def create_app(
             next_payload = state.command_queue[0] if state.command_queue else None
             queued = len(state.command_queue)
             seq = state.seq
-        return web.json_response({"queued": queued, "next_payload": next_payload, "seq": seq})
+        return web.json_response(
+            {"queued": queued, "next_payload": next_payload, "seq": seq}
+        )
 
     async def monitor(request: web.Request) -> web.Response:
         async with state.lock:  # type: ignore[attr-defined]
@@ -179,9 +190,12 @@ def create_app(
         req = await _parse_json_model(request, KeyExchangeRequest)
         exchange = req.key_exchange
         await state.init_crypto(random_1=exchange.random_1, time_1=exchange.time_1)
-        state.log("key_exchange", {"random_1": exchange.random_1, "time_1": exchange.time_1})
+        state.log(
+            "key_exchange", {"random_1": exchange.random_1, "time_1": exchange.time_1}
+        )
         return web.json_response(
-            {"random_2": state.random_2, "time_2": int(state.time_2)}, status=web.HTTPAccepted.status_code
+            {"random_2": state.random_2, "time_2": int(state.time_2)},
+            status=web.HTTPAccepted.status_code,
         )
 
     async def serve_command_poll() -> CommandPollResponse:
@@ -193,14 +207,20 @@ def create_app(
         next_item = await state.next_command_payload()
         payload, current_seq = next_item["payload"], next_item["seq"]
 
-        enc, new_iv = protocol.encrypt_payload(payload, state.app_crypto_key, state.app_iv_seed)
+        enc, new_iv = protocol.encrypt_payload(
+            payload, state.app_crypto_key, state.app_iv_seed
+        )
         state.app_iv_seed = new_iv
         sign = protocol.sign_payload(payload, state.app_sign_key)
         async with state.lock:
             state.command_payload = protocol.build_empty_payload(state.seq)
         state.log(
             "command_served",
-            {"seq": current_seq, "queued_remaining": len(state.command_queue), "payload_size": len(payload)},
+            {
+                "seq": current_seq,
+                "queued_remaining": len(state.command_queue),
+                "payload_size": len(payload),
+            },
         )
         return CommandPollResponse(enc=enc, sign=sign, seq=current_seq)
 
@@ -215,7 +235,9 @@ def create_app(
             raise web.HTTPServiceUnavailable(text="Keys not initialized")
 
         payload = await _parse_json_model(request, EncPayload)
-        decrypted_bytes, new_iv = protocol.decrypt_payload(payload.enc, state.dev_crypto_key, state.dev_iv_seed)
+        decrypted_bytes, new_iv = protocol.decrypt_payload(
+            payload.enc, state.dev_crypto_key, state.dev_iv_seed
+        )
         state.dev_iv_seed = new_iv
 
         try:
@@ -228,12 +250,16 @@ def create_app(
                 state._properties_request_pending = False
             return web.Response(status=200)
         except json.JSONDecodeError:
-            state.log("datapoint_decode_failed_json", {"decoded_prefix": decrypted_bytes[:64].decode("utf-8", "ignore")})
+            state.log(
+                "datapoint_decode_failed_json",
+                {"decoded_prefix": decrypted_bytes[:64].decode("utf-8", "ignore")},
+            )
             async with state.lock:
                 state._monitor_request_pending = False
                 state._properties_request_pending = False
             return web.Response(status=200)
 
+        state.log_telemetry("device_datapoint_received", decoded_json)
         await state.handle_datapoint(decoded_json)
         return web.json_response({})
 
