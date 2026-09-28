@@ -1,11 +1,14 @@
 import asyncio
 import base64
+import time
 
-from cremalink import device_map
 from cremalink.core.binary import crc16_ccitt
 from cremalink.domain.device import Device
+from cremalink.local_server_app.jobs import monitor_job
 from cremalink.local_server_app.state import LocalServerState
 from cremalink.parsing.monitor.decode import build_monitor_snapshot
+
+from cremalink import device_map
 
 
 def build_monitor_b64(
@@ -75,10 +78,17 @@ class StubTransport:
 
 def test_monitor_view_and_profile_flags():
     monitor_b64 = build_monitor_b64()
-    snapshot = build_monitor_snapshot({"monitor_b64": monitor_b64, "received_at": 1.0}, source="local", device_id="dsn1")
+    snapshot = build_monitor_snapshot(
+        {"monitor_b64": monitor_b64, "received_at": 1.0},
+        source="local",
+        device_id="dsn1",
+    )
     transport = StubTransport(snapshot)
     device = Device.from_map(
-        transport=transport, device_map_path=device_map("ECAM612"), dsn="dsn1", nickname="test"
+        transport=transport,
+        device_map_path=device_map("ECAM612"),
+        dsn="dsn1",
+        nickname="test",
     )
 
     view = device.get_monitor()
@@ -99,6 +109,7 @@ def test_queue_monitor_uses_configured_property_name():
         fixed_random_2 = None
         fixed_time_2 = None
         server_settings_path = ""
+        monitor_poll_interval = 0.05
 
     class DummyLogger:
         def info(self, *args, **kwargs):
@@ -119,15 +130,49 @@ def test_queue_monitor_uses_configured_property_name():
             queued_payload = state.command_queue[0]
         assert "d302_monitor" in queued_payload
 
+        await state.next_command_payload()
+        sent_at = state.last_monitor_command_sent_at
+        assert sent_at is not None
+
+        await state.handle_datapoint({"data": {"value": "monitor-frame"}})
+        stop_event = asyncio.Event()
+        task = asyncio.create_task(monitor_job(state, state.settings, stop_event))
+
+        async def wait_for_next_monitor():
+            while True:
+                async with state.lock:
+                    if state.command_queue:
+                        return
+                await asyncio.sleep(0.001)
+
+        try:
+            await asyncio.wait_for(
+                wait_for_next_monitor(),
+                timeout=state.settings.monitor_poll_interval + 0.25,
+            )
+            assert time.monotonic() - sent_at >= state.settings.monitor_poll_interval
+        finally:
+            stop_event.set()
+            await task
+
     asyncio.run(run())
 
 
 def test_monitor_profile_predicates_and_enums():
-    monitor_b64 = build_monitor_b64(accessory=2, status=1, progress=5, switches=bytes([0x00, 0x00]), action=1)
-    snapshot = build_monitor_snapshot({"monitor_b64": monitor_b64, "received_at": 1.0}, source="local", device_id="dsn1")
+    monitor_b64 = build_monitor_b64(
+        accessory=2, status=1, progress=5, switches=bytes([0x00, 0x00]), action=1
+    )
+    snapshot = build_monitor_snapshot(
+        {"monitor_b64": monitor_b64, "received_at": 1.0},
+        source="local",
+        device_id="dsn1",
+    )
     transport = StubTransport(snapshot)
     device = Device.from_map(
-        transport=transport, device_map_path=device_map("ECAM612"), dsn="dsn1", nickname="test"
+        transport=transport,
+        device_map_path=device_map("ECAM612"),
+        dsn="dsn1",
+        nickname="test",
     )
     view = device.get_monitor()
 

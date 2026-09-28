@@ -5,6 +5,7 @@ This top-level package exposes the primary user-facing classes and functions
 for easy access, including the main `Client`, the `Device` model, and factory
 functions for creating device instances.
 """
+
 from importlib.metadata import PackageNotFoundError, version
 
 from cremalink.clients.auth import authenticate_cloud
@@ -17,11 +18,19 @@ from cremalink.domain import (
     detect_model_id,
 )
 from cremalink.local_server import LocalServer
-from cremalink.local_server_app import ServerSettings, create_app
+from cremalink.local_server_app import (
+    DEFAULT_PORT,
+    EmbeddedLocalServer,
+    ServerSettings,
+    create_app,
+)
+from cremalink.local_server_app.logging import log_event
 
 __all__ = [
+    "DEFAULT_PORT",
     "Client",
     "Device",
+    "EmbeddedLocalServer",
     "LocalServer",
     "ServerSettings",
     "authenticate_cloud",
@@ -30,6 +39,7 @@ __all__ = [
     "create_local_device",
     "detect_model_id",
     "device_map",
+    "log_event",
 ]
 
 try:
