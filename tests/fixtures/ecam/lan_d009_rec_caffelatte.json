@@ -1,0 +1,56 @@
+{
+  "seq_no": 119,
+  "data": {
+    "name": "d009_rec_caffelatte",
+    "base_type": "string",
+    "value": "0Cyw8AkcAgICGAABARkAAQEBABQAPAC0GwABBAIAAwUJADIBfAQGBAAAAKTu"
+  },
+  "_decoded": {
+    "blob_family": "factory_descriptor",
+    "crc_valid": true,
+    "truncated": false,
+    "hex": "d0 2c b0 f0 09 1c 02 02 02 18 00 01 01 19 00 01 01 01 00 14 00 3c 00 b4 1b 00 01 04 02 00 03 05 09 00 32 01 7c 04 06 04 00 00 00 a4 ee",
+    "descriptor_ranges": {
+      "tag_0x1c": [
+        2,
+        2,
+        2
+      ],
+      "tag_0x18": [
+        0,
+        1,
+        1
+      ],
+      "tag_0x19": [
+        0,
+        1,
+        1
+      ],
+      "coffee_ml": [
+        20,
+        60,
+        180
+      ],
+      "temperature": [
+        0,
+        1,
+        4
+      ],
+      "intensity": [
+        0,
+        3,
+        5
+      ],
+      "milk": [
+        50,
+        380,
+        1030
+      ],
+      "tag_0x04": [
+        0,
+        0,
+        0
+      ]
+    }
+  }
+}

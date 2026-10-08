@@ -1,0 +1,11 @@
+{
+  "seq_no": 217,
+  "data": {
+    "name": "d513_percentage_usage_fltr",
+    "base_type": "integer",
+    "value": 0
+  },
+  "_decoded": {
+    "counter_value": 0
+  }
+}

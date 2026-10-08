@@ -7,6 +7,7 @@ and FR-014 (bounded retry on transient failures).
 from __future__ import annotations
 
 import json
+import logging
 
 import pytest
 import requests
@@ -193,3 +194,30 @@ def test_get_lan_config_raises_after_exhausting_retries(tmp_path, monkeypatch):
 
     with pytest.raises(requests.ConnectionError):
         client.get_lan_config("AC000W1")
+
+
+def test_retry_logs_through_injected_logger(tmp_path, monkeypatch, caplog):
+    client = _make_client(tmp_path, monkeypatch, [])
+    logger = logging.getLogger("test_cremalink_cloud_retry")
+    client.logger = logger
+    caplog.set_level(logging.DEBUG, logger=logger.name)
+    monkeypatch.setattr("cremalink.clients.cloud.time.sleep", lambda *_a, **_k: None)
+
+    calls = {"count": 0}
+
+    def flaky_get(*_a, **_k):
+        calls["count"] += 1
+        if calls["count"] == 1:
+            raise requests.ConnectionError("transient")
+        return _FakeResponse(200, {"device": {"lan_enabled": False}})
+
+    monkeypatch.setattr("cremalink.clients.cloud.requests.get", flaky_get)
+
+    client.get_lan_config("AC000W1")
+
+    retry_records = [
+        record
+        for record in caplog.records
+        if record.name == logger.name and "cloud_retry" in record.getMessage()
+    ]
+    assert len(retry_records) == 1

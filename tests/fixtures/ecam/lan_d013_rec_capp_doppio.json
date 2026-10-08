@@ -1,0 +1,51 @@
+{
+  "seq_no": 124,
+  "data": {
+    "name": "d013_rec_capp_doppio",
+    "base_type": "string",
+    "value": "0Ciw8A0cAgICGAABARkAAQEBAFAAZAC0GwABBAkAMgCWBDgEAAAAmt4="
+  },
+  "_decoded": {
+    "blob_family": "factory_descriptor",
+    "crc_valid": true,
+    "truncated": false,
+    "hex": "d0 28 b0 f0 0d 1c 02 02 02 18 00 01 01 19 00 01 01 01 00 50 00 64 00 b4 1b 00 01 04 09 00 32 00 96 04 38 04 00 00 00 9a de",
+    "descriptor_ranges": {
+      "tag_0x1c": [
+        2,
+        2,
+        2
+      ],
+      "tag_0x18": [
+        0,
+        1,
+        1
+      ],
+      "tag_0x19": [
+        0,
+        1,
+        1
+      ],
+      "coffee_ml": [
+        80,
+        100,
+        180
+      ],
+      "temperature": [
+        0,
+        1,
+        4
+      ],
+      "milk": [
+        50,
+        150,
+        1080
+      ],
+      "tag_0x04": [
+        0,
+        0,
+        0
+      ]
+    }
+  }
+}

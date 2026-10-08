@@ -1,0 +1,22 @@
+{
+  "seq_no": 174,
+  "data": {
+    "name": "d059_1_rec_brew_over_ice",
+    "base_type": "string",
+    "value": "0BCm8AEbGQIBAJYbAwIEiIc="
+  },
+  "_decoded": {
+    "blob_family": "profile_recipe",
+    "crc_valid": true,
+    "truncated": false,
+    "hex": "d0 10 a6 f0 01 1b 19 02 01 00 96 1b 03 02 04 88 87",
+    "recipe_params": {
+      "tag_0x19": 2,
+      "coffee_ml": 150,
+      "temperature": 3,
+      "intensity": 4
+    },
+    "profile": 1,
+    "beverage_id": "0x1b"
+  }
+}

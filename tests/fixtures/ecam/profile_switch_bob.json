@@ -1,0 +1,92 @@
+{
+  "steps": [
+    {
+      "step": "device_connected",
+      "value": 1791207991
+    },
+    {
+      "step": "control_d302",
+      "republished": true
+    },
+    {
+      "step": "wake",
+      "frame": "0d 07 84 0f 02 01 55 12"
+    },
+    {
+      "step": "d745_pre",
+      "value": "0"
+    },
+    {
+      "step": "select_a9",
+      "frame": "0d 06 a9 f0 02 e7 a3"
+    },
+    {
+      "step": "data_response",
+      "value": "d0 07 a9 f0 02 00 6e 6f"
+    },
+    {
+      "step": "d745_post",
+      "value": "0"
+    },
+    {
+      "step": "d302_post",
+      "value": "d0 12 75 0f 00 00 00 00 00 07 00 00 00 00 00 00 00 d6 a3"
+    }
+  ],
+  "datapoints": [
+    {
+      "seq_no": 27,
+      "data": {
+        "name": "d302_monitor",
+        "base_type": "string",
+        "value": "0BJ1DwAAAAAABwAAAAAAAADWo2rDqdo="
+      }
+    },
+    {
+      "seq_no": 28,
+      "data": {
+        "name": "d302_monitor",
+        "value": "0BJ1DwAAAAAABwAAAAAAAADWo2rDqjg="
+      }
+    },
+    {
+      "seq_no": 29,
+      "data": {
+        "name": "d745_profile_set",
+        "base_type": "integer",
+        "value": 0
+      }
+    },
+    {
+      "seq_no": 30,
+      "data": {
+        "name": "data_response",
+        "value": "0Aep8AIAbm9qw6pJ"
+      }
+    },
+    {
+      "seq_no": 31,
+      "data": {
+        "name": "data_response",
+        "base_type": "string",
+        "value": "0Aep8AIAbm9qw6pJ"
+      }
+    },
+    {
+      "seq_no": 32,
+      "data": {
+        "name": "d745_profile_set",
+        "base_type": "integer",
+        "value": 0
+      }
+    },
+    {
+      "seq_no": 33,
+      "data": {
+        "name": "d302_monitor",
+        "base_type": "string",
+        "value": "0BJ1DwAAAAAABwAAAAAAAADWo2rDqjg="
+      }
+    }
+  ]
+}

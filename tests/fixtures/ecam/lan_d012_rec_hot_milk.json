@@ -1,0 +1,41 @@
+{
+  "seq_no": 123,
+  "data": {
+    "name": "d012_rec_hot_milk",
+    "base_type": "string",
+    "value": "0B2w8AwcAgICGAABARkAAQEJADIBaAQ4GwABBAf0"
+  },
+  "_decoded": {
+    "blob_family": "factory_descriptor",
+    "crc_valid": true,
+    "truncated": false,
+    "hex": "d0 1d b0 f0 0c 1c 02 02 02 18 00 01 01 19 00 01 01 09 00 32 01 68 04 38 1b 00 01 04 07 f4",
+    "descriptor_ranges": {
+      "tag_0x1c": [
+        2,
+        2,
+        2
+      ],
+      "tag_0x18": [
+        0,
+        1,
+        1
+      ],
+      "tag_0x19": [
+        0,
+        1,
+        1
+      ],
+      "milk": [
+        50,
+        360,
+        1080
+      ],
+      "temperature": [
+        0,
+        1,
+        4
+      ]
+    }
+  }
+}

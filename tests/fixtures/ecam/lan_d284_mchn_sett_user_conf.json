@@ -1,0 +1,14 @@
+{
+  "seq_no": 208,
+  "data": {
+    "name": "d284_mchn_sett_user_conf",
+    "base_type": "string",
+    "value": "0AuVDwA/AAAAHSoT"
+  },
+  "_decoded": {
+    "blob_family": "95 0f",
+    "crc_valid": true,
+    "truncated": false,
+    "hex": "d0 0b 95 0f 00 3f 00 00 00 1d 2a 13"
+  }
+}

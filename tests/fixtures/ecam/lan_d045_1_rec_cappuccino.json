@@ -1,0 +1,25 @@
+{
+  "seq_no": 157,
+  "data": {
+    "name": "d045_1_rec_cappuccino",
+    "base_type": "string",
+    "value": "0Bem8AEHHAIZAQEAYRsDAgQJAP8EAKPo"
+  },
+  "_decoded": {
+    "blob_family": "profile_recipe",
+    "crc_valid": true,
+    "truncated": false,
+    "hex": "d0 17 a6 f0 01 07 1c 02 19 01 01 00 61 1b 03 02 04 09 00 ff 04 00 a3 e8",
+    "recipe_params": {
+      "tag_0x1c": 2,
+      "tag_0x19": 1,
+      "coffee_ml": 97,
+      "temperature": 3,
+      "intensity": 4,
+      "milk": 255,
+      "tag_0x04": 0
+    },
+    "profile": 1,
+    "beverage_id": "0x07"
+  }
+}

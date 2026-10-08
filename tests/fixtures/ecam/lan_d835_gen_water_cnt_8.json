@@ -1,0 +1,11 @@
+{
+  "seq_no": 313,
+  "data": {
+    "name": "d835_gen_water_cnt_8",
+    "base_type": "integer",
+    "value": 0
+  },
+  "_decoded": {
+    "counter_value": 0
+  }
+}

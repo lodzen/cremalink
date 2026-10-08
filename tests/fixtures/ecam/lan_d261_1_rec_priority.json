@@ -1,0 +1,39 @@
+{
+  "seq_no": 196,
+  "data": {
+    "name": "d261_1_rec_priority",
+    "base_type": "string",
+    "value": "0Byo8AECyAcMCQgbBg8BFxkKBQQaDRgQAxYLFj4="
+  },
+  "_decoded": {
+    "blob_family": "priority_list",
+    "crc_valid": true,
+    "truncated": false,
+    "hex": "d0 1c a8 f0 01 02 c8 07 0c 09 08 1b 06 0f 01 17 19 0a 05 04 1a 0d 18 10 03 16 0b 16 3e",
+    "profile": 1,
+    "ordered_ids": [
+      "0x02",
+      "0xc8",
+      "0x07",
+      "0x0c",
+      "0x09",
+      "0x08",
+      "0x1b",
+      "0x06",
+      "0x0f",
+      "0x01",
+      "0x17",
+      "0x19",
+      "0x0a",
+      "0x05",
+      "0x04",
+      "0x1a",
+      "0x0d",
+      "0x18",
+      "0x10",
+      "0x03",
+      "0x16",
+      "0x0b"
+    ]
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "seq_no": 238,
+  "data": {
+    "name": "d704_tot_bev_espressi",
+    "base_type": "integer",
+    "value": 0
+  },
+  "_decoded": {
+    "counter_value": 0
+  }
+}

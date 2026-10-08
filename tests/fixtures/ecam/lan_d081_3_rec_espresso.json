@@ -1,0 +1,24 @@
+{
+  "seq_no": 177,
+  "data": {
+    "name": "d081_3_rec_espresso",
+    "base_type": "string",
+    "value": "0BSm8AMBCAABACgbAQIEBAAZAe4z"
+  },
+  "_decoded": {
+    "blob_family": "profile_recipe",
+    "crc_valid": true,
+    "truncated": false,
+    "hex": "d0 14 a6 f0 03 01 08 00 01 00 28 1b 01 02 04 04 00 19 01 ee 33",
+    "recipe_params": {
+      "tag_0x08": 0,
+      "coffee_ml": 40,
+      "temperature": 1,
+      "intensity": 4,
+      "tag_0x04": 0,
+      "tag_0x19": 1
+    },
+    "profile": 3,
+    "beverage_id": "0x01"
+  }
+}

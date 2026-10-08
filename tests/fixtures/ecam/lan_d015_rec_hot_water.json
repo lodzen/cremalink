@@ -1,0 +1,36 @@
+{
+  "seq_no": 126,
+  "data": {
+    "name": "d015_rec_hot_water",
+    "base_type": "string",
+    "value": "0Bmw8BAYAAEBGQABAQ8AFAD6AaQbAAEEN5Y="
+  },
+  "_decoded": {
+    "blob_family": "factory_descriptor",
+    "crc_valid": true,
+    "truncated": false,
+    "hex": "d0 19 b0 f0 10 18 00 01 01 19 00 01 01 0f 00 14 00 fa 01 a4 1b 00 01 04 37 96",
+    "descriptor_ranges": {
+      "tag_0x18": [
+        0,
+        1,
+        1
+      ],
+      "tag_0x19": [
+        0,
+        1,
+        1
+      ],
+      "water_ml": [
+        20,
+        250,
+        420
+      ],
+      "temperature": [
+        0,
+        1,
+        4
+      ]
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "seq_no": 242,
+  "data": {
+    "name": "d707_tot_id3_long",
+    "base_type": "integer",
+    "value": 0
+  },
+  "_decoded": {
+    "counter_value": 0
+  }
+}

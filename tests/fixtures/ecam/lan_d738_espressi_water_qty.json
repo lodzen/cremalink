@@ -1,0 +1,11 @@
+{
+  "seq_no": 281,
+  "data": {
+    "name": "d738_espressi_water_qty",
+    "base_type": "integer",
+    "value": 0
+  },
+  "_decoded": {
+    "counter_value": 0
+  }
+}
