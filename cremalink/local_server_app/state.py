@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
+import logging
 import os
 import time
 from collections import deque
@@ -80,6 +81,12 @@ class LocalServerState:
         self._properties_request_pending = False
         self.monitor_property_name: str = None
         self.data_request_property_name: str = None
+        # Per-property store keyed by datapoint name (any `value` datapoint
+        # and every entry of a `properties` block lands here) plus the
+        # `data_response` response mailbox (1-deep, last-write-wins).
+        self.properties_by_name: dict[str, dict[str, Any]] = {}
+        self.data_response_property_name: str = "data_response"
+        self._response_mailbox: deque[dict[str, Any]] = deque(maxlen=16)
 
         # --- Concurrency Control ---
         self.lock = asyncio.Lock()
@@ -156,6 +163,8 @@ class LocalServerState:
             self.last_properties = {}
             self.last_properties_received_at = None
             self._properties_request_pending = False
+            self.properties_by_name = {}
+            self._response_mailbox.clear()
         self.log(
             "configured", {"dsn": dsn, "device_ip": device_ip, "scheme": device_scheme}
         )
@@ -188,12 +197,14 @@ class LocalServerState:
             "data_request_property_name": data_request_property_name,
         }
         try:
-            with open(self.settings.server_settings_path, "w") as f:
-                json.dump(data, f, indent=4)
-                f.close()
+            await asyncio.to_thread(self._write_settings_file, data)
             self.logger.info(f"State saved to {self.settings.server_settings_path}")
-        except Exception as e:
+        except (OSError, TypeError, ValueError) as e:
             self.logger.error(f"Error saving state: {e}")
+
+    def _write_settings_file(self, data: dict) -> None:
+        with open(self.settings.server_settings_path, "w") as f:
+            json.dump(data, f, indent=4)
 
     def _load_server_settings(self):
         if self.settings.server_settings_path == "":
@@ -201,7 +212,6 @@ class LocalServerState:
         try:
             with open(self.settings.server_settings_path, "r") as f:
                 data = json.load(f)
-                f.close()
             self.dsn = data.get("dsn")
             self.device_ip = data.get("device_ip")
             self.lan_key = data.get("lan_key")
@@ -210,7 +220,7 @@ class LocalServerState:
             self.data_request_property_name = data.get("data_request_property_name")
 
             self.logger.info(f"State loaded from {self.settings.server_settings_path}")
-        except Exception as e:
+        except (OSError, ValueError, TypeError, AttributeError) as e:
             self.logger.error(f"Error loading state: {e}")
 
     async def rekey(self) -> None:
@@ -230,6 +240,8 @@ class LocalServerState:
             self.command_payload = protocol.build_empty_payload(self.seq)
             self._monitor_request_pending = False
             self._properties_request_pending = False
+            self.properties_by_name = {}
+            self._response_mailbox.clear()
             self.registered = False
         self.logger.info("rekey_reset")
 
@@ -296,6 +308,63 @@ class LocalServerState:
             self.command_queue.append(payload_str)
             self.last_command = command
         self.log("queue_command", {"command": command})
+
+    async def queue_property_set(self, name: str, value: Any) -> None:
+        """Adds a write for a single named datapoint to the outgoing queue.
+
+        Same `properties` envelope as `queue_command`, but the property name
+        is caller-provided (e.g. `device_connected` for session announcements).
+        """
+        if not self.is_configured():
+            raise ValueError("Server not configured")
+        payload = {
+            "seq_no": protocol.pad_seq(self.seq),
+            "data": {
+                "properties": [
+                    {
+                        "property": {
+                            "base_type": "string",
+                            "dsn": self.dsn,
+                            "name": name,
+                            "value": str(value),
+                        }
+                    }
+                ]
+            },
+        }
+        async with self.lock:
+            if len(self.command_queue) >= self.settings.queue_max_size:
+                raise OverflowError("Command queue is full")
+            self.command_queue.append(json.dumps(payload, separators=(",", ":")))
+        self.log("queue_property_set", {"name": name})
+
+    async def queue_property_get(self, name: str) -> None:
+        """Adds a request for a single named datapoint to the queue."""
+        if not self.is_configured():
+            return
+        get_cmd = {
+            "cmds": [
+                {
+                    "cmd": {
+                        "cmd_id": 1,
+                        "data": "",
+                        "method": "GET",
+                        "resource": f"property.json?name={name}",
+                        "uri": "/local_lan/property/datapoint.json",
+                    }
+                }
+            ]
+        }
+        async with self.lock:
+            if len(self.command_queue) >= self.settings.queue_max_size:
+                raise OverflowError("Command queue is full")
+            self.command_queue.append(
+                json.dumps(
+                    {"seq_no": protocol.pad_seq(self.seq), "data": get_cmd},
+                    separators=(",", ":"),
+                )
+            )
+        self.log("queue_property_get", {"name": name})
 
     async def queue_monitor(self) -> None:
         """Adds a request for the device's monitoring status to the queue."""
@@ -391,9 +460,43 @@ class LocalServerState:
                 self.log(
                     "properties_datapoint", {"count": len(data_block["properties"])}
                 )
+                entries = data_block["properties"]
+                for entry in entries.values() if isinstance(entries, dict) else entries:
+                    if not isinstance(entry, dict):
+                        continue
+                    prop = entry.get("property")
+                    if not isinstance(prop, dict):
+                        continue
+                    self._store_named_value(prop.get("name"), prop)
                 return
 
-            monitor_value = data_block.get("value")
+            name = data_block.get("name")
+            value = data_block.get("value")
+            if (
+                value
+                and name
+                and name
+                not in (
+                    self.monitor_property_name,
+                    self.data_response_property_name,
+                    "app_data_response",
+                )
+            ):
+                self._store_named_value(name, data_block)
+                self.log("property_datapoint", {"name": name})
+                return
+            if value and name in (
+                self.data_response_property_name,
+                "app_data_response",
+            ):
+                self._store_named_value(name, data_block)
+                self._response_mailbox.append(
+                    {"name": name, "value": value, "received_at": time.time()}
+                )
+                self.log("data_response_datapoint", {"name": name})
+                return
+
+            monitor_value = value
             if monitor_value:
                 self.last_monitor = {"raw_value_len": len(monitor_value)}
                 self.last_monitor_b64 = monitor_value
@@ -408,6 +511,17 @@ class LocalServerState:
                 self.last_monitor_received_at = time.time()
                 self._monitor_request_pending = False
                 self.log("monitor_datapoint", {"monitor_keys": list(data_block.keys())})
+
+    def _store_named_value(self, name: str | None, entry: dict) -> None:
+        """Stores a datapoint/property entry under its datapoint name."""
+        if not name:
+            return
+        self.properties_by_name[name] = {
+            "name": name,
+            "value": entry.get("value"),
+            "received_at": time.time(),
+            "raw": entry,
+        }
 
     # --- snapshots ---
     async def snapshot_monitor(self) -> dict[str, Any]:
@@ -439,10 +553,34 @@ class LocalServerState:
                     and entry.get("property", {}).get("name") == property_name
                 ):
                     return entry
+            named = self.properties_by_name.get(property_name)
+            if named is not None:
+                return named
         return None
 
+    async def get_named_property(self, name: str) -> dict[str, Any] | None:
+        """Returns the stored entry for a datapoint name, if seen."""
+        async with self.lock:
+            return self.properties_by_name.get(name)
+
+    async def pop_response(self) -> dict[str, Any] | None:
+        """Returns the most recent `data_response` mailbox entry (LIFO)."""
+        async with self.lock:
+            if self._response_mailbox:
+                return self._response_mailbox.pop()
+            return None
+
+    async def drain_responses(self) -> list[dict[str, Any]]:
+        """Returns all queued `data_response` entries (oldest→newest) and clears them."""
+        async with self.lock:
+            entries = list(self._response_mailbox)
+            self._response_mailbox.clear()
+            return entries
+
     # --- logging helper ---
-    def log(self, event: str, details: dict | None = None) -> None:
+    def log(
+        self, event: str, details: dict | None = None, *, level: int = logging.INFO
+    ) -> None:
         """Log operational detail separately from the sanitized event buffer."""
         log_event(
             self.logger,
@@ -450,6 +588,7 @@ class LocalServerState:
             details,
             diagnostic_sensitive_values=(self.dsn, self.device_ip, self.lan_key),
             operational_sensitive_values=(self.lan_key,),
+            level=level,
         )
 
     def log_telemetry(self, event: str, details: dict) -> None:

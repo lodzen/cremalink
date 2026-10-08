@@ -1,0 +1,15 @@
+{
+  "seq_no": 191,
+  "data": {
+    "name": "d254_beansystem_4",
+    "base_type": "string",
+    "value": "0DS68AQAQgBvAGgAbgBlAG4AIAA0AAAAAABCAG8AaABuAGUAbgAgADUAAAAAAAAAAAAA7UA="
+  },
+  "_decoded": {
+    "blob_family": "bean_names",
+    "crc_valid": true,
+    "truncated": false,
+    "hex": "d0 34 ba f0 04 00 42 00 6f 00 68 00 6e 00 65 00 6e 00 20 00 34 00 00 00 00 00 42 00 6f 00 68 00 6e 00 65 00 6e 00 20 00 35 00 00 00 00 00 00 00 00 00 00 ed 40",
+    "text_redacted": true
+  }
+}

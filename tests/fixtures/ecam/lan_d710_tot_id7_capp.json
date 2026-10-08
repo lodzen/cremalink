@@ -1,0 +1,11 @@
+{
+  "seq_no": 246,
+  "data": {
+    "name": "d710_tot_id7_capp",
+    "base_type": "integer",
+    "value": 0
+  },
+  "_decoded": {
+    "counter_value": 0
+  }
+}

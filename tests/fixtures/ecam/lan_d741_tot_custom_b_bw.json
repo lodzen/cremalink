@@ -1,0 +1,11 @@
+{
+  "seq_no": 284,
+  "data": {
+    "name": "d741_tot_custom_b_bw",
+    "base_type": "integer",
+    "value": 0
+  },
+  "_decoded": {
+    "counter_value": 0
+  }
+}

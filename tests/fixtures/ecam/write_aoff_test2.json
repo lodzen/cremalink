@@ -1,0 +1,34 @@
+{
+  "write_frame": "0d 0b 90 0f 00 3e 00 00 00 03 b1 80",
+  "read_frame": "0d 07 95 f0 00 3e 56 bc",
+  "d282_after": {
+    "name": "d282_mchn_sett_aoff",
+    "base_type": "string",
+    "value": "0F+V8AA+AAAAAgAAAB0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA6wAAALEAAAAAAAAAAIAAAAAAAAAAMl+"
+  },
+  "datapoints": [
+    {
+      "seq_no": 3,
+      "data": {
+        "name": "data_response",
+        "base_type": "string",
+        "value": "0AiQDwA+AICgasOajw=="
+      }
+    },
+    {
+      "seq_no": 4,
+      "data": {
+        "name": "d282_mchn_sett_aoff",
+        "base_type": "string",
+        "value": "0F+V8AA+AAAAAgAAAB0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA6wAAALEAAAAAAAAAAIAAAAAAAAAAMl+"
+      }
+    },
+    {
+      "seq_no": 5,
+      "data": {
+        "name": "data_request",
+        "value": "DQiVDwDCAU4easOakQ==\n"
+      }
+    }
+  ]
+}

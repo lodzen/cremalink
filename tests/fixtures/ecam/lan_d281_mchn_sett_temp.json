@@ -1,0 +1,14 @@
+{
+  "seq_no": 204,
+  "data": {
+    "name": "d281_mchn_sett_temp",
+    "base_type": "string",
+    "value": "0AuVDwA9AAAAAb0t"
+  },
+  "_decoded": {
+    "blob_family": "95 0f",
+    "crc_valid": true,
+    "truncated": false,
+    "hex": "d0 0b 95 0f 00 3d 00 00 00 01 bd 2d"
+  }
+}

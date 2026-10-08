@@ -1,0 +1,11 @@
+{
+  "seq_no": 259,
+  "data": {
+    "name": "d721_id200_bs_1",
+    "base_type": "integer",
+    "value": 0
+  },
+  "_decoded": {
+    "counter_value": 0
+  }
+}

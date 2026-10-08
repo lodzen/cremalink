@@ -8,6 +8,7 @@ functions for creating device instances.
 
 from importlib.metadata import PackageNotFoundError, version
 
+from cremalink import ecam
 from cremalink.clients.auth import authenticate_cloud
 from cremalink.clients.cloud import Client
 from cremalink.devices import device_map
@@ -39,6 +40,7 @@ __all__ = [
     "create_local_device",
     "detect_model_id",
     "device_map",
+    "ecam",
     "log_event",
 ]
 

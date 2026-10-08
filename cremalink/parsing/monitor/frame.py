@@ -2,6 +2,7 @@
 This module defines the low-level structure of a "monitor" data frame.
 It handles the byte-level decoding of the raw payload from the device.
 """
+
 from __future__ import annotations
 
 import base64
@@ -19,6 +20,7 @@ class MonitorFrame:
     their fundamental components according to the device's binary protocol.
     This includes separating headers, payload, checksums, and timestamps.
     """
+
     # --- Frame Header/Metadata ---
     direction: int
     request_id: int
@@ -38,7 +40,7 @@ class MonitorFrame:
     raw_b64: str
 
     @classmethod
-    def from_b64(cls, raw_b64: str) -> "MonitorFrame":
+    def from_b64(cls, raw_b64: str) -> MonitorFrame:
         """
         Decodes a base64 string into a structured MonitorFrame.
 
@@ -60,22 +62,22 @@ class MonitorFrame:
         raw = base64.b64decode(raw_b64)
         if len(raw) < 4:
             raise ValueError("Raw data is too short to contain a monitor frame")
-        
+
         # --- Unpack the outer frame ---
         direction = raw[0]
         length = raw[1]
         if length < 4 or len(raw) < length + 1:
             raise ValueError("Length byte inconsistent with payload")
-        
-        data = raw[2: length - 1]
-        crc = raw[length - 1: length + 1]
-        
+
+        data = raw[2 : length - 1]
+        crc = raw[length - 1 : length + 1]
+
         # --- Verify CRC ---
         if crc != crc16_ccitt(raw[: length - 1]):
             raise ValueError("CRC check failed")
-        
-        timestamp = raw[length + 1: length + 5]
-        extra = raw[length + 5:]
+
+        timestamp = raw[length + 1 : length + 5]
+        extra = raw[length + 5 :]
 
         # --- Unpack the inner monitor data payload ---
         if len(data) < 2:
@@ -83,15 +85,23 @@ class MonitorFrame:
         request_id = data[0]
         answer_required = data[1]
         contents = data[2:]
-        
-        # This implementation assumes a "V2" frame structure with 13 bytes of contents.
-        if len(contents) != 13:
-            raise ValueError("Monitor contents expected to be 13 bytes for V2 frames")
-        
+
+        # Only monitor-generation request ids carry this contents layout
+        # (0x60/0x70/0x75 per MonitorDataV2); a data_response mailbox can
+        # deliver other answer frames which must not parse as monitor.
+        if request_id not in (0x60, 0x70, 0x75):
+            raise ValueError(f"Not a monitor frame (request id 0x{request_id:02x})")
+
+        # The V2 layout publishes 13 contents bytes, but every core field
+        # lives in the first 8 — accept shorter blocks down to that floor.
+        if len(contents) < 8:
+            raise ValueError("Monitor contents too short")
+
         accessory = contents[0]
         switches = contents[1:3]
-        # Alarms are non-contiguous in the payload, so they are concatenated here.
-        alarms = contents[3:5] + contents[8:10]
+        # Alarms are non-contiguous in the payload, so they are concatenated
+        # here; the upper word bytes only exist on full-length contents.
+        alarms = contents[3:5] + (contents[8:10] if len(contents) >= 10 else b"")
         status = contents[5]
         action = contents[6]
         progress = contents[7]

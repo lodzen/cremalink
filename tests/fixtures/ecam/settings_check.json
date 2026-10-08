@@ -1,0 +1,51 @@
+{
+  "requests": {
+    "water": "0d 07 95 f0 00 32 97 30",
+    "aoff": "0d 07 95 f0 00 3e 56 bc"
+  },
+  "republished_props": {
+    "d283_mchn_sett_water": {
+      "name": "d283_mchn_sett_water",
+      "base_type": "string",
+      "value": "0AuVDwAyAAAAAdjU"
+    },
+    "d282_mchn_sett_aoff": {
+      "name": "d282_mchn_sett_aoff",
+      "base_type": "string",
+      "value": "0F+V8AA+AAAAAgAAAB0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA6wAAALEAAAAAAAAAAIAAAAAAAAAAMl+"
+    }
+  },
+  "data_response_frames": [],
+  "all_datapoints": [
+    {
+      "seq_no": 34,
+      "data": {
+        "name": "d283_mchn_sett_water",
+        "value": "0AuVDwAyAAAAAdjU"
+      }
+    },
+    {
+      "seq_no": 35,
+      "data": {
+        "name": "d282_mchn_sett_aoff",
+        "value": "0F+V8AA+AAAAAgAAAB0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA6wAAALEAAAAAAAAAAIAAAAAAAAAAMl+"
+      }
+    },
+    {
+      "seq_no": 36,
+      "data": {
+        "name": "d283_mchn_sett_water",
+        "base_type": "string",
+        "value": "0AuVDwAyAAAAAdjU"
+      }
+    },
+    {
+      "seq_no": 37,
+      "data": {
+        "name": "d282_mchn_sett_aoff",
+        "base_type": "string",
+        "value": "0F+V8AA+AAAAAgAAAB0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA6wAAALEAAAAAAAAAAIAAAAAAAAAAMl+"
+      }
+    }
+  ]
+}

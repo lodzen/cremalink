@@ -1,0 +1,11 @@
+{
+  "seq_no": 239,
+  "data": {
+    "name": "d705_tot_id1_espr",
+    "base_type": "integer",
+    "value": 0
+  },
+  "_decoded": {
+    "counter_value": 0
+  }
+}

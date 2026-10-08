@@ -62,6 +62,38 @@ Connect to your machine directly via your local network for the lowest latency.
 
 > More information: [Local Device Usage](https://github.com/lodzen/cremalink/wiki/4.-Local-Device-Usage)
 
+### ECAM protocol layer (`cremalink.ecam`)
+
+The `cremalink.ecam` package exposes the native ECAM protocol used by
+PrimaDonna/Eletta-class machines — CRC-verified command builders and
+answer parsers, transport-independent (LAN or cloud):
+
+```python
+from cremalink.ecam import builder, MachineProfile
+
+profile = MachineProfile.from_map_name("ECAM610")
+frame = builder.build_power(builder.PowerCommand.TURN_ON, profile)
+wire = builder.encode_for_transport(frame, profile)  # adds the timestamp
+```
+
+High-level `Device` methods built on it:
+
+| Method | What it does |
+|---|---|
+| `brew(beverage_id, recipe=None, ...)` | Parametric `0x83` brew with the machine's recipe bytes |
+| `stop_brew()` / `wake()` / `standby()` / `session_refresh()` | Power/session control (`0x83`/`0x84`) |
+| `get_statistics()` | Native `0xA2` statistics pager (LAN) or cloud counters per the device map's `statistics_source` |
+| `get_profiles()` / `select_profile(index)` | Read occupied profile slots; session-gated `0xA9` selection |
+| `get_settings()` / `set_setting(key, index)` | Read/write machine settings (auto-off, water hardness) via `0x95`/`0x90` |
+| `read_catalog()` | Parse the recipe catalogue (`b0f0`/`a6f0`/`aaf0`/`a8f0`/`baf0` blobs) |
+
+**Writes are session-gated**: the device announces a ~300 s session
+(`device_connected` property write) automatically before any `0x90`/`0xA9`
+frame. Callers never manage this themselves — but it means writes take a
+round-trip and are LAN-only. Statistics via `0xA2` are likewise LAN-only;
+`cloud_counters` maps resolve their counters from the cloud datapoint
+snapshot instead.
+
 ---
 
 ## 🛠 Development

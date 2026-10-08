@@ -1,0 +1,11 @@
+{
+  "seq_no": 233,
+  "data": {
+    "name": "d700_tot_bev_b",
+    "base_type": "integer",
+    "value": 0
+  },
+  "_decoded": {
+    "counter_value": 0
+  }
+}

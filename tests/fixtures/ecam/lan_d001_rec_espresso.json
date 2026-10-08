@@ -1,0 +1,51 @@
+{
+  "seq_no": 109,
+  "data": {
+    "name": "d001_rec_espresso",
+    "base_type": "string",
+    "value": "0CWw8AEIAAABGAABAQEAFAAoALQbAAEEAgAEBQQAAAAZAAEBuZY="
+  },
+  "_decoded": {
+    "blob_family": "factory_descriptor",
+    "crc_valid": true,
+    "truncated": false,
+    "hex": "d0 25 b0 f0 01 08 00 00 01 18 00 01 01 01 00 14 00 28 00 b4 1b 00 01 04 02 00 04 05 04 00 00 00 19 00 01 01 b9 96",
+    "descriptor_ranges": {
+      "tag_0x08": [
+        0,
+        0,
+        1
+      ],
+      "tag_0x18": [
+        0,
+        1,
+        1
+      ],
+      "coffee_ml": [
+        20,
+        40,
+        180
+      ],
+      "temperature": [
+        0,
+        1,
+        4
+      ],
+      "intensity": [
+        0,
+        4,
+        5
+      ],
+      "tag_0x04": [
+        0,
+        0,
+        0
+      ],
+      "tag_0x19": [
+        0,
+        1,
+        1
+      ]
+    }
+  }
+}

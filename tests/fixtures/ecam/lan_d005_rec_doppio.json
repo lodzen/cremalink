@@ -1,0 +1,41 @@
+{
+  "seq_no": 114,
+  "data": {
+    "name": "d005_rec_doppio",
+    "base_type": "string",
+    "value": "0B2w8AUYAAEBGQABAQEAUAB4ALQbAAEEBAAAADiZ"
+  },
+  "_decoded": {
+    "blob_family": "factory_descriptor",
+    "crc_valid": true,
+    "truncated": false,
+    "hex": "d0 1d b0 f0 05 18 00 01 01 19 00 01 01 01 00 50 00 78 00 b4 1b 00 01 04 04 00 00 00 38 99",
+    "descriptor_ranges": {
+      "tag_0x18": [
+        0,
+        1,
+        1
+      ],
+      "tag_0x19": [
+        0,
+        1,
+        1
+      ],
+      "coffee_ml": [
+        80,
+        120,
+        180
+      ],
+      "temperature": [
+        0,
+        1,
+        4
+      ],
+      "tag_0x04": [
+        0,
+        0,
+        0
+      ]
+    }
+  }
+}

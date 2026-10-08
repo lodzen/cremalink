@@ -7,11 +7,14 @@ startup and shutdown of background services.
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
+import logging
 
 from aiohttp import web
 from pydantic import ValidationError
 
+from cremalink.ecam import builder as ecam_builder
 from cremalink.local_server_app import protocol
 from cremalink.local_server_app.config import ServerSettings, get_settings
 from cremalink.local_server_app.device_adapter import DeviceAdapter
@@ -30,6 +33,8 @@ from cremalink.local_server_app.models import (
     KeyExchangeRequest,
     MonitorResponse,
     PropertiesResponse,
+    PropertyGetRequest,
+    PropertySetRequest,
 )
 from cremalink.local_server_app.state import LocalServerState
 
@@ -50,6 +55,54 @@ async def _parse_json_model(request: web.Request, model):
         return model.model_validate(body)
     except (json.JSONDecodeError, ValidationError) as exc:
         raise web.HTTPBadRequest(text=str(exc)) from exc
+
+
+def _describe_served_payload(payload_str: str) -> dict:
+    """Summarize a queued command payload for debug logging.
+
+    The served JSON carries one of three shapes: an empty heartbeat, a
+    `cmds` list of GET requests (`property.json?name=...`), or a
+    `properties` block of named datapoint writes — `data_request` values
+    are base64 ECAM frames and get decoded via `describe_request_frame`.
+    """
+    try:
+        doc = json.loads(payload_str)
+    except ValueError:
+        return {"type": "unparseable"}
+    data = doc.get("data") if isinstance(doc, dict) else None
+    if not data:
+        return {"type": "heartbeat"}
+    cmds = data.get("cmds")
+    if isinstance(cmds, list):
+        requests = [
+            {"method": cmd.get("method"), "resource": cmd.get("resource")}
+            for entry in cmds
+            if isinstance(entry, dict) and isinstance((cmd := entry.get("cmd")), dict)
+        ]
+        return {"type": "cmds", "requests": requests}
+    props = data.get("properties")
+    if props is not None:
+        entries = props.values() if isinstance(props, dict) else props
+        items = []
+        for entry in entries if isinstance(entries, list) else []:
+            prop = entry.get("property") if isinstance(entry, dict) else None
+            if not isinstance(prop, dict):
+                continue
+            item: dict = {"name": prop.get("name")}
+            raw = prop.get("value")
+            if isinstance(raw, str):
+                try:
+                    blob = base64.b64decode(raw.strip(), validate=True)
+                except (ValueError, TypeError):
+                    blob = b""
+                described = ecam_builder.describe_request_frame(blob)
+                if described.get("request") is not None:
+                    item["request"] = described
+                else:
+                    item["value"] = raw.strip()
+            items.append(item)
+        return {"type": "properties", "properties": items}
+    return {"type": "other", "keys": sorted(data)}
 
 
 def create_app(
@@ -111,7 +164,7 @@ def create_app(
         # Attempt an initial registration with the device.
         try:
             await adapter.register_with_device(state)
-        except Exception as exc:
+        except (ConnectionError, TimeoutError, ValueError) as exc:
             state.log("local_reg_initial_failed", {"error": str(exc)})
         return web.json_response(
             {"status": "configured", "dsn": req.dsn, "device_scheme": req.device_scheme}
@@ -130,6 +183,50 @@ def create_app(
         except ConnectionError as exc:
             raise web.HTTPBadGateway(text=str(exc)) from exc
         return web.json_response({"status": "queued", "seq": state.seq})
+
+    async def set_property(request: web.Request) -> web.Response:
+        """Queues a write for a single named datapoint."""
+        if not state.is_configured():
+            raise web.HTTPBadRequest(text="Server not configured")
+        req = await _parse_json_model(request, PropertySetRequest)
+        try:
+            await adapter.register_with_device(state)
+            await state.queue_property_set(req.name, req.value)
+        except OverflowError as exc:
+            raise web.HTTPTooManyRequests(text=str(exc)) from exc
+        except ConnectionError as exc:
+            raise web.HTTPBadGateway(text=str(exc)) from exc
+        return web.json_response({"status": "queued", "seq": state.seq})
+
+    async def request_property(request: web.Request) -> web.Response:
+        """Queues a GET for a single named datapoint."""
+        if not state.is_configured():
+            raise web.HTTPBadRequest(text="Server not configured")
+        req = await _parse_json_model(request, PropertyGetRequest)
+        try:
+            await adapter.register_with_device(state)
+            await state.queue_property_get(req.name)
+        except OverflowError as exc:
+            raise web.HTTPTooManyRequests(text=str(exc)) from exc
+        except ConnectionError as exc:
+            raise web.HTTPBadGateway(text=str(exc)) from exc
+        return web.json_response({"status": "queued", "seq": state.seq})
+
+    async def get_responses(request: web.Request) -> web.Response:
+        """Returns and clears queued `data_response` mailbox entries."""
+        entries = await state.drain_responses()
+        return web.json_response(
+            {
+                "responses": [
+                    {
+                        "name": e["name"],
+                        "value_b64": e["value"],
+                        "received_at": e["received_at"],
+                    }
+                    for e in entries
+                ]
+            }
+        )
 
     async def get_monitor(request: web.Request) -> web.Response:
         """Gets the last known monitor status."""
@@ -229,6 +326,11 @@ def create_app(
                 "payload_size": len(payload),
             },
         )
+        state.log(
+            "command_request",
+            _describe_served_payload(payload),
+            level=logging.DEBUG,
+        )
         return CommandPollResponse(enc=enc, sign=sign, seq=current_seq)
 
     async def poll_commands(request: web.Request) -> web.Response:
@@ -273,13 +375,16 @@ def create_app(
     async def register(request: web.Request) -> web.Response:
         try:
             await adapter.register_with_device(state)
-        except Exception as exc:
+        except (ConnectionError, TimeoutError, ValueError) as exc:
             state.log("internal_server_error", {"status_code": 500, "error": str(exc)})
             return web.Response(status=500)
         return web.Response(text="registered")
 
     app.router.add_post("/configure", configure)
     app.router.add_post("/command", command)
+    app.router.add_post("/property", set_property)
+    app.router.add_post("/properties/request", request_property)
+    app.router.add_get("/responses", get_responses)
     app.router.add_get("/get_monitor", get_monitor)
     app.router.add_get("/refresh_monitor", refresh_monitor)
     app.router.add_get("/get_properties", get_properties)

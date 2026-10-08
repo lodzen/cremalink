@@ -187,7 +187,7 @@ def create_logger(
         A configured logging.Logger instance.
     """
     logger = logging.getLogger(name)
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.DEBUG)
     formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
     if not any(isinstance(handler, RingBufferHandler) for handler in logger.handlers):
         handler = RingBufferHandler(

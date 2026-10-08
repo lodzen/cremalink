@@ -1,0 +1,23 @@
+{
+  "seq_no": 319,
+  "data": {
+    "name": "d302_monitor",
+    "base_type": "string",
+    "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+  },
+  "_decoded": {
+    "blob_family": "75 0f",
+    "crc_valid": true,
+    "truncated": false,
+    "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+    "monitor": {
+      "status": 0,
+      "status_name": "standby",
+      "progress": 100,
+      "action": 2,
+      "accessory": 4,
+      "switches": 576,
+      "alarms": 1
+    }
+  }
+}

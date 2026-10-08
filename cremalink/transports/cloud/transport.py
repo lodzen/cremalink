@@ -2,16 +2,17 @@
 This module provides the `CloudTransport` class, which handles communication
 with a coffee machine via the manufacturer's cloud API (Ayla Networks).
 """
+
 from __future__ import annotations
 
 import time
-from typing import Any, Optional
+from typing import Any
 
 import requests
 
 from cremalink.parsing.monitor.decode import build_monitor_snapshot
-from cremalink.transports.base import DeviceTransport
 from cremalink.resources import load_api_config
+from cremalink.transports.base import DeviceTransport
 
 
 class CloudTransport(DeviceTransport):
@@ -23,7 +24,9 @@ class CloudTransport(DeviceTransport):
     it fetches key device metadata from the cloud and stores it.
     """
 
-    def __init__(self, dsn: str, access_token: str, device_map_path: Optional[str] = None) -> None:
+    def __init__(
+        self, dsn: str, access_token: str, device_map_path: str | None = None
+    ) -> None:
         """
         Initializes the CloudTransport.
 
@@ -62,7 +65,7 @@ class CloudTransport(DeviceTransport):
 
     def configure(self) -> None:
         """Configuration is handled during __init__, so this is a no-op."""
-        return None
+        return
 
     # ---- helpers ----
     def _get(self, path: str) -> dict:
@@ -107,13 +110,19 @@ class CloudTransport(DeviceTransport):
         return response.json()
 
     # ---- DeviceTransport Implementation ----
-    def send_command(self, command: str, alternative_property: str = None) -> Any:
+    def send_command(
+        self, command: str, alternative_property: str | None = None
+    ) -> Any:
         """Sends a command to the device by creating a new 'datapoint' via the cloud API."""
         payload = {"datapoint": {"value": command}}
         data_request = alternative_property or self.property_map.get("data_request")
-        return self._post(path=f"/properties/{data_request}/datapoints.json", data=payload)
+        return self._post(
+            path=f"/properties/{data_request}/datapoints.json", data=payload
+        )
 
-    def set_mappings(self, command_map: dict[str, Any], property_map: dict[str, Any]) -> None:
+    def set_mappings(
+        self, command_map: dict[str, Any], property_map: dict[str, Any]
+    ) -> None:
         """Stores the provided command and property maps on the instance."""
         self.command_map = command_map
         self.property_map = property_map
@@ -129,6 +138,22 @@ class CloudTransport(DeviceTransport):
         if props and isinstance(props, list):
             return props[0].get("property")
         return None
+
+    def write_property(self, name: str, value: Any) -> Any:
+        """Writes a single named property via a cloud datapoint."""
+        payload = {"datapoint": {"value": value}}
+        return self._post(path=f"/properties/{name}/datapoints.json", data=payload)
+
+    def request_property(self, name: str) -> Any:
+        """Not available over the cloud API — refreshes happen on the
+        device's own republish cadence (native protocol features are
+        LAN-only)."""
+        raise NotImplementedError("request_property is LAN-only")
+
+    def pop_response(self) -> bytes | None:
+        """Not available over the cloud API — the `data_response` mailbox
+        is LAN-only."""
+        raise NotImplementedError("pop_response is LAN-only")
 
     def get_monitor(self) -> Any:
         """
@@ -152,7 +177,9 @@ class CloudTransport(DeviceTransport):
             "monitor_b64": raw_b64,
             "received_at": received_ts,
         }
-        return build_monitor_snapshot(payload, source="cloud", device_id=self.dsn or self.id)
+        return build_monitor_snapshot(
+            payload, source="cloud", device_id=self.dsn or self.id
+        )
 
     def refresh_monitor(self) -> Any:
         """

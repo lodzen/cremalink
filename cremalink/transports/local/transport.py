@@ -2,11 +2,13 @@
 This module provides the `LocalTransport` class, which handles communication
 with a coffee machine over the local network (LAN) via a proxy server.
 """
+
 from __future__ import annotations
 
+import base64
 import json
-from typing import Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
+from typing import Any
 
 import requests
 
@@ -29,13 +31,13 @@ class LocalTransport(DeviceTransport):
         self,
         dsn: str,
         lan_key: str,
-        device_ip: Optional[str],
+        device_ip: str | None,
         server_host: str = "127.0.0.1",
         server_port: int = 10280,
         device_scheme: str = "http",
         auto_configure: bool = False,
-        command_map: Optional[dict[str, Any]] = None,
-        property_map: Optional[dict[str, Any]] = None,
+        command_map: dict[str, Any] | None = None,
+        property_map: dict[str, Any] | None = None,
     ) -> None:
         """
         Initializes the LocalTransport.
@@ -64,7 +66,9 @@ class LocalTransport(DeviceTransport):
             self.configure()
 
     # ---- helpers ----
-    def _post_server(self, path: str, body: dict, timeout: int = 10) -> requests.Response:
+    def _post_server(
+        self, path: str, body: dict, timeout: int = 10
+    ) -> requests.Response:
         """Helper for making POST requests to the local proxy server."""
         return requests.post(
             url=f"{self.server_base_url}{path}",
@@ -91,7 +95,7 @@ class LocalTransport(DeviceTransport):
             "lan_key": self.lan_key,
             "device_scheme": self.device_scheme,
             "monitor_property_name": monitor_prop_name,
-            "data_request_property_name": data_request_prop_name
+            "data_request_property_name": data_request_prop_name,
         }
         try:
             resp = self._post_server("/configure", payload)
@@ -102,14 +106,31 @@ class LocalTransport(DeviceTransport):
                 f"Original error: {exc}"
             ) from exc
         if resp.status_code not in (200, 201):
-            raise ValueError(f"Failed to configure server: {resp.status_code} {resp.text}")
+            raise ValueError(
+                f"Failed to configure server: {resp.status_code} {resp.text}"
+            )
         self._configured = True
 
-    def send_command(self, command: str, alternative_property: str = None) -> dict[str, Any]:
-        """Sends a command to the device via the local proxy server."""
+    def send_command(
+        self, command: str, alternative_property: str | None = None
+    ) -> dict[str, Any]:
+        """Sends a command to the device via the local proxy server.
+
+        ``alternative_property`` overrides the configured command
+        datapoint (e.g. striker `app_data_request`); it is sent as a
+        single-property write carrying the command string.
+        """
         if not self._configured:
             self.configure()
-        resp = self._post_server("/command", {"command": command})
+        if alternative_property and alternative_property != self.property_map.get(
+            "data_request"
+        ):
+            resp = self._post_server(
+                "/property",
+                {"name": alternative_property, "value": f"{command}\n"},
+            )
+        else:
+            resp = self._post_server("/command", {"command": command})
         resp.raise_for_status()
         return resp.json()
 
@@ -119,20 +140,51 @@ class LocalTransport(DeviceTransport):
         resp.raise_for_status()
         payload = resp.json()
         received = payload.get("received_at")
-        received_dt = datetime.fromtimestamp(received) if received else None
-        return PropertiesSnapshot(raw=payload.get("properties", payload), received_at=received_dt)
+        received_dt = (
+            datetime.fromtimestamp(received, tz=timezone.utc) if received else None
+        )
+        return PropertiesSnapshot(
+            raw=payload.get("properties", payload), received_at=received_dt
+        )
 
     def get_property(self, name: str) -> Any:
-        """Retrieves a single property value from the local proxy server."""
-        # First, try to get it from the bulk properties snapshot
-        snapshot = self.get_properties()
-        value = snapshot.get(name)
-        if value is None:
-            # If not found, request it individually
-            resp = self._get_server(f"/properties/{name}")
-            resp.raise_for_status()
-            return resp.json().get("value")
-        return value
+        """Retrieves a single property value from the local proxy server.
+
+        The server-side lookup already covers both the bulk snapshot and
+        the per-name datapoint store — no need for a `/get_properties`
+        round-trip (which would also re-queue the bulk GET) per probe.
+        """
+        resp = self._get_server(f"/properties/{name}")
+        resp.raise_for_status()
+        return resp.json().get("value")
+
+    def write_property(self, name: str, value: Any) -> dict[str, Any]:
+        """Queues a single named property write on the device."""
+        if not self._configured:
+            self.configure()
+        resp = self._post_server("/property", {"name": name, "value": value})
+        resp.raise_for_status()
+        return resp.json()
+
+    def request_property(self, name: str) -> dict[str, Any]:
+        """Queues a GET for a single named datapoint on the device."""
+        if not self._configured:
+            self.configure()
+        resp = self._post_server("/properties/request", {"name": name})
+        resp.raise_for_status()
+        return resp.json()
+
+    def pop_response(self) -> bytes | None:
+        """Returns the most recent `data_response` frame as raw bytes."""
+        resp = self._get_server("/responses")
+        resp.raise_for_status()
+        entries = resp.json().get("responses") or []
+        if not entries:
+            return None
+        value_b64 = entries[-1].get("value_b64")
+        if not value_b64:
+            return None
+        return base64.b64decode(value_b64)
 
     def get_monitor(self) -> Any:
         """Retrieves and parses the device's monitoring data."""
@@ -153,7 +205,9 @@ class LocalTransport(DeviceTransport):
         """Checks the health of the local proxy server."""
         return self._get_server("/health").text
 
-    def set_mappings(self, command_map: dict[str, Any], property_map: dict[str, Any]) -> None:
+    def set_mappings(
+        self, command_map: dict[str, Any], property_map: dict[str, Any]
+    ) -> None:
         """
         Sets the command and property maps and re-configures the server if needed.
         If the name of the monitoring property changes, the server is reconfigured.
@@ -164,5 +218,9 @@ class LocalTransport(DeviceTransport):
         self.property_map = property_map
         updated_monitor = self.property_map.get("monitor")
         updated_data_request = self.property_map.get("data_request")
-        if self._auto_configure and (not self._configured or previous_monitor != updated_monitor or previous_data_request != updated_data_request):
+        if self._auto_configure and (
+            not self._configured
+            or previous_monitor != updated_monitor
+            or previous_data_request != updated_data_request
+        ):
             self.configure()

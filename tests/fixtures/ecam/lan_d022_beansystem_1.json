@@ -1,0 +1,41 @@
+{
+  "seq_no": 135,
+  "data": {
+    "name": "d022_beansystem_1",
+    "base_type": "string",
+    "value": "0B2w8MgYAAEBAQAeACgAPBsAAQQCAQQFGQACAoMB"
+  },
+  "_decoded": {
+    "blob_family": "factory_descriptor",
+    "crc_valid": true,
+    "truncated": false,
+    "hex": "d0 1d b0 f0 c8 18 00 01 01 01 00 1e 00 28 00 3c 1b 00 01 04 02 01 04 05 19 00 02 02 83 01",
+    "descriptor_ranges": {
+      "tag_0x18": [
+        0,
+        1,
+        1
+      ],
+      "coffee_ml": [
+        30,
+        40,
+        60
+      ],
+      "temperature": [
+        0,
+        1,
+        4
+      ],
+      "intensity": [
+        1,
+        4,
+        5
+      ],
+      "tag_0x19": [
+        0,
+        2,
+        2
+      ]
+    }
+  }
+}

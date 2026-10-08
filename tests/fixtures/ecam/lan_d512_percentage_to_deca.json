@@ -1,0 +1,11 @@
+{
+  "seq_no": 216,
+  "data": {
+    "name": "d512_percentage_to_deca",
+    "base_type": "integer",
+    "value": 0
+  },
+  "_decoded": {
+    "counter_value": 0
+  }
+}

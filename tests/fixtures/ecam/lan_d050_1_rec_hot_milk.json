@@ -1,0 +1,22 @@
+{
+  "seq_no": 163,
+  "data": {
+    "name": "d050_1_rec_hot_milk",
+    "base_type": "string",
+    "value": "0BCm8AEMHAIZAQkBaBsBJPo="
+  },
+  "_decoded": {
+    "blob_family": "profile_recipe",
+    "crc_valid": true,
+    "truncated": false,
+    "hex": "d0 10 a6 f0 01 0c 1c 02 19 01 09 01 68 1b 01 24 fa",
+    "recipe_params": {
+      "tag_0x1c": 2,
+      "tag_0x19": 1,
+      "milk": 360,
+      "temperature": 1
+    },
+    "profile": 1,
+    "beverage_id": "0x0c"
+  }
+}

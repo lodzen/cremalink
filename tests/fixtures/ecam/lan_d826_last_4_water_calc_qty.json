@@ -1,0 +1,11 @@
+{
+  "seq_no": 302,
+  "data": {
+    "name": "d826_last_4_water_calc_qty",
+    "base_type": "integer",
+    "value": 0
+  },
+  "_decoded": {
+    "counter_value": 0
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "seq_no": 110,
+  "data": {
+    "name": "d002_rec_regular",
+    "base_type": "string",
+    "value": "0CGw8AIYAAEBGQABARsAAQQBAGQAtADwAgADBQQAAAAAzA=="
+  },
+  "_decoded": {
+    "blob_family": "factory_descriptor",
+    "crc_valid": true,
+    "truncated": false,
+    "hex": "d0 21 b0 f0 02 18 00 01 01 19 00 01 01 1b 00 01 04 01 00 64 00 b4 00 f0 02 00 03 05 04 00 00 00 00 cc",
+    "descriptor_ranges": {
+      "tag_0x18": [
+        0,
+        1,
+        1
+      ],
+      "tag_0x19": [
+        0,
+        1,
+        1
+      ],
+      "temperature": [
+        0,
+        1,
+        4
+      ],
+      "coffee_ml": [
+        100,
+        180,
+        240
+      ],
+      "intensity": [
+        0,
+        3,
+        5
+      ],
+      "tag_0x04": [
+        0,
+        0,
+        0
+      ]
+    }
+  }
+}

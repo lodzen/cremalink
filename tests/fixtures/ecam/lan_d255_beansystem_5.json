@@ -1,0 +1,15 @@
+{
+  "seq_no": 192,
+  "data": {
+    "name": "d255_beansystem_5",
+    "base_type": "string",
+    "value": "0DS68AUAQgBvAGgAbgBlAG4AIAA1AAAAAABCAG8AaABuAGUAbgAgADYAAAAAAAAAAAAA1nE="
+  },
+  "_decoded": {
+    "blob_family": "bean_names",
+    "crc_valid": true,
+    "truncated": false,
+    "hex": "d0 34 ba f0 05 00 42 00 6f 00 68 00 6e 00 65 00 6e 00 20 00 35 00 00 00 00 00 42 00 6f 00 68 00 6e 00 65 00 6e 00 20 00 36 00 00 00 00 00 00 00 00 00 00 d6 71",
+    "text_redacted": true
+  }
+}

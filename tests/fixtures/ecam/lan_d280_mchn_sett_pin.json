@@ -1,0 +1,14 @@
+{
+  "seq_no": 203,
+  "data": {
+    "name": "d280_mchn_sett_pin",
+    "base_type": "string",
+    "value": "0AuVDwDSAAAQaB0k"
+  },
+  "_decoded": {
+    "blob_family": "95 0f",
+    "crc_valid": true,
+    "truncated": false,
+    "hex": "d0 0b 95 0f 00 d2 00 00 10 68 1d 24"
+  }
+}
