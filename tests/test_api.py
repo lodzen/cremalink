@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import json
 import logging
@@ -5,12 +6,14 @@ import uuid
 
 import pytest
 import pytest_asyncio
+from aiohttp import web
 from aiohttp.test_utils import TestClient, TestServer
 from cremalink.domain.device import Device
 from cremalink.local_server_app import ServerSettings, create_app
-from cremalink.local_server_app.api import LOCAL_STATE_KEY
+from cremalink.local_server_app.api import LOCAL_STATE_KEY, _parse_json_model
 from cremalink.local_server_app.device_adapter import DeviceAdapter
 from cremalink.local_server_app.logging import create_logger
+from cremalink.local_server_app.models import EncPayload
 from cremalink.local_server_app.protocol import encrypt_payload
 from cremalink.local_server_app.state import LocalServerState
 
@@ -262,3 +265,68 @@ def test_standalone_startup_logs_without_prints(capsys):
     output = capsys.readouterr().err
     assert "Starting cremalink local server" in output
     assert "192.0.2.30" in output
+
+
+@pytest.mark.asyncio
+async def test_rekey_while_the_body_is_in_flight_answers_503(app_client):
+    client, state = app_client
+    await client.post(
+        "/configure",
+        json={
+            "dsn": "d",
+            "device_ip": "1.2.3.4",
+            "lan_key": "k",
+            "device_scheme": "https",
+        },
+    )
+    await client.post(
+        "/local_lan/key_exchange.json",
+        json={"key_exchange": {"random_1": "r", "time_1": "1"}},
+    )
+    assert state.dev_crypto_key
+
+    gate = asyncio.Event()
+
+    async def slow_body():
+        yield b'{"enc": "'
+        await gate.wait()
+        yield b'AAAA"}'
+
+    request = asyncio.create_task(
+        client.post(
+            "/local_lan/property/datapoint.json",
+            data=slow_body(),
+            headers={"Content-Type": "application/json"},
+        )
+    )
+    await asyncio.sleep(0.1)
+    state.dev_crypto_key = None  # what rekey() does while the body is pending
+    state.dev_iv_seed = None
+    gate.set()
+    resp = await request
+    assert resp.status == 503
+
+
+@pytest.mark.asyncio
+async def test_dropped_connection_while_reading_the_body_is_a_400():
+    class Dropped:
+        async def json(self):
+            raise ConnectionResetError(104, "Connection reset by peer")
+
+    with pytest.raises(web.HTTPBadRequest):
+        await _parse_json_model(Dropped(), EncPayload)
+
+
+@pytest.mark.asyncio
+async def test_embedded_server_reports_through_its_own_logger():
+    from cremalink.local_server_app.embedded import EmbeddedLocalServer
+
+    server = EmbeddedLocalServer(
+        dsn="dsn", device_ip="192.0.2.9", lan_key="k", advertised_ip="127.0.0.1"
+    )
+    await server.start()
+    try:
+        assert server._runner.server._kwargs["logger"] is server.event_logger
+        assert server._runner.server._kwargs["access_log"] is None
+    finally:
+        await server.stop()
