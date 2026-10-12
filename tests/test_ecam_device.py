@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 from cremalink.core.binary import crc16_ccitt
-from cremalink.domain.device import Device
+from cremalink.domain.device import Device, MachineStandbyError
 
 DEVICES = Path(__file__).resolve().parents[1] / "cremalink" / "devices"
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "ecam"
@@ -294,6 +294,56 @@ class TestSettings:
         device = _device(transport=FakeTransport(responses=[nack]))
         device.response_poll = 0
         assert device.set_setting("auto_off", 2) is False
+
+    @pytest.mark.parametrize(
+        "status", ["in_standby", "going_to_sleep", "sleeping", "deep_sleep"]
+    )
+    def test_set_setting_in_standby_aborts_without_waking_or_writing(self, status):
+        # Product decision (protocol.md 14.5 woke the machine for its test):
+        # a machine in standby is never woken, nothing is sent at all.
+        device = _device(transport=FakeTransport(), response_poll=0)
+        device.transport.get_monitor = lambda: None  # transport can report status
+        device.get_monitor = lambda: type("M", (), {"status_name": status})()
+        with pytest.raises(MachineStandbyError):
+            device.set_setting("auto_off", 2)
+        assert device.transport.sent == []
+        assert device.transport.written_properties == []
+
+    def test_set_setting_does_not_wake_an_awake_machine(self):
+        ack = _answer(bytes([0x90, 0xF0, 0x00, 0x3E, 0x00]))
+        readback = _answer(bytes([0x95, 0x0F, 0x00, 0x3E]) + (2).to_bytes(4, "big"))
+        device = _device(
+            transport=FakeTransport(responses=[ack, readback]), response_poll=0
+        )
+        device.transport.get_monitor = lambda: None
+        device.get_monitor = lambda: type("M", (), {"status_name": "ready"})()
+        assert device.set_setting("auto_off", 2) is True
+        assert 0x84 not in [sent[0][2] for sent in device.transport.sent]
+
+    @staticmethod
+    def _aoff_blob(value):
+        return _answer(bytes([0x95, 0x0F, 0x00, 0x3E]) + value.to_bytes(4, "big"))
+
+    def test_set_setting_without_ack_is_confirmed_by_the_republished_property(self):
+        # The Soul is not known to ack 0x90; the write counts once the
+        # backing dNNN property shows the new value.
+        blob = base64.b64encode(self._aoff_blob(3)).decode()
+        device = _device(
+            transport=FakeTransport(properties={"d282_mchn_sett_aoff": blob}),
+            response_timeout=0.5,
+            response_poll=0,
+        )
+        assert device.set_setting("auto_off", 3) is True
+        assert "d282_mchn_sett_aoff" in device.transport.requested_properties
+
+    def test_set_setting_without_ack_and_stale_property_reports_failure(self):
+        blob = base64.b64encode(self._aoff_blob(1)).decode()
+        device = _device(
+            transport=FakeTransport(properties={"d282_mchn_sett_aoff": blob}),
+            response_timeout=0.05,
+            response_poll=0,
+        )
+        assert device.set_setting("auto_off", 3) is False
 
     def test_set_setting_no_ack_raises(self):
         device = _device(

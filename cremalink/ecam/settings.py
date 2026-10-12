@@ -28,6 +28,7 @@ class WritableSetting:
     param_id: int
     options: dict[int, str]  # raw index -> label
     capability: str  # device-map `capabilities` flag gating the HA select
+    datapoint_hint: str = ""  # substring of the republished dNNN backing property
 
 
 #: Verified option maps (auto-off labels from the machine display; water
@@ -38,12 +39,14 @@ SETTING_OPTION_MAPS: dict[str, WritableSetting] = {
         param_id=0x003E,
         options={0: "15 min", 1: "30 min", 2: "1 h", 3: "3 h"},
         capability="auto_off_settings",
+        datapoint_hint="aoff",
     ),
     "water_hardness": WritableSetting(
         key="water_hardness",
         param_id=0x0032,
         options={0: "level_1", 1: "level_2", 2: "level_3", 3: "level_4"},
         capability="water_hardness_settings",
+        datapoint_hint="water",
     ),
 }
 
