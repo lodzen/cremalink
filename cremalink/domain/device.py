@@ -32,6 +32,16 @@ from cremalink.transports.base import DeviceTransport
 
 logger = logging.getLogger(__name__)
 
+#: Monitor ``status`` enum names of the standby family (device-map enums).
+_STANDBY_STATUS_NAMES = frozenset(
+    {"in_standby", "going_to_sleep", "sleeping", "deep_sleep"}
+)
+
+
+class MachineStandbyError(RuntimeError):
+    """The requested operation needs a machine that is switched on."""
+
+
 APP_ID_HEX = "C0FFEEEE"
 
 
@@ -904,12 +914,35 @@ class Device:
             out[key] = raw
         return out
 
+    def _machine_in_standby(self) -> bool:
+        """True when the monitor reports a standby-like status."""
+        if not hasattr(self.transport, "get_monitor"):
+            return False
+        try:
+            status = getattr(self.get_monitor(), "status_name", None)
+        except (OSError, ValueError, RuntimeError) as err:
+            logger.debug("monitor status probe failed: %s", err)
+            return False
+        return status in _STANDBY_STATUS_NAMES
+
     def set_setting(self, key: str, option_index: int) -> bool:
         """Write a writable setting (session-gated ``0x90`` + ack/read-back).
 
-        Returns ``True`` only when the machine confirmed the write.
-        Raises ``ValueError`` for unknown keys/options and ``TimeoutError``
-        when no acknowledgement arrives.
+        Follows protocol.md §14.5: ``device_connected`` announce (via
+        :meth:`_send_gated`) → ``0x90``. §14.5 woke the machine for its test;
+        by product decision this library never wakes it — a machine in
+        standby aborts the write with :class:`MachineStandbyError` before
+        any frame is sent. §14.5 confirmed the commits on the machine's
+        display and recorded no ack for them, so the ack is treated as
+        optional: the write counts as committed when a read-back — mailbox
+        answer or the republished ``dNNN`` backing property — shows the
+        new value.
+
+        Returns ``True`` when the write is confirmed and ``False`` when the
+        machine nacked it or reports a different value. Raises
+        ``ValueError`` for unknown keys/options, ``MachineStandbyError``
+        when the machine is in standby and ``TimeoutError`` when neither an
+        ack nor a read-back arrives.
         """
         setting = ecam_settings.SETTING_OPTION_MAPS.get(key)
         if setting is None:
@@ -919,28 +952,87 @@ class Device:
                 f"option {option_index} out of range for {key!r} "
                 f"(allowed: {sorted(setting.options)})"
             )
+        if self._machine_in_standby():
+            raise MachineStandbyError(
+                f"the machine is in standby; switch it on to change {key!r}"
+            )
         self._send_gated(
             ecam_builder.build_write_param(
                 setting.param_id, option_index, self._profile()
             )
         )
-        frame = self._wait_answer(ecam_builder.REQ_WRITE_PARAM)
-        if frame is None:
-            raise TimeoutError(f"no write ack for setting {key!r}")
-        param, ok = ecam_answers.parse_write_ack(frame)
-        if not ok or param != setting.param_id:
-            self._session().invalidate()
-            return False
-        # Read-back: the machine republishes the stored value.
         self.send_frame(
             ecam_builder.build_read_param(setting.param_id, self._profile())
         )
-        readback = self._wait_answer(ecam_builder.REQ_READ_PARAM)
-        if readback is not None:
-            got = ecam_settings.parse_settings(readback).get(setting.param_id)
-            if got is not None and got != option_index:
-                return False
-        return True
+        datapoint = next(
+            (
+                name
+                for name in self.settings_datapoints or []
+                if setting.datapoint_hint and setting.datapoint_hint in name
+            ),
+            None,
+        )
+        request = getattr(self.transport, "request_property", None)
+        deadline = time.monotonic() + self.response_timeout
+        last_request: float | None = None
+        acked = False
+        seen: int | None = None
+        while True:
+            frame = self._pop_response_frame()
+            if frame is not None:
+                if ecam_answers.is_sync_timeout(frame):
+                    raise TimeoutError(f"machine aborted the write of {key!r} (0xE1)")
+                try:
+                    answer = ecam_answers.answer_id(frame)
+                except ValueError:
+                    answer = None
+                if answer == ecam_builder.REQ_WRITE_PARAM:
+                    param, ok = ecam_answers.parse_write_ack(frame)
+                    if param == setting.param_id:
+                        if not ok:
+                            self._session().invalidate()
+                            return False
+                        acked = True
+                elif answer == ecam_builder.REQ_READ_PARAM:
+                    value = ecam_settings.parse_settings(frame).get(setting.param_id)
+                    seen = value if value is not None else seen
+                if seen == option_index:
+                    return True
+                continue
+            now = time.monotonic()
+            if datapoint and request is not None:
+                if last_request is None or now - last_request >= 2.0:
+                    last_request = now
+                    try:
+                        request(datapoint)
+                    except (OSError, ValueError, RuntimeError) as err:
+                        logger.debug("request_property(%s) failed: %s", datapoint, err)
+                raw = self._as_blob_bytes(self._named_value(datapoint))
+                value = (
+                    ecam_settings.parse_settings(raw).get(setting.param_id)
+                    if raw is not None
+                    else None
+                )
+                seen = value if value is not None else seen
+                if seen == option_index:
+                    return True
+            if now >= deadline:
+                break
+            time.sleep(self.response_poll)
+        logger.debug(
+            "set_setting(%s=%s) unconfirmed: acked=%s last_seen=%s",
+            key,
+            option_index,
+            acked,
+            seen,
+        )
+        if seen is None:
+            if acked:
+                return True
+            raise TimeoutError(
+                f"machine neither acknowledged nor republished setting {key!r}"
+            )
+        return False
 
     # --- catalogue ---
     def declared_catalog(self) -> ecam_catalog.RecipeCatalogue:

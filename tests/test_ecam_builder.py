@@ -76,8 +76,15 @@ def test_power_frames_match_captures():
 
 
 def test_write_and_select_frames_match_captures():
-    # write_aoff_test: 0x90 write of param 0x3E := 2.
-    assert build_write_param(0x003E, 2, NON_STRIKER).hex() == "0d0b90f0003e0000000204d0"
+    # protocol.md 14.5 (session_write_test): app-exact 0x90 write of
+    # param 0x3E (<1000 -> flag 0F), committed under the session announce.
+    assert build_write_param(0x003E, 3, NON_STRIKER).hex() == "0d0b900f003e00000003b180"
+    assert build_write_param(0x003E, 2, NON_STRIKER).hex() == "0d0b900f003e00000002a1a1"
+    # Params >= 1000 use flag F0; an explicit flag still overrides.
+    assert build_write_param(1006, 1, NON_STRIKER)[3] == 0xF0
+    assert build_write_param(0x003E, 2, NON_STRIKER, flag=0xF0).hex() == (
+        "0d0b90f0003e0000000204d0"
+    )
     # profile_switch_alice: A9 select profile 1.
     assert build_profile_select(1, NON_STRIKER).hex() == "0d06a9f001d7c0"
     # write_aoff_test read-back: 0x95 read of param 0x3E.

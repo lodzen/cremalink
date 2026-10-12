@@ -55,6 +55,10 @@ async def _parse_json_model(request: web.Request, model):
         return model.model_validate(body)
     except (json.JSONDecodeError, ValidationError) as exc:
         raise web.HTTPBadRequest(text=str(exc)) from exc
+    except (ConnectionError, asyncio.IncompleteReadError) as exc:
+        # The peer (the machine) dropped the connection mid-body; nothing
+        # can be answered, and it is not a server fault.
+        raise web.HTTPBadRequest(text="connection closed while reading body") from exc
 
 
 def _describe_served_payload(payload_str: str) -> dict:
@@ -340,13 +344,14 @@ def create_app(
 
     async def datapoint(request: web.Request) -> web.Response:
         """Endpoint for the device to push encrypted data to."""
-        if not state.dev_crypto_key or not state.dev_iv_seed:
-            raise web.HTTPServiceUnavailable(text="Keys not initialized")
-
         payload = await _parse_json_model(request, EncPayload)
-        decrypted_bytes, new_iv = protocol.decrypt_payload(
-            payload.enc, state.dev_crypto_key, state.dev_iv_seed
-        )
+        # Read the keys only after the body arrived: a rekey can reset them
+        # while the body is still in flight, and nothing may yield between
+        # this check and the decryption.
+        dev_key, dev_iv = state.dev_crypto_key, state.dev_iv_seed
+        if not dev_key or not dev_iv:
+            raise web.HTTPServiceUnavailable(text="Keys not initialized")
+        decrypted_bytes, new_iv = protocol.decrypt_payload(payload.enc, dev_key, dev_iv)
         state.dev_iv_seed = new_iv
 
         try:

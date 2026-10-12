@@ -199,17 +199,23 @@ def build_power(kind: PowerCommand, profile: MachineProfile) -> bytes:
 
 
 def build_write_param(
-    param_id: int, value: int, profile: MachineProfile, *, flag: int = 0xF0
+    param_id: int,
+    value: int,
+    profile: MachineProfile,
+    *,
+    flag: int | None = None,
 ) -> bytes:
     """Build a ``0x90`` parameter-write frame.
 
-    ``0D 0B 90 <flag> <param:2B> <u32:4B>`` — the live-verified write used
-    flag ``0xF0`` for a <1000 param (the documented ``param>=1000 ? 0xF0 :
-    0x0F`` rule from the decompiled notes does not match the capture; the
-    capture wins). ``flag`` stays overridable for params that prove to
-    need the stored-value form.
+    ``0D 0B 90 <flag> <param:2B> <u32:4B>`` — byte-identical to the app's
+    ``n0()`` builder: flag ``0xF0`` for ``param >= 1000``, else ``0x0F``
+    (protocol.md §14.5 verified ``90 0F 00 3E …`` committing under the
+    ``device_connected`` session announce; a ``90 F0`` write without the
+    announce only staged transiently). ``flag`` stays overridable.
     """
     _require_profile(profile)
+    if flag is None:
+        flag = 0xF0 if param_id >= 1000 else 0x0F
     if not 0 <= param_id <= 0xFFFF:
         raise ValueError(f"param_id out of range: {param_id!r}")
     if not 0 <= value <= 0xFFFFFFFF:

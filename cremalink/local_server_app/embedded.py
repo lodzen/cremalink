@@ -172,7 +172,16 @@ class EmbeddedLocalServer:
                 rekey_interval_seconds=self.rekey_interval_seconds,
             )
             app = create_app(settings=settings, logger=self._event_logger)
-            runner = web.AppRunner(app, shutdown_timeout=SITE_SHUTDOWN_TIMEOUT)
+            # aiohttp reports unexpected handler errors through ``logger``;
+            # route them through the sanitizing event logger (forwarded to
+            # the integration's logger) instead of the global
+            # ``aiohttp.server`` one, and skip the per-request access log.
+            runner = web.AppRunner(
+                app,
+                shutdown_timeout=SITE_SHUTDOWN_TIMEOUT,
+                logger=self._event_logger,
+                access_log=None,
+            )
             await runner.setup()
             site = web.SockSite(runner, sock)
             await site.start()
