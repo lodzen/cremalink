@@ -1,0 +1,7 @@
+cremalink.ecam.catalog module
+=============================
+
+.. automodule:: cremalink.ecam.catalog
+   :members:
+   :show-inheritance:
+   :undoc-members:

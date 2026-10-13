@@ -1,0 +1,413 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>cremalink.local_server_app.embedded &mdash; cremalink 0.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=7026087e"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html">
+            
+              <img src="../../../_static/cremalink.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">Home</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/cremalink.html">cremalink package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">cremalink</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">cremalink.local_server_app.embedded</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for cremalink.local_server_app.embedded</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""In-process hosting for the cremalink local LAN protocol server.</span>
+
+<span class="sd">Lets a consumer (e.g. ``cremalink_ha``) run the exact same aiohttp</span>
+<span class="sd">application used by the standalone ``cremalink-server`` process, in-process</span>
+<span class="sd">on its own asyncio event loop -- no separate OS process, no Supervisor</span>
+<span class="sd">add-on required (spec: 002-embedded-local-server, FR-001/FR-002).</span>
+
+<span class="sd">Nothing about the local LAN protocol itself changes here: ``create_app()``</span>
+<span class="sd">already builds a fully asyncio-native aiohttp application (state, protocol,</span>
+<span class="sd">device adapter, background jobs all reuse existing code unchanged). This</span>
+<span class="sd">module only changes *how* that application is hosted -- via</span>
+<span class="sd">``aiohttp.web.AppRunner``/``SockSite`` bound to a pre-bound socket, rather</span>
+<span class="sd">than a separate OS process.</span>
+
+<span class="sd">Migrated from a programmatically driven ``uvicorn.Server`` (spec 002's</span>
+<span class="sd">original implementation) to ``aiohttp`` (specs/002-embedded-local-server</span>
+<span class="sd">research.md #1 "Revision"): ``aiohttp`` is already a mandatory Home</span>
+<span class="sd">Assistant dependency, whereas ``fastapi``/``starlette``/``uvicorn`` were</span>
+<span class="sd">three extra packages pulled in solely for local mode. Unlike uvicorn's</span>
+<span class="sd">``Server.serve()``, aiohttp's ``AppRunner``/``SockSite`` do not run as a</span>
+<span class="sd">single cancellable coroutine task we own -- connections are accepted</span>
+<span class="sd">directly by the asyncio event loop's own server machinery. There is</span>
+<span class="sd">therefore no equivalent "serve task exited unexpectedly" signal to</span>
+<span class="sd">monitor; ``state`` only becomes ``"failed"`` from a `start()`-time error</span>
+<span class="sd">(e.g. the port-fallback range being exhausted), not from a later runtime</span>
+<span class="sd">fault in the HTTP layer itself.</span>
+<span class="sd">"""</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">contextlib</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">socket</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">uuid</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">aiohttp</span><span class="w"> </span><span class="kn">import</span> <span class="n">web</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">cremalink.local_server_app.api</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_app</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">cremalink.local_server_app.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">ServerSettings</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">cremalink.local_server_app.logging</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">RingBufferHandler</span><span class="p">,</span>
+    <span class="n">create_logger</span><span class="p">,</span>
+    <span class="n">log_event</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="c1">#: Default port, matching the standalone server/add-on's historical default.</span>
+<span class="n">DEFAULT_PORT</span> <span class="o">=</span> <span class="mi">10280</span>
+<span class="n">DEFAULT_REKEY_INTERVAL_SECONDS</span> <span class="o">=</span> <span class="mf">60.0</span>
+<span class="c1">#: How many ports past the preferred one to try before giving up (FR-007).</span>
+<span class="n">DEFAULT_PORT_FALLBACK_RANGE</span> <span class="o">=</span> <span class="mi">50</span>
+<span class="c1">#: Bound on how long stop() can take waiting for in-flight connections to</span>
+<span class="c1">#: close (aiohttp's own default is 60s) -- a stuck device connection must</span>
+<span class="c1">#: never make a config-entry reload/unload/removal hang for that long</span>
+<span class="c1">#: (research.md #7, tasks.md Phase 9).</span>
+<span class="n">SITE_SHUTDOWN_TIMEOUT</span> <span class="o">=</span> <span class="mf">5.0</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_bind_socket</span><span class="p">(</span><span class="n">bind_host</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">port</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">socket</span><span class="o">.</span><span class="n">socket</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Bind (but do not listen on) a TCP socket.</span>
+
+<span class="sd">    ``aiohttp.web.SockSite`` hands this straight to</span>
+<span class="sd">    ``loop.create_server(sock=...)``, which performs the ``listen()`` call</span>
+<span class="sd">    itself, so a socket bound here behaves exactly as a socket</span>
+<span class="sd">    ``AppRunner``/``TCPSite`` would have bound on their own. Raises</span>
+<span class="sd">    ``OSError`` if the port is unavailable.</span>
+<span class="sd">    """</span>
+    <span class="n">sock</span> <span class="o">=</span> <span class="n">socket</span><span class="o">.</span><span class="n">socket</span><span class="p">(</span><span class="n">socket</span><span class="o">.</span><span class="n">AF_INET</span><span class="p">,</span> <span class="n">socket</span><span class="o">.</span><span class="n">SOCK_STREAM</span><span class="p">)</span>
+    <span class="n">sock</span><span class="o">.</span><span class="n">setsockopt</span><span class="p">(</span><span class="n">socket</span><span class="o">.</span><span class="n">SOL_SOCKET</span><span class="p">,</span> <span class="n">socket</span><span class="o">.</span><span class="n">SO_REUSEADDR</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">sock</span><span class="o">.</span><span class="n">bind</span><span class="p">((</span><span class="n">bind_host</span><span class="p">,</span> <span class="n">port</span><span class="p">))</span>
+    <span class="n">sock</span><span class="o">.</span><span class="n">set_inheritable</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">sock</span>
+
+
+<div class="viewcode-block" id="detect_advertised_ip">
+<a class="viewcode-back" href="../../../api/cremalink.local_server_app.embedded.html#cremalink.detect_advertised_ip">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">detect_advertised_ip</span><span class="p">(</span><span class="n">device_ip</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Return the local IP the OS would route through to reach ``device_ip``.</span>
+
+<span class="sd">    Uses the "UDP connect" trick: connecting a UDP socket never actually</span>
+<span class="sd">    sends a packet, it only asks the OS to resolve the outbound route --</span>
+<span class="sd">    fast and side-effect free (research.md #3, FR-013).</span>
+<span class="sd">    """</span>
+    <span class="n">sock</span> <span class="o">=</span> <span class="n">socket</span><span class="o">.</span><span class="n">socket</span><span class="p">(</span><span class="n">socket</span><span class="o">.</span><span class="n">AF_INET</span><span class="p">,</span> <span class="n">socket</span><span class="o">.</span><span class="n">SOCK_DGRAM</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">sock</span><span class="o">.</span><span class="n">connect</span><span class="p">((</span><span class="n">device_ip</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">sock</span><span class="o">.</span><span class="n">getsockname</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="n">sock</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+
+
+
+<div class="viewcode-block" id="EmbeddedLocalServer">
+<a class="viewcode-back" href="../../../api/cremalink.local_server_app.embedded.html#cremalink.EmbeddedLocalServer">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">EmbeddedLocalServer</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""In-process host for a single device's cremalink local LAN server.</span>
+
+<span class="sd">    See ``specs/002-embedded-local-server/contracts/embedded-server-api.md``</span>
+<span class="sd">    for the full behavioral contract.</span>
+<span class="sd">    """</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">dsn</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">device_ip</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">lan_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">device_map_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">advertised_ip</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">monitor_poll_interval</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">5.0</span><span class="p">,</span>
+        <span class="n">nudger_poll_interval</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="n">event_logger</span><span class="p">:</span> <span class="n">logging</span><span class="o">.</span><span class="n">Logger</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">preferred_port</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">DEFAULT_PORT</span><span class="p">,</span>
+        <span class="n">port_fallback_range</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">DEFAULT_PORT_FALLBACK_RANGE</span><span class="p">,</span>
+        <span class="n">bind_host</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"0.0.0.0"</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dsn</span> <span class="o">=</span> <span class="n">dsn</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">device_ip</span> <span class="o">=</span> <span class="n">device_ip</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lan_key</span> <span class="o">=</span> <span class="n">lan_key</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">device_map_path</span> <span class="o">=</span> <span class="n">device_map_path</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">monitor_poll_interval</span> <span class="o">=</span> <span class="n">monitor_poll_interval</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nudger_poll_interval</span> <span class="o">=</span> <span class="n">nudger_poll_interval</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rekey_interval_seconds</span> <span class="o">=</span> <span class="n">DEFAULT_REKEY_INTERVAL_SECONDS</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_event_logger</span> <span class="o">=</span> <span class="n">create_logger</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"cremalink.embedded.</span><span class="si">{</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()</span><span class="o">.</span><span class="n">hex</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+            <span class="mi">200</span><span class="p">,</span>
+            <span class="n">forward_logger</span><span class="o">=</span><span class="n">event_logger</span><span class="p">,</span>
+            <span class="n">diagnostic_sensitive_values</span><span class="o">=</span><span class="p">(</span><span class="n">dsn</span><span class="p">,</span> <span class="n">device_ip</span><span class="p">,</span> <span class="n">lan_key</span><span class="p">,</span> <span class="n">bind_host</span><span class="p">),</span>
+            <span class="n">operational_sensitive_values</span><span class="o">=</span><span class="p">(</span><span class="n">lan_key</span><span class="p">,),</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_event_handler</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span>
+            <span class="n">handler</span>
+            <span class="k">for</span> <span class="n">handler</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_event_logger</span><span class="o">.</span><span class="n">handlers</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">handler</span><span class="p">,</span> <span class="n">RingBufferHandler</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">preferred_port</span> <span class="o">=</span> <span class="n">preferred_port</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">port_fallback_range</span> <span class="o">=</span> <span class="n">port_fallback_range</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bind_host</span> <span class="o">=</span> <span class="n">bind_host</span>
+
+        <span class="c1">#: Resolved once start() runs; a supplied value is used as-is.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">advertised_ip</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="n">advertised_ip</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bound_port</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"stopped"</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_runner</span><span class="p">:</span> <span class="n">web</span><span class="o">.</span><span class="n">AppRunner</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_site</span><span class="p">:</span> <span class="n">web</span><span class="o">.</span><span class="n">SockSite</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_sock</span><span class="p">:</span> <span class="n">socket</span><span class="o">.</span><span class="n">socket</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="EmbeddedLocalServer.start">
+<a class="viewcode-back" href="../../../api/cremalink.local_server_app.embedded.html#cremalink.EmbeddedLocalServer.start">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">start</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Resolve advertised IP + a free port, then start serving.</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            RuntimeError: if already starting/running.</span>
+<span class="sd">            OSError: if no port in the fallback range could be bound.</span>
+<span class="sd">        """</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">"starting"</span><span class="p">,</span> <span class="s2">"running"</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">"EmbeddedLocalServer is already starting/running"</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="s2">"starting"</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">advertised_ip</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">advertised_ip</span> <span class="o">=</span> <span class="n">detect_advertised_ip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">device_ip</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_event_handler</span><span class="o">.</span><span class="n">diagnostic_sensitive_values</span> <span class="o">+=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">advertised_ip</span><span class="p">,)</span>
+
+        <span class="n">sock</span><span class="p">,</span> <span class="n">port</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_bind_with_fallback</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_sock</span> <span class="o">=</span> <span class="n">sock</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bound_port</span> <span class="o">=</span> <span class="n">port</span>
+
+        <span class="n">runner</span><span class="p">:</span> <span class="n">web</span><span class="o">.</span><span class="n">AppRunner</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># Never use the cached process-global settings; each server owns</span>
+            <span class="c1"># an independent job configuration and lifecycle.</span>
+            <span class="n">settings</span> <span class="o">=</span> <span class="n">ServerSettings</span><span class="p">(</span>
+                <span class="n">server_ip</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">bind_host</span><span class="p">,</span>
+                <span class="n">server_port</span><span class="o">=</span><span class="n">port</span><span class="p">,</span>
+                <span class="n">advertised_ip</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">advertised_ip</span><span class="p">,</span>
+                <span class="n">monitor_poll_interval</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">monitor_poll_interval</span><span class="p">,</span>
+                <span class="n">nudger_poll_interval</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">nudger_poll_interval</span><span class="p">,</span>
+                <span class="n">rekey_interval_seconds</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rekey_interval_seconds</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">app</span> <span class="o">=</span> <span class="n">create_app</span><span class="p">(</span><span class="n">settings</span><span class="o">=</span><span class="n">settings</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_event_logger</span><span class="p">)</span>
+            <span class="c1"># aiohttp reports unexpected handler errors through ``logger``;</span>
+            <span class="c1"># route them through the sanitizing event logger (forwarded to</span>
+            <span class="c1"># the integration's logger) instead of the global</span>
+            <span class="c1"># ``aiohttp.server`` one, and skip the per-request access log.</span>
+            <span class="n">runner</span> <span class="o">=</span> <span class="n">web</span><span class="o">.</span><span class="n">AppRunner</span><span class="p">(</span>
+                <span class="n">app</span><span class="p">,</span>
+                <span class="n">shutdown_timeout</span><span class="o">=</span><span class="n">SITE_SHUTDOWN_TIMEOUT</span><span class="p">,</span>
+                <span class="n">logger</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_event_logger</span><span class="p">,</span>
+                <span class="n">access_log</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="k">await</span> <span class="n">runner</span><span class="o">.</span><span class="n">setup</span><span class="p">()</span>
+            <span class="n">site</span> <span class="o">=</span> <span class="n">web</span><span class="o">.</span><span class="n">SockSite</span><span class="p">(</span><span class="n">runner</span><span class="p">,</span> <span class="n">sock</span><span class="p">)</span>
+            <span class="k">await</span> <span class="n">site</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">BaseException</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="s2">"failed"</span>
+            <span class="k">if</span> <span class="n">runner</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">with</span> <span class="n">contextlib</span><span class="o">.</span><span class="n">suppress</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+                    <span class="k">await</span> <span class="n">runner</span><span class="o">.</span><span class="n">cleanup</span><span class="p">()</span>
+            <span class="k">with</span> <span class="n">contextlib</span><span class="o">.</span><span class="n">suppress</span><span class="p">(</span><span class="ne">OSError</span><span class="p">):</span>
+                <span class="n">sock</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_sock</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">raise</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_runner</span> <span class="o">=</span> <span class="n">runner</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_site</span> <span class="o">=</span> <span class="n">site</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="s2">"running"</span></div>
+
+
+<div class="viewcode-block" id="EmbeddedLocalServer.get_recent_events">
+<a class="viewcode-back" href="../../../api/cremalink.local_server_app.embedded.html#cremalink.EmbeddedLocalServer.get_recent_events">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_recent_events</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""Return a snapshot of this server's sanitized event buffer."""</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_event_handler</span><span class="o">.</span><span class="n">get_events</span><span class="p">()</span></div>
+
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">event_logger</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">logging</span><span class="o">.</span><span class="n">Logger</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Return this instance's isolated library event logger."""</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_event_logger</span>
+
+<div class="viewcode-block" id="EmbeddedLocalServer.log">
+<a class="viewcode-back" href="../../../api/cremalink.local_server_app.embedded.html#cremalink.EmbeddedLocalServer.log">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">log</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">event</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">details</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">level</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Route an integration-owned event through this server's log path."""</span>
+        <span class="n">log_event</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_event_logger</span><span class="p">,</span>
+            <span class="n">event</span><span class="p">,</span>
+            <span class="n">details</span><span class="p">,</span>
+            <span class="n">diagnostic_sensitive_values</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dsn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">device_ip</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">lan_key</span><span class="p">),</span>
+            <span class="n">operational_sensitive_values</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lan_key</span><span class="p">,),</span>
+            <span class="n">level</span><span class="o">=</span><span class="n">level</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="EmbeddedLocalServer.log_telemetry">
+<a class="viewcode-back" href="../../../api/cremalink.local_server_app.embedded.html#cremalink.EmbeddedLocalServer.log_telemetry">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">log_telemetry</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">details</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Forward telemetry through the HA logger without buffering it."""</span>
+        <span class="n">log_event</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_event_logger</span><span class="p">,</span>
+            <span class="n">event</span><span class="p">,</span>
+            <span class="n">details</span><span class="p">,</span>
+            <span class="n">diagnostic_sensitive_values</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dsn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">device_ip</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">lan_key</span><span class="p">),</span>
+            <span class="n">operational_sensitive_values</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lan_key</span><span class="p">,),</span>
+            <span class="n">telemetry</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_bind_with_fallback</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">socket</span><span class="o">.</span><span class="n">socket</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""Try `preferred_port`, then increment on conflict (FR-007/FR-008)."""</span>
+        <span class="n">last_error</span><span class="p">:</span> <span class="ne">OSError</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">max_port</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">preferred_port</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">port_fallback_range</span>
+        <span class="k">for</span> <span class="n">port</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">preferred_port</span><span class="p">,</span> <span class="n">max_port</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">sock</span> <span class="o">=</span> <span class="n">_bind_socket</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bind_host</span><span class="p">,</span> <span class="n">port</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">OSError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+                <span class="n">last_error</span> <span class="o">=</span> <span class="n">exc</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+                    <span class="s2">"embedded_server_port_unavailable"</span><span class="p">,</span>
+                    <span class="p">{</span>
+                        <span class="s2">"port"</span><span class="p">:</span> <span class="n">port</span><span class="p">,</span>
+                        <span class="s2">"error"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">),</span>
+                        <span class="s2">"trying_next_port"</span><span class="p">:</span> <span class="n">port</span> <span class="o">&lt;</span> <span class="n">max_port</span><span class="p">,</span>
+                    <span class="p">},</span>
+                    <span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">WARNING</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="n">port</span> <span class="o">!=</span> <span class="bp">self</span><span class="o">.</span><span class="n">preferred_port</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+                    <span class="s2">"embedded_server_port_fallback"</span><span class="p">,</span>
+                    <span class="p">{</span><span class="s2">"port"</span><span class="p">:</span> <span class="n">port</span><span class="p">,</span> <span class="s2">"preferred_port"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">preferred_port</span><span class="p">},</span>
+                    <span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">WARNING</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="k">return</span> <span class="n">sock</span><span class="p">,</span> <span class="n">port</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="s2">"failed"</span>
+        <span class="k">raise</span> <span class="ne">OSError</span><span class="p">(</span>
+            <span class="s2">"cremalink embedded server: could not bind any port "</span>
+            <span class="sa">f</span><span class="s2">"in </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">preferred_port</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">max_port</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">last_error</span><span class="si">}</span><span class="s2">"</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="EmbeddedLocalServer.stop">
+<a class="viewcode-back" href="../../../api/cremalink.local_server_app.embedded.html#cremalink.EmbeddedLocalServer.stop">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">stop</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Stop serving and release the listening socket (FR-005).</span>
+
+<span class="sd">        Safe to call multiple times.</span>
+<span class="sd">        """</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">==</span> <span class="s2">"stopped"</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="s2">"stopping"</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_site</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_site</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_runner</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_runner</span><span class="o">.</span><span class="n">cleanup</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="s2">"stopped"</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_runner</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_site</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_sock</span> <span class="o">=</span> <span class="kc">None</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Midian Tekle Elfu.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

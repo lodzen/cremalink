@@ -1,0 +1,210 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>cremalink.ecam.session &mdash; cremalink 0.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=7026087e"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html">
+            
+              <img src="../../../_static/cremalink.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">Home</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/cremalink.html">cremalink package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">cremalink</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">cremalink.ecam.session</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for cremalink.ecam.session</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""</span>
+<span class="sd">The ECAM write-gate session.</span>
+
+<span class="sd">Display-verified on Soul LAN: ``0x90``/``0xA9`` writes only commit when a</span>
+<span class="sd">session has been announced by writing the machine's ``device_connected``</span>
+<span class="sd">property to the current unix timestamp (same ``properties`` payload</span>
+<span class="sd">mechanism as ``data_request``). The session lives ~300 s; writes past</span>
+<span class="sd">~240 s are re-announced. Without the announce, writes stage transiently</span>
+<span class="sd">(``0xF0``) or are ignored (``0x0F``).</span>
+
+<span class="sd">On striker machines the session instead uses the ``0xE8`` handshake plus</span>
+<span class="sd">the ``84 0f 03 02`` app-id registration, after which the registered</span>
+<span class="sd">4-byte app id rides as the transport trailer.</span>
+<span class="sd">"""</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">collections.abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Callable</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">cremalink.ecam.machine_profiles</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">SESSION_DEVICE_CONNECTED_TS</span><span class="p">,</span>
+    <span class="n">MachineProfile</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="c1">#: Refresh well inside the ~300 s observed TTL (the app uses 240 s).</span>
+<span class="n">DEFAULT_REFRESH_SECONDS</span> <span class="o">=</span> <span class="mi">240</span>
+
+
+<div class="viewcode-block" id="SessionGate">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.session.html#cremalink.ecam.SessionGate">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">SessionGate</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Tracks session freshness and performs announces on demand.</span>
+
+<span class="sd">    Constructed per device/transport — per-entry state only. ``announce``</span>
+<span class="sd">    is the profile-appropriate way to (re)open the session:</span>
+
+<span class="sd">    - non-striker: ``write_property(connected_property, unix_ts)``</span>
+<span class="sd">    - striker: the ``0xE8`` handshake + ``84 0f 03 02`` registration</span>
+<span class="sd">      callback (run once), returning the registered app-id bytes.</span>
+<span class="sd">    """</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">profile</span><span class="p">:</span> <span class="n">MachineProfile</span><span class="p">,</span>
+        <span class="n">announce</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="n">Any</span><span class="p">],</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">refresh_seconds</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">DEFAULT_REFRESH_SECONDS</span><span class="p">,</span>
+        <span class="n">clock</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Create a gate.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            profile: bound machine profile; decides the session shape.</span>
+<span class="sd">            announce: zero-arg callable performing one announce/refresh.</span>
+<span class="sd">                For ``DEVICE_CONNECTED_TS`` profiles this is expected to</span>
+<span class="sd">                write ``device_connected = int(time.time())``; for</span>
+<span class="sd">                ``E8_APPID`` profiles the striker handshake+registration.</span>
+<span class="sd">            refresh_seconds: announce again once the session is this old.</span>
+<span class="sd">            clock: injectable clock for tests.</span>
+<span class="sd">        """</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">profile</span> <span class="o">=</span> <span class="n">profile</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">refresh_seconds</span> <span class="o">=</span> <span class="n">refresh_seconds</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_announce</span> <span class="o">=</span> <span class="n">announce</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_clock</span> <span class="o">=</span> <span class="n">clock</span>
+        <span class="c1">#: unix time of the last successful announce (0 = never).</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">announced_at</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">uses_timestamp_announce</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Non-striker machines announce via the ``device_connected`` ts."""</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">profile</span><span class="o">.</span><span class="n">session</span> <span class="o">==</span> <span class="n">SESSION_DEVICE_CONNECTED_TS</span>
+
+<div class="viewcode-block" id="SessionGate.is_fresh">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.session.html#cremalink.ecam.SessionGate.is_fresh">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_fresh</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">now</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Whether the current session is still inside the refresh window."""</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">announced_at</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="n">now</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_clock</span><span class="p">()</span> <span class="k">if</span> <span class="n">now</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">now</span>
+        <span class="k">return</span> <span class="n">now</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">announced_at</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">refresh_seconds</span></div>
+
+
+<div class="viewcode-block" id="SessionGate.ensure_fresh">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.session.html#cremalink.ecam.SessionGate.ensure_fresh">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">ensure_fresh</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">now</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Announce the session when stale. Returns True iff an announce ran."""</span>
+        <span class="n">now</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_clock</span><span class="p">()</span> <span class="k">if</span> <span class="n">now</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">now</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_fresh</span><span class="p">(</span><span class="n">now</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_announce</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">announced_at</span> <span class="o">=</span> <span class="n">now</span>
+        <span class="k">return</span> <span class="kc">True</span></div>
+
+
+<div class="viewcode-block" id="SessionGate.invalidate">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.session.html#cremalink.ecam.SessionGate.invalidate">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">invalidate</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Force the next gated write to re-announce (e.g. after an ack</span>
+<span class="sd">        indicated the write was ignored)."""</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">announced_at</span> <span class="o">=</span> <span class="mf">0.0</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Midian Tekle Elfu.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

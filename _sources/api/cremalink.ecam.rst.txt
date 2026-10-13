@@ -1,0 +1,23 @@
+cremalink.ecam package
+======================
+
+.. automodule:: cremalink.ecam
+   :members:
+   :show-inheritance:
+   :undoc-members:
+
+Submodules
+----------
+
+.. toctree::
+   :maxdepth: 4
+
+   cremalink.ecam.answers
+   cremalink.ecam.builder
+   cremalink.ecam.catalog
+   cremalink.ecam.machine_profiles
+   cremalink.ecam.monitor_bits
+   cremalink.ecam.profiles
+   cremalink.ecam.session
+   cremalink.ecam.settings
+   cremalink.ecam.statistics

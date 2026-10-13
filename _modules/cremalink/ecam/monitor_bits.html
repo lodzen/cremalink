@@ -1,0 +1,201 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>cremalink.ecam.monitor_bits &mdash; cremalink 0.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=7026087e"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html">
+            
+              <img src="../../../_static/cremalink.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">Home</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/cremalink.html">cremalink package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">cremalink</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">cremalink.ecam.monitor_bits</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for cremalink.ecam.monitor_bits</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""</span>
+<span class="sd">Monitor frame bit tables — the machine's switch and alarm words.</span>
+
+<span class="sd">Names come from the official enums in Coffee Link 4.9.6 (``m6.p`` for</span>
+<span class="sd">switches, ``m6.l`` for alarms); see ``research/protocol.md`` Registers 4.1</span>
+<span class="sd">and 4.2. Values are the raw bit states — whether a set bit means "fault"</span>
+<span class="sd">or "present" is given by each label.</span>
+
+<span class="sd">The switches word is 2 bytes (bit ``n`` = ``switches[n // 8] &gt;&gt; n % 8``);</span>
+<span class="sd">the alarms word is 4 bytes assembled from non-contiguous payload bytes by</span>
+<span class="sd">:class:`~cremalink.parsing.monitor.frame.MonitorFrame`.</span>
+<span class="sd">"""</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">NamedTuple</span>
+
+
+<div class="viewcode-block" id="BitDef">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.monitor_bits.html#cremalink.ecam.monitor_bits.BitDef">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">BitDef</span><span class="p">(</span><span class="n">NamedTuple</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""One documented monitor bit."""</span>
+
+    <span class="n">key</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">label</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="c1">#: Rare hardware faults / dual-hopper bits: expose, but off by default.</span>
+    <span class="n">common</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span></div>
+
+
+
+<span class="c1">#: Switch bits. Bits 11, 12 and 15 are unmapped (cold-milk accessory bits on</span>
+<span class="c1">#: striker/maestosa models). Bit 3 (waste container) is exposed by the</span>
+<span class="c1">#: dedicated ``is_waste_container_missing`` flag instead.</span>
+<span class="n">SWITCH_BITS</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">BitDef</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="mi">0</span><span class="p">:</span> <span class="n">BitDef</span><span class="p">(</span><span class="s2">"water_spout"</span><span class="p">,</span> <span class="s2">"Water Spout"</span><span class="p">),</span>
+    <span class="mi">1</span><span class="p">:</span> <span class="n">BitDef</span><span class="p">(</span><span class="s2">"motor_up"</span><span class="p">,</span> <span class="s2">"Motor Up"</span><span class="p">),</span>
+    <span class="mi">2</span><span class="p">:</span> <span class="n">BitDef</span><span class="p">(</span><span class="s2">"motor_down"</span><span class="p">,</span> <span class="s2">"Motor Down"</span><span class="p">),</span>
+    <span class="mi">4</span><span class="p">:</span> <span class="n">BitDef</span><span class="p">(</span><span class="s2">"water_tank_absent"</span><span class="p">,</span> <span class="s2">"Water Tank Absent"</span><span class="p">),</span>
+    <span class="mi">5</span><span class="p">:</span> <span class="n">BitDef</span><span class="p">(</span><span class="s2">"knob"</span><span class="p">,</span> <span class="s2">"Knob"</span><span class="p">),</span>
+    <span class="mi">6</span><span class="p">:</span> <span class="n">BitDef</span><span class="p">(</span><span class="s2">"water_level_low"</span><span class="p">,</span> <span class="s2">"Water Level Low"</span><span class="p">),</span>
+    <span class="mi">7</span><span class="p">:</span> <span class="n">BitDef</span><span class="p">(</span><span class="s2">"coffee_jug_present"</span><span class="p">,</span> <span class="s2">"Coffee Jug Present"</span><span class="p">),</span>
+    <span class="mi">8</span><span class="p">:</span> <span class="n">BitDef</span><span class="p">(</span><span class="s2">"milk_carafe_present"</span><span class="p">,</span> <span class="s2">"Milk Carafe Present"</span><span class="p">),</span>
+    <span class="mi">9</span><span class="p">:</span> <span class="n">BitDef</span><span class="p">(</span><span class="s2">"choco_tank_present"</span><span class="p">,</span> <span class="s2">"Chocolate Tank Present"</span><span class="p">),</span>
+    <span class="mi">10</span><span class="p">:</span> <span class="n">BitDef</span><span class="p">(</span><span class="s2">"clean_knob"</span><span class="p">,</span> <span class="s2">"Clean Knob"</span><span class="p">),</span>
+    <span class="mi">13</span><span class="p">:</span> <span class="n">BitDef</span><span class="p">(</span><span class="s2">"door_opened"</span><span class="p">,</span> <span class="s2">"Door Opened"</span><span class="p">),</span>
+    <span class="mi">14</span><span class="p">:</span> <span class="n">BitDef</span><span class="p">(</span><span class="s2">"preground_door_opened"</span><span class="p">,</span> <span class="s2">"Preground Door Opened"</span><span class="p">),</span>
+<span class="p">}</span>
+
+<span class="c1">#: Alarm bits. Bits 0, 1 and 13 (water tank empty / waste container full /</span>
+<span class="c1">#: tank in position) are exposed by the dedicated ``is_watertank_*`` and</span>
+<span class="c1">#: ``is_waste_container_full`` flags. Bits 28-31 are unmapped.</span>
+<span class="n">ALARM_BITS</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">BitDef</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="mi">2</span><span class="p">:</span> <span class="n">BitDef</span><span class="p">(</span><span class="s2">"descale"</span><span class="p">,</span> <span class="s2">"Descale Needed"</span><span class="p">),</span>
+    <span class="mi">3</span><span class="p">:</span> <span class="n">BitDef</span><span class="p">(</span><span class="s2">"replace_water_filter"</span><span class="p">,</span> <span class="s2">"Replace Water Filter"</span><span class="p">),</span>
+    <span class="mi">4</span><span class="p">:</span> <span class="n">BitDef</span><span class="p">(</span><span class="s2">"ground_too_fine"</span><span class="p">,</span> <span class="s2">"Coffee Ground Too Fine"</span><span class="p">),</span>
+    <span class="mi">5</span><span class="p">:</span> <span class="n">BitDef</span><span class="p">(</span><span class="s2">"beans_empty"</span><span class="p">,</span> <span class="s2">"Coffee Beans Empty"</span><span class="p">),</span>
+    <span class="mi">6</span><span class="p">:</span> <span class="n">BitDef</span><span class="p">(</span><span class="s2">"machine_to_service"</span><span class="p">,</span> <span class="s2">"Service Required"</span><span class="p">),</span>
+    <span class="mi">7</span><span class="p">:</span> <span class="n">BitDef</span><span class="p">(</span><span class="s2">"heater_probe_failure"</span><span class="p">,</span> <span class="s2">"Coffee Heater Probe Failure"</span><span class="p">),</span>
+    <span class="mi">8</span><span class="p">:</span> <span class="n">BitDef</span><span class="p">(</span><span class="s2">"too_much_coffee"</span><span class="p">,</span> <span class="s2">"Too Much Coffee"</span><span class="p">),</span>
+    <span class="mi">9</span><span class="p">:</span> <span class="n">BitDef</span><span class="p">(</span><span class="s2">"infuser_motor_not_working"</span><span class="p">,</span> <span class="s2">"Infuser Motor Not Working"</span><span class="p">),</span>
+    <span class="mi">10</span><span class="p">:</span> <span class="n">BitDef</span><span class="p">(</span><span class="s2">"steamer_probe_failure"</span><span class="p">,</span> <span class="s2">"Steamer Probe Failure"</span><span class="p">),</span>
+    <span class="mi">11</span><span class="p">:</span> <span class="n">BitDef</span><span class="p">(</span><span class="s2">"empty_drip_tray"</span><span class="p">,</span> <span class="s2">"Empty Drip Tray"</span><span class="p">),</span>
+    <span class="mi">12</span><span class="p">:</span> <span class="n">BitDef</span><span class="p">(</span><span class="s2">"hydraulic_circuit_problem"</span><span class="p">,</span> <span class="s2">"Hydraulic Circuit Problem"</span><span class="p">),</span>
+    <span class="mi">14</span><span class="p">:</span> <span class="n">BitDef</span><span class="p">(</span><span class="s2">"clean_knob"</span><span class="p">,</span> <span class="s2">"Clean Knob"</span><span class="p">),</span>
+    <span class="mi">15</span><span class="p">:</span> <span class="n">BitDef</span><span class="p">(</span><span class="s2">"beans_empty_hopper_2"</span><span class="p">,</span> <span class="s2">"Coffee Beans Empty (Hopper 2)"</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+    <span class="mi">16</span><span class="p">:</span> <span class="n">BitDef</span><span class="p">(</span><span class="s2">"tank_too_full"</span><span class="p">,</span> <span class="s2">"Water Tank Too Full"</span><span class="p">),</span>
+    <span class="mi">17</span><span class="p">:</span> <span class="n">BitDef</span><span class="p">(</span><span class="s2">"bean_hopper_absent"</span><span class="p">,</span> <span class="s2">"Bean Hopper Absent"</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+    <span class="mi">18</span><span class="p">:</span> <span class="n">BitDef</span><span class="p">(</span><span class="s2">"grid_presence"</span><span class="p">,</span> <span class="s2">"Drip Grid Presence"</span><span class="p">),</span>
+    <span class="mi">19</span><span class="p">:</span> <span class="n">BitDef</span><span class="p">(</span><span class="s2">"infuser_not_in_position"</span><span class="p">,</span> <span class="s2">"Infuser Not In Position"</span><span class="p">),</span>
+    <span class="mi">20</span><span class="p">:</span> <span class="n">BitDef</span><span class="p">(</span><span class="s2">"not_enough_coffee"</span><span class="p">,</span> <span class="s2">"Not Enough Coffee"</span><span class="p">),</span>
+    <span class="mi">21</span><span class="p">:</span> <span class="n">BitDef</span><span class="p">(</span><span class="s2">"expansion_comm_problem"</span><span class="p">,</span> <span class="s2">"Expansion Module Comm Problem"</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+    <span class="mi">22</span><span class="p">:</span> <span class="n">BitDef</span><span class="p">(</span><span class="s2">"expansion_submodules_problem"</span><span class="p">,</span> <span class="s2">"Expansion Submodule Problem"</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+    <span class="mi">23</span><span class="p">:</span> <span class="n">BitDef</span><span class="p">(</span><span class="s2">"grinding_unit_1_problem"</span><span class="p">,</span> <span class="s2">"Grinding Unit 1 Problem"</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+    <span class="mi">24</span><span class="p">:</span> <span class="n">BitDef</span><span class="p">(</span><span class="s2">"grinding_unit_2_problem"</span><span class="p">,</span> <span class="s2">"Grinding Unit 2 Problem"</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+    <span class="mi">25</span><span class="p">:</span> <span class="n">BitDef</span><span class="p">(</span><span class="s2">"condense_fan_problem"</span><span class="p">,</span> <span class="s2">"Condense Fan Problem"</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+    <span class="mi">26</span><span class="p">:</span> <span class="n">BitDef</span><span class="p">(</span><span class="s2">"clock_bt_comm_problem"</span><span class="p">,</span> <span class="s2">"Clock Board Comm Problem"</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+    <span class="mi">27</span><span class="p">:</span> <span class="n">BitDef</span><span class="p">(</span><span class="s2">"spi_comm_problem"</span><span class="p">,</span> <span class="s2">"SPI Comm Problem"</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+<span class="p">}</span>
+
+
+<div class="viewcode-block" id="decode_bits">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.monitor_bits.html#cremalink.ecam.monitor_bits.decode_bits">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">decode_bits</span><span class="p">(</span><span class="n">word</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span> <span class="n">table</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">BitDef</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bool</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""``{key: bit state}`` for every documented bit of ``word``.</span>
+
+<span class="sd">    A bit whose byte is missing (a short frame) maps to ``None`` rather</span>
+<span class="sd">    than ``False`` — absent data is not a cleared bit.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="n">bit</span><span class="o">.</span><span class="n">key</span><span class="p">:</span> <span class="p">(</span>
+            <span class="nb">bool</span><span class="p">(</span><span class="n">word</span><span class="p">[</span><span class="n">n</span> <span class="o">//</span> <span class="mi">8</span><span class="p">]</span> <span class="o">&gt;&gt;</span> <span class="p">(</span><span class="n">n</span> <span class="o">%</span> <span class="mi">8</span><span class="p">)</span> <span class="o">&amp;</span> <span class="mi">1</span><span class="p">)</span> <span class="k">if</span> <span class="n">n</span> <span class="o">//</span> <span class="mi">8</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">word</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="p">)</span>
+        <span class="k">for</span> <span class="n">n</span><span class="p">,</span> <span class="n">bit</span> <span class="ow">in</span> <span class="n">table</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+    <span class="p">}</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Midian Tekle Elfu.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

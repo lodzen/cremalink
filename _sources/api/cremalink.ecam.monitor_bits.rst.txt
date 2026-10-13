@@ -1,0 +1,7 @@
+cremalink.ecam.monitor\_bits module
+===================================
+
+.. automodule:: cremalink.ecam.monitor_bits
+   :members:
+   :show-inheritance:
+   :undoc-members:

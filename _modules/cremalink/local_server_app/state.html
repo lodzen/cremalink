@@ -1,0 +1,775 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>cremalink.local_server_app.state &mdash; cremalink 0.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=7026087e"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html">
+            
+              <img src="../../../_static/cremalink.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">Home</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/cremalink.html">cremalink package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">cremalink</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">cremalink.local_server_app.state</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for cremalink.local_server_app.state</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""</span>
+<span class="sd">This module defines the state management for the local server application.</span>
+<span class="sd">It centralizes all runtime data, including device configuration, cryptographic</span>
+<span class="sd">keys, command queues, and the latest received device data.</span>
+<span class="sd">"""</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">base64</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">collections</span><span class="w"> </span><span class="kn">import</span> <span class="n">deque</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">Any</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">cremalink.local_server_app</span><span class="w"> </span><span class="kn">import</span> <span class="n">protocol</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">cremalink.local_server_app.logging</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">log_event</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">cremalink.local_server_app.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">ServerSettings</span>
+
+
+<div class="viewcode-block" id="LocalServerState">
+<a class="viewcode-back" href="../../../api/cremalink.local_server_app.state.html#cremalink.local_server_app.state.LocalServerState">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">LocalServerState</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""</span>
+<span class="sd">    Manages the runtime state of the local server in a thread-safe manner.</span>
+
+<span class="sd">    This class acts as a state machine, holding all information related to the</span>
+<span class="sd">    device connection, including credentials, cryptographic session keys,</span>
+<span class="sd">    pending commands, and the most recent data snapshots (monitor and properties).</span>
+<span class="sd">    An asyncio.Lock is used to prevent race conditions when accessing state</span>
+<span class="sd">    from different asynchronous tasks.</span>
+<span class="sd">    """</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">settings</span><span class="p">:</span> <span class="n">ServerSettings</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Initializes the state with default values.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            settings: The application's configuration settings.</span>
+<span class="sd">            logger: The application's logger instance.</span>
+<span class="sd">        """</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">settings</span> <span class="o">=</span> <span class="n">settings</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span> <span class="o">=</span> <span class="n">logger</span>
+        <span class="c1"># --- Device Configuration ---</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dsn</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">device_ip</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">device_scheme</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"https"</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lan_key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="c1"># --- Session &amp; Command State ---</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">seq</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">command_queue</span><span class="p">:</span> <span class="n">deque</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">deque</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">command_payload</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">protocol</span><span class="o">.</span><span class="n">build_empty_payload</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">seq</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">last_command</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">registered</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="c1"># --- Cryptographic Keys &amp; IVs ---</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">app_sign_key</span><span class="p">:</span> <span class="nb">bytes</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">app_crypto_key</span><span class="p">:</span> <span class="nb">bytes</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">app_iv_seed</span><span class="p">:</span> <span class="nb">bytes</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dev_crypto_key</span><span class="p">:</span> <span class="nb">bytes</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dev_iv_seed</span><span class="p">:</span> <span class="nb">bytes</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="c1"># --- Key Exchange Parameters ---</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">random_2</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_generate_random_2</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">time_2</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_generate_time_2</span><span class="p">()</span>
+
+        <span class="c1"># --- Data Snapshots ---</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">last_monitor</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">last_monitor_raw</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">last_monitor_b64</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">last_monitor_received_at</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">last_monitor_command_sent_at</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_monitor_command_payloads</span><span class="p">:</span> <span class="nb">set</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">last_properties</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">last_properties_received_at</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_monitor_request_pending</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_properties_request_pending</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">monitor_property_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_request_property_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="c1"># Per-property store keyed by datapoint name (any `value` datapoint</span>
+        <span class="c1"># and every entry of a `properties` block lands here) plus the</span>
+        <span class="c1"># `data_response` response mailbox (1-deep, last-write-wins).</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">properties_by_name</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_response_property_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"data_response"</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_response_mailbox</span><span class="p">:</span> <span class="n">deque</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="n">deque</span><span class="p">(</span><span class="n">maxlen</span><span class="o">=</span><span class="mi">16</span><span class="p">)</span>
+
+        <span class="c1"># --- Concurrency Control ---</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lock</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_load_server_settings</span><span class="p">()</span>
+
+    <span class="c1"># --- helpers ---</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_generate_random_2</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Generates the server-side random value for key exchange."""</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">fixed_random_2</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">fixed_random_2</span>
+        <span class="k">return</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64encode</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">urandom</span><span class="p">(</span><span class="mi">12</span><span class="p">))</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">"utf-8"</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_generate_time_2</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Generates the server-side timestamp for key exchange."""</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">fixed_time_2</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">fixed_time_2</span>
+        <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">))</span>
+
+    <span class="c1"># --- lifecycle ---</span>
+<div class="viewcode-block" id="LocalServerState.configure">
+<a class="viewcode-back" href="../../../api/cremalink.local_server_app.state.html#cremalink.local_server_app.state.LocalServerState.configure">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">configure</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">dsn</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">device_ip</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">lan_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">device_scheme</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"https"</span><span class="p">,</span>
+        <span class="n">monitor_property_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">data_request_property_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Configures the state with new device details and resets the session.</span>
+<span class="sd">        If the device details are unchanged, this is a no-op.</span>
+<span class="sd">        """</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">lock</span><span class="p">:</span>
+            <span class="c1"># Check if configuration is for the same device and keys are already set up.</span>
+            <span class="n">same_device</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">dsn</span> <span class="o">==</span> <span class="n">dsn</span>
+                <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">device_ip</span> <span class="o">==</span> <span class="n">device_ip</span>
+                <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">lan_key</span> <span class="o">==</span> <span class="n">lan_key</span>
+                <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">monitor_property_name</span> <span class="o">==</span> <span class="n">monitor_property_name</span>
+                <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_request_property_name</span> <span class="o">==</span> <span class="n">data_request_property_name</span>
+                <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">app_crypto_key</span>
+                <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">dev_crypto_key</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="n">same_device</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"configure_noop"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"dsn"</span><span class="p">:</span> <span class="n">dsn</span><span class="p">,</span> <span class="s2">"device_ip"</span><span class="p">:</span> <span class="n">device_ip</span><span class="p">})</span>
+                <span class="k">return</span>
+
+            <span class="c1"># Reset the entire state for the new device configuration.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">dsn</span> <span class="o">=</span> <span class="n">dsn</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">device_ip</span> <span class="o">=</span> <span class="n">device_ip</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">device_scheme</span> <span class="o">=</span> <span class="n">device_scheme</span> <span class="ow">or</span> <span class="s2">"https"</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">lan_key</span> <span class="o">=</span> <span class="n">lan_key</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">monitor_property_name</span> <span class="o">=</span> <span class="n">monitor_property_name</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">data_request_property_name</span> <span class="o">=</span> <span class="n">data_request_property_name</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">seq</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">command_queue</span> <span class="o">=</span> <span class="n">deque</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">command_payload</span> <span class="o">=</span> <span class="n">protocol</span><span class="o">.</span><span class="n">build_empty_payload</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">seq</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">app_sign_key</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">app_crypto_key</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">app_iv_seed</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">dev_crypto_key</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">dev_iv_seed</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">random_2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_generate_random_2</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">time_2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_generate_time_2</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">registered</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">last_monitor</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">last_monitor_raw</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">last_monitor_b64</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">last_monitor_received_at</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">last_monitor_command_sent_at</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_monitor_command_payloads</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_monitor_request_pending</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">last_properties</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">last_properties_received_at</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_properties_request_pending</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">properties_by_name</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_response_mailbox</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+            <span class="s2">"configured"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"dsn"</span><span class="p">:</span> <span class="n">dsn</span><span class="p">,</span> <span class="s2">"device_ip"</span><span class="p">:</span> <span class="n">device_ip</span><span class="p">,</span> <span class="s2">"scheme"</span><span class="p">:</span> <span class="n">device_scheme</span><span class="p">}</span>
+        <span class="p">)</span>
+        <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_save_server_settings</span><span class="p">(</span>
+            <span class="n">dsn</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dsn</span><span class="p">,</span>
+            <span class="n">device_ip</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device_ip</span><span class="p">,</span>
+            <span class="n">lan_key</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">lan_key</span><span class="p">,</span>
+            <span class="n">device_scheme</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">device_scheme</span><span class="p">,</span>
+            <span class="n">monitor_property_name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">monitor_property_name</span><span class="p">,</span>
+            <span class="n">data_request_property_name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">data_request_property_name</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">_save_server_settings</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">dsn</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">device_ip</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">lan_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">device_scheme</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">monitor_property_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">data_request_property_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">server_settings_path</span> <span class="o">==</span> <span class="s2">""</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">"dsn"</span><span class="p">:</span> <span class="n">dsn</span><span class="p">,</span>
+            <span class="s2">"device_ip"</span><span class="p">:</span> <span class="n">device_ip</span><span class="p">,</span>
+            <span class="s2">"lan_key"</span><span class="p">:</span> <span class="n">lan_key</span><span class="p">,</span>
+            <span class="s2">"device_scheme"</span><span class="p">:</span> <span class="n">device_scheme</span><span class="p">,</span>
+            <span class="s2">"monitor_property_name"</span><span class="p">:</span> <span class="n">monitor_property_name</span><span class="p">,</span>
+            <span class="s2">"data_request_property_name"</span><span class="p">:</span> <span class="n">data_request_property_name</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">to_thread</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_write_settings_file</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"State saved to </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">server_settings_path</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Error saving state: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_write_settings_file</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">server_settings_path</span><span class="p">,</span> <span class="s2">"w"</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_load_server_settings</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">server_settings_path</span> <span class="o">==</span> <span class="s2">""</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">server_settings_path</span><span class="p">,</span> <span class="s2">"r"</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">dsn</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"dsn"</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">device_ip</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"device_ip"</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">lan_key</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"lan_key"</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">device_scheme</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"device_scheme"</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">monitor_property_name</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"monitor_property_name"</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">data_request_property_name</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"data_request_property_name"</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">"State loaded from </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">server_settings_path</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">,</span> <span class="ne">AttributeError</span><span class="p">)</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Error loading state: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+
+<div class="viewcode-block" id="LocalServerState.rekey">
+<a class="viewcode-back" href="../../../api/cremalink.local_server_app.state.html#cremalink.local_server_app.state.LocalServerState.rekey">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">rekey</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Resets cryptographic keys and session state to force a new key exchange.</span>
+<span class="sd">        """</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">lock</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">app_sign_key</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">app_crypto_key</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">app_iv_seed</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">dev_crypto_key</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">dev_iv_seed</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">random_2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_generate_random_2</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">time_2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_generate_time_2</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">seq</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">command_queue</span> <span class="o">=</span> <span class="n">deque</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">command_payload</span> <span class="o">=</span> <span class="n">protocol</span><span class="o">.</span><span class="n">build_empty_payload</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">seq</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_monitor_request_pending</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_properties_request_pending</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">properties_by_name</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_response_mailbox</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">registered</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">"rekey_reset"</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="LocalServerState.init_crypto">
+<a class="viewcode-back" href="../../../api/cremalink.local_server_app.state.html#cremalink.local_server_app.state.LocalServerState.init_crypto">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">init_crypto</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">random_1</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">time_1</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Derives and initializes all session keys using values from the key exchange.</span>
+<span class="sd">        """</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">lan_key</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"LAN key not set; configure server first"</span><span class="p">)</span>
+
+        <span class="p">(</span>
+            <span class="n">app_sign_key</span><span class="p">,</span>
+            <span class="n">app_crypto_key</span><span class="p">,</span>
+            <span class="n">app_iv_seed</span><span class="p">,</span>
+            <span class="n">dev_crypto_key</span><span class="p">,</span>
+            <span class="n">dev_iv_seed</span><span class="p">,</span>
+        <span class="p">)</span> <span class="o">=</span> <span class="n">protocol</span><span class="o">.</span><span class="n">derive_keys</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">lan_key</span><span class="p">,</span> <span class="n">random_1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">random_2</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">time_1</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">time_2</span><span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">lock</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">app_sign_key</span> <span class="o">=</span> <span class="n">app_sign_key</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">app_crypto_key</span> <span class="o">=</span> <span class="n">app_crypto_key</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">app_iv_seed</span> <span class="o">=</span> <span class="n">app_iv_seed</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">dev_crypto_key</span> <span class="o">=</span> <span class="n">dev_crypto_key</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">dev_iv_seed</span> <span class="o">=</span> <span class="n">dev_iv_seed</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">seq</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">command_payload</span> <span class="o">=</span> <span class="n">protocol</span><span class="o">.</span><span class="n">build_empty_payload</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">seq</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"crypto_init"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"app_crypto_key"</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s2">"dev_crypto_key"</span><span class="p">:</span> <span class="kc">True</span><span class="p">})</span></div>
+
+
+    <span class="c1"># --- state queries ---</span>
+<div class="viewcode-block" id="LocalServerState.is_configured">
+<a class="viewcode-back" href="../../../api/cremalink.local_server_app.state.html#cremalink.local_server_app.state.LocalServerState.is_configured">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_configured</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Returns True if the server has been configured with device details."""</span>
+        <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dsn</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">device_ip</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">lan_key</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="LocalServerState.keys_ready">
+<a class="viewcode-back" href="../../../api/cremalink.local_server_app.state.html#cremalink.local_server_app.state.LocalServerState.keys_ready">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">keys_ready</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Returns True if the cryptographic session keys have been derived."""</span>
+        <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">app_crypto_key</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">app_iv_seed</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">app_sign_key</span><span class="p">)</span></div>
+
+
+    <span class="c1"># --- command queue ---</span>
+<div class="viewcode-block" id="LocalServerState.queue_command">
+<a class="viewcode-back" href="../../../api/cremalink.local_server_app.state.html#cremalink.local_server_app.state.LocalServerState.queue_command">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">queue_command</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">command</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Adds a high-level device command to the outgoing queue."""</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_configured</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Server not configured"</span><span class="p">)</span>
+        <span class="n">payload</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">"seq_no"</span><span class="p">:</span> <span class="n">protocol</span><span class="o">.</span><span class="n">pad_seq</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">seq</span><span class="p">),</span>
+            <span class="s2">"data"</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">"properties"</span><span class="p">:</span> <span class="p">[</span>
+                    <span class="p">{</span>
+                        <span class="s2">"property"</span><span class="p">:</span> <span class="p">{</span>
+                            <span class="s2">"base_type"</span><span class="p">:</span> <span class="s2">"string"</span><span class="p">,</span>
+                            <span class="s2">"dsn"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">dsn</span><span class="p">,</span>
+                            <span class="s2">"name"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_request_property_name</span><span class="p">,</span>
+                            <span class="s2">"value"</span><span class="p">:</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">command</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span><span class="p">,</span>
+                        <span class="p">}</span>
+                    <span class="p">}</span>
+                <span class="p">]</span>
+            <span class="p">},</span>
+        <span class="p">}</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">lock</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">command_queue</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">queue_max_size</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">OverflowError</span><span class="p">(</span><span class="s2">"Command queue is full"</span><span class="p">)</span>
+            <span class="n">payload_str</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">payload</span><span class="p">,</span> <span class="n">separators</span><span class="o">=</span><span class="p">(</span><span class="s2">","</span><span class="p">,</span> <span class="s2">":"</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">command_queue</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">payload_str</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">last_command</span> <span class="o">=</span> <span class="n">command</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"queue_command"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"command"</span><span class="p">:</span> <span class="n">command</span><span class="p">})</span></div>
+
+
+<div class="viewcode-block" id="LocalServerState.queue_property_set">
+<a class="viewcode-back" href="../../../api/cremalink.local_server_app.state.html#cremalink.local_server_app.state.LocalServerState.queue_property_set">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">queue_property_set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Adds a write for a single named datapoint to the outgoing queue.</span>
+
+<span class="sd">        Same `properties` envelope as `queue_command`, but the property name</span>
+<span class="sd">        is caller-provided (e.g. `device_connected` for session announcements).</span>
+<span class="sd">        """</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_configured</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Server not configured"</span><span class="p">)</span>
+        <span class="n">payload</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">"seq_no"</span><span class="p">:</span> <span class="n">protocol</span><span class="o">.</span><span class="n">pad_seq</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">seq</span><span class="p">),</span>
+            <span class="s2">"data"</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">"properties"</span><span class="p">:</span> <span class="p">[</span>
+                    <span class="p">{</span>
+                        <span class="s2">"property"</span><span class="p">:</span> <span class="p">{</span>
+                            <span class="s2">"base_type"</span><span class="p">:</span> <span class="s2">"string"</span><span class="p">,</span>
+                            <span class="s2">"dsn"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">dsn</span><span class="p">,</span>
+                            <span class="s2">"name"</span><span class="p">:</span> <span class="n">name</span><span class="p">,</span>
+                            <span class="s2">"value"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">),</span>
+                        <span class="p">}</span>
+                    <span class="p">}</span>
+                <span class="p">]</span>
+            <span class="p">},</span>
+        <span class="p">}</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">lock</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">command_queue</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">queue_max_size</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">OverflowError</span><span class="p">(</span><span class="s2">"Command queue is full"</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">command_queue</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">payload</span><span class="p">,</span> <span class="n">separators</span><span class="o">=</span><span class="p">(</span><span class="s2">","</span><span class="p">,</span> <span class="s2">":"</span><span class="p">)))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"queue_property_set"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="n">name</span><span class="p">})</span></div>
+
+
+<div class="viewcode-block" id="LocalServerState.queue_property_get">
+<a class="viewcode-back" href="../../../api/cremalink.local_server_app.state.html#cremalink.local_server_app.state.LocalServerState.queue_property_get">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">queue_property_get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Adds a request for a single named datapoint to the queue."""</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_configured</span><span class="p">():</span>
+            <span class="k">return</span>
+        <span class="n">get_cmd</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">"cmds"</span><span class="p">:</span> <span class="p">[</span>
+                <span class="p">{</span>
+                    <span class="s2">"cmd"</span><span class="p">:</span> <span class="p">{</span>
+                        <span class="s2">"cmd_id"</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+                        <span class="s2">"data"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+                        <span class="s2">"method"</span><span class="p">:</span> <span class="s2">"GET"</span><span class="p">,</span>
+                        <span class="s2">"resource"</span><span class="p">:</span> <span class="sa">f</span><span class="s2">"property.json?name=</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+                        <span class="s2">"uri"</span><span class="p">:</span> <span class="s2">"/local_lan/property/datapoint.json"</span><span class="p">,</span>
+                    <span class="p">}</span>
+                <span class="p">}</span>
+            <span class="p">]</span>
+        <span class="p">}</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">lock</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">command_queue</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">queue_max_size</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">OverflowError</span><span class="p">(</span><span class="s2">"Command queue is full"</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">command_queue</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span>
+                    <span class="p">{</span><span class="s2">"seq_no"</span><span class="p">:</span> <span class="n">protocol</span><span class="o">.</span><span class="n">pad_seq</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">seq</span><span class="p">),</span> <span class="s2">"data"</span><span class="p">:</span> <span class="n">get_cmd</span><span class="p">},</span>
+                    <span class="n">separators</span><span class="o">=</span><span class="p">(</span><span class="s2">","</span><span class="p">,</span> <span class="s2">":"</span><span class="p">),</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"queue_property_get"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="n">name</span><span class="p">})</span></div>
+
+
+<div class="viewcode-block" id="LocalServerState.queue_monitor">
+<a class="viewcode-back" href="../../../api/cremalink.local_server_app.state.html#cremalink.local_server_app.state.LocalServerState.queue_monitor">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">queue_monitor</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Adds a request for the device's monitoring status to the queue."""</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_configured</span><span class="p">():</span>
+            <span class="k">return</span>
+        <span class="n">monitor_cmd</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">"cmds"</span><span class="p">:</span> <span class="p">[</span>
+                <span class="p">{</span>
+                    <span class="s2">"cmd"</span><span class="p">:</span> <span class="p">{</span>
+                        <span class="s2">"cmd_id"</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+                        <span class="s2">"data"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+                        <span class="s2">"method"</span><span class="p">:</span> <span class="s2">"GET"</span><span class="p">,</span>
+                        <span class="s2">"resource"</span><span class="p">:</span> <span class="sa">f</span><span class="s2">"property.json?name=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">monitor_property_name</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+                        <span class="s2">"uri"</span><span class="p">:</span> <span class="s2">"/local_lan/property/datapoint.json"</span><span class="p">,</span>
+                    <span class="p">}</span>
+                <span class="p">}</span>
+            <span class="p">]</span>
+        <span class="p">}</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">lock</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_monitor_request_pending</span><span class="p">:</span>
+                <span class="k">return</span>
+            <span class="n">payload</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span>
+                <span class="p">{</span><span class="s2">"seq_no"</span><span class="p">:</span> <span class="n">protocol</span><span class="o">.</span><span class="n">pad_seq</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">seq</span><span class="p">),</span> <span class="s2">"data"</span><span class="p">:</span> <span class="n">monitor_cmd</span><span class="p">},</span>
+                <span class="n">separators</span><span class="o">=</span><span class="p">(</span><span class="s2">","</span><span class="p">,</span> <span class="s2">":"</span><span class="p">),</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">command_queue</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_monitor_command_payloads</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_monitor_request_pending</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"queue_monitor"</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="LocalServerState.queue_properties">
+<a class="viewcode-back" href="../../../api/cremalink.local_server_app.state.html#cremalink.local_server_app.state.LocalServerState.queue_properties">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">queue_properties</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Adds a request for all device properties to the queue."""</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_configured</span><span class="p">():</span>
+            <span class="k">return</span>
+        <span class="n">properties_cmd</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">"cmds"</span><span class="p">:</span> <span class="p">[</span>
+                <span class="p">{</span>
+                    <span class="s2">"cmd"</span><span class="p">:</span> <span class="p">{</span>
+                        <span class="s2">"cmd_id"</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+                        <span class="s2">"data"</span><span class="p">:</span> <span class="s2">""</span><span class="p">,</span>
+                        <span class="s2">"method"</span><span class="p">:</span> <span class="s2">"GET"</span><span class="p">,</span>
+                        <span class="s2">"resource"</span><span class="p">:</span> <span class="s2">"property.json?name=''"</span><span class="p">,</span>
+                        <span class="s2">"uri"</span><span class="p">:</span> <span class="s2">"/local_lan/property/datapoint.json"</span><span class="p">,</span>
+                    <span class="p">}</span>
+                <span class="p">}</span>
+            <span class="p">]</span>
+        <span class="p">}</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">lock</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_properties_request_pending</span><span class="p">:</span>
+                <span class="k">return</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">command_queue</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span>
+                    <span class="p">{</span><span class="s2">"seq_no"</span><span class="p">:</span> <span class="n">protocol</span><span class="o">.</span><span class="n">pad_seq</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">seq</span><span class="p">),</span> <span class="s2">"data"</span><span class="p">:</span> <span class="n">properties_cmd</span><span class="p">},</span>
+                    <span class="n">separators</span><span class="o">=</span><span class="p">(</span><span class="s2">","</span><span class="p">,</span> <span class="s2">":"</span><span class="p">),</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_properties_request_pending</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"queue_properties"</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="LocalServerState.next_command_payload">
+<a class="viewcode-back" href="../../../api/cremalink.local_server_app.state.html#cremalink.local_server_app.state.LocalServerState.next_command_payload">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">next_command_payload</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Retrieves the next command from the queue for sending to the device.</span>
+<span class="sd">        If the queue is empty, it returns an empty "heartbeat" payload.</span>
+<span class="sd">        """</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">lock</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">command_queue</span><span class="p">:</span>
+                <span class="n">payload</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">command_queue</span><span class="o">.</span><span class="n">popleft</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">payload</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_monitor_command_payloads</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_monitor_command_payloads</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">last_monitor_command_sent_at</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">payload</span> <span class="o">=</span> <span class="n">protocol</span><span class="o">.</span><span class="n">build_empty_payload</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">seq</span><span class="p">)</span>
+            <span class="n">current_seq</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">seq</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">seq</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">"payload"</span><span class="p">:</span> <span class="n">payload</span><span class="p">,</span> <span class="s2">"seq"</span><span class="p">:</span> <span class="n">current_seq</span><span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="LocalServerState.set_registered">
+<a class="viewcode-back" href="../../../api/cremalink.local_server_app.state.html#cremalink.local_server_app.state.LocalServerState.set_registered">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">set_registered</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">lock</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">registered</span> <span class="o">=</span> <span class="n">value</span></div>
+
+
+    <span class="c1"># --- datapoints ---</span>
+<div class="viewcode-block" id="LocalServerState.handle_datapoint">
+<a class="viewcode-back" href="../../../api/cremalink.local_server_app.state.html#cremalink.local_server_app.state.LocalServerState.handle_datapoint">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">handle_datapoint</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">decrypted_json</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""</span>
+<span class="sd">        Processes a decrypted data payload from the device, updating the</span>
+<span class="sd">        appropriate data snapshot (properties or monitor).</span>
+<span class="sd">        """</span>
+        <span class="n">data_block</span> <span class="o">=</span> <span class="n">decrypted_json</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"data"</span><span class="p">,</span> <span class="p">{})</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">lock</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">"properties"</span> <span class="ow">in</span> <span class="n">data_block</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">last_properties</span> <span class="o">=</span> <span class="n">data_block</span><span class="p">[</span><span class="s2">"properties"</span><span class="p">]</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">last_properties_received_at</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_properties_request_pending</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+                    <span class="s2">"properties_datapoint"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"count"</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">data_block</span><span class="p">[</span><span class="s2">"properties"</span><span class="p">])}</span>
+                <span class="p">)</span>
+                <span class="n">entries</span> <span class="o">=</span> <span class="n">data_block</span><span class="p">[</span><span class="s2">"properties"</span><span class="p">]</span>
+                <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">entries</span><span class="o">.</span><span class="n">values</span><span class="p">()</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">entries</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="k">else</span> <span class="n">entries</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                        <span class="k">continue</span>
+                    <span class="n">prop</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"property"</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">prop</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                        <span class="k">continue</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_store_named_value</span><span class="p">(</span><span class="n">prop</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"name"</span><span class="p">),</span> <span class="n">prop</span><span class="p">)</span>
+                <span class="k">return</span>
+
+            <span class="n">name</span> <span class="o">=</span> <span class="n">data_block</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"name"</span><span class="p">)</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">data_block</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"value"</span><span class="p">)</span>
+            <span class="k">if</span> <span class="p">(</span>
+                <span class="n">value</span>
+                <span class="ow">and</span> <span class="n">name</span>
+                <span class="ow">and</span> <span class="n">name</span>
+                <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">monitor_property_name</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">data_response_property_name</span><span class="p">,</span>
+                    <span class="s2">"app_data_response"</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_store_named_value</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">data_block</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"property_datapoint"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="n">name</span><span class="p">})</span>
+                <span class="k">return</span>
+            <span class="k">if</span> <span class="n">value</span> <span class="ow">and</span> <span class="n">name</span> <span class="ow">in</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">data_response_property_name</span><span class="p">,</span>
+                <span class="s2">"app_data_response"</span><span class="p">,</span>
+            <span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_store_named_value</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">data_block</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_response_mailbox</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="n">name</span><span class="p">,</span> <span class="s2">"value"</span><span class="p">:</span> <span class="n">value</span><span class="p">,</span> <span class="s2">"received_at"</span><span class="p">:</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()}</span>
+                <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"data_response_datapoint"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="n">name</span><span class="p">})</span>
+                <span class="k">return</span>
+
+            <span class="n">monitor_value</span> <span class="o">=</span> <span class="n">value</span>
+            <span class="k">if</span> <span class="n">monitor_value</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">last_monitor</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"raw_value_len"</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">monitor_value</span><span class="p">)}</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">last_monitor_b64</span> <span class="o">=</span> <span class="n">monitor_value</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">last_monitor_raw</span> <span class="o">=</span> <span class="n">decrypted_json</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">last_monitor_received_at</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_monitor_request_pending</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"monitor_datapoint"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"raw_value_len"</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">monitor_value</span><span class="p">)})</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">last_monitor</span> <span class="o">=</span> <span class="n">decrypted_json</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">last_monitor_raw</span> <span class="o">=</span> <span class="n">decrypted_json</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">last_monitor_b64</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">last_monitor_received_at</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_monitor_request_pending</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"monitor_datapoint"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"monitor_keys"</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="n">data_block</span><span class="o">.</span><span class="n">keys</span><span class="p">())})</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_store_named_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">entry</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Stores a datapoint/property entry under its datapoint name."""</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">name</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">properties_by_name</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">"name"</span><span class="p">:</span> <span class="n">name</span><span class="p">,</span>
+            <span class="s2">"value"</span><span class="p">:</span> <span class="n">entry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"value"</span><span class="p">),</span>
+            <span class="s2">"received_at"</span><span class="p">:</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">(),</span>
+            <span class="s2">"raw"</span><span class="p">:</span> <span class="n">entry</span><span class="p">,</span>
+        <span class="p">}</span>
+
+    <span class="c1"># --- snapshots ---</span>
+<div class="viewcode-block" id="LocalServerState.snapshot_monitor">
+<a class="viewcode-back" href="../../../api/cremalink.local_server_app.state.html#cremalink.local_server_app.state.LocalServerState.snapshot_monitor">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">snapshot_monitor</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""Returns the latest monitoring data snapshot."""</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">lock</span><span class="p">:</span>
+            <span class="n">monitor_payload</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_monitor_raw</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_monitor</span> <span class="ow">or</span> <span class="p">{}</span>
+            <span class="k">return</span> <span class="p">{</span>
+                <span class="s2">"monitor"</span><span class="p">:</span> <span class="n">monitor_payload</span><span class="p">,</span>
+                <span class="s2">"monitor_b64"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_monitor_b64</span><span class="p">,</span>
+                <span class="s2">"received_at"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_monitor_received_at</span><span class="p">,</span>
+            <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="LocalServerState.snapshot_properties">
+<a class="viewcode-back" href="../../../api/cremalink.local_server_app.state.html#cremalink.local_server_app.state.LocalServerState.snapshot_properties">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">snapshot_properties</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""Returns the latest properties data snapshot."""</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">lock</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span>
+                <span class="s2">"properties"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_properties</span><span class="p">,</span>
+                <span class="s2">"received_at"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_properties_received_at</span><span class="p">,</span>
+            <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="LocalServerState.get_property_value">
+<a class="viewcode-back" href="../../../api/cremalink.local_server_app.state.html#cremalink.local_server_app.state.LocalServerState.get_property_value">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_property_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">property_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Retrieves a single property value from the last known snapshot."""</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">lock</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">property_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_properties</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_properties</span><span class="p">[</span><span class="n">property_name</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_properties</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+                <span class="k">if</span> <span class="p">(</span>
+                    <span class="nb">isinstance</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span>
+                    <span class="ow">and</span> <span class="n">entry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"property"</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"name"</span><span class="p">)</span> <span class="o">==</span> <span class="n">property_name</span>
+                <span class="p">):</span>
+                    <span class="k">return</span> <span class="n">entry</span>
+            <span class="n">named</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">properties_by_name</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">property_name</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">named</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">named</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="LocalServerState.get_named_property">
+<a class="viewcode-back" href="../../../api/cremalink.local_server_app.state.html#cremalink.local_server_app.state.LocalServerState.get_named_property">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_named_property</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Returns the stored entry for a datapoint name, if seen."""</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">lock</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">properties_by_name</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="LocalServerState.pop_response">
+<a class="viewcode-back" href="../../../api/cremalink.local_server_app.state.html#cremalink.local_server_app.state.LocalServerState.pop_response">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">pop_response</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Returns the most recent `data_response` mailbox entry (LIFO)."""</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">lock</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_response_mailbox</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_response_mailbox</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+            <span class="k">return</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="LocalServerState.drain_responses">
+<a class="viewcode-back" href="../../../api/cremalink.local_server_app.state.html#cremalink.local_server_app.state.LocalServerState.drain_responses">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">drain_responses</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">"""Returns all queued `data_response` entries (oldest→newest) and clears them."""</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">lock</span><span class="p">:</span>
+            <span class="n">entries</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_response_mailbox</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_response_mailbox</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+            <span class="k">return</span> <span class="n">entries</span></div>
+
+
+    <span class="c1"># --- logging helper ---</span>
+<div class="viewcode-block" id="LocalServerState.log">
+<a class="viewcode-back" href="../../../api/cremalink.local_server_app.state.html#cremalink.local_server_app.state.LocalServerState.log">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">log</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">details</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">INFO</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Log operational detail separately from the sanitized event buffer."""</span>
+        <span class="n">log_event</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="p">,</span>
+            <span class="n">event</span><span class="p">,</span>
+            <span class="n">details</span><span class="p">,</span>
+            <span class="n">diagnostic_sensitive_values</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dsn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">device_ip</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">lan_key</span><span class="p">),</span>
+            <span class="n">operational_sensitive_values</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lan_key</span><span class="p">,),</span>
+            <span class="n">level</span><span class="o">=</span><span class="n">level</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="LocalServerState.log_telemetry">
+<a class="viewcode-back" href="../../../api/cremalink.local_server_app.state.html#cremalink.local_server_app.state.LocalServerState.log_telemetry">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">log_telemetry</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">details</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Forward redacted telemetry without retaining it in diagnostics."""</span>
+        <span class="n">log_event</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="p">,</span>
+            <span class="n">event</span><span class="p">,</span>
+            <span class="n">details</span><span class="p">,</span>
+            <span class="n">diagnostic_sensitive_values</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dsn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">device_ip</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">lan_key</span><span class="p">),</span>
+            <span class="n">operational_sensitive_values</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lan_key</span><span class="p">,),</span>
+            <span class="n">telemetry</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Midian Tekle Elfu.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

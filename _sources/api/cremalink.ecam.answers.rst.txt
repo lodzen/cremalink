@@ -1,0 +1,7 @@
+cremalink.ecam.answers module
+=============================
+
+.. automodule:: cremalink.ecam.answers
+   :members:
+   :show-inheritance:
+   :undoc-members:

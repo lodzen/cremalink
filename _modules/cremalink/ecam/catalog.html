@@ -1,0 +1,697 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>cremalink.ecam.catalog &mdash; cremalink 0.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=7026087e"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html">
+            
+              <img src="../../../_static/cremalink.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">Home</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/cremalink.html">cremalink package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">cremalink</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">cremalink.ecam.catalog</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for cremalink.ecam.catalog</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""</span>
+<span class="sd">Machine recipe catalogue — parse the recipe-bearing blob families.</span>
+
+<span class="sd">Ported from ``delonghi_coffeelink``'s ``catalog.py`` (same authorial</span>
+<span class="sd">grammar, pure Python — no HA, no I/O).</span>
+
+<span class="sd">Every recipe-bearing datapoint is a self-describing binary blob::</span>
+
+<span class="sd">    d0 &lt;len&gt; &lt;family 2B&gt; [&lt;profile 1B&gt;] &lt;bevid 1B&gt; &lt;TLV params…&gt; &lt;crc16&gt;</span>
+
+<span class="sd">The CRC is the same CRC16 AUG-CCITT the command builder uses, so a blob</span>
+<span class="sd">can be *proved* intact before anything is derived from it. Families:</span>
+
+<span class="sd">===========  ==============================================================</span>
+<span class="sd">family       meaning</span>
+<span class="sd">===========  ==============================================================</span>
+<span class="sd">``b0 f0``    factory descriptor — the capability schema (min/default/max)</span>
+<span class="sd">``a6 f0``    per-profile instance — the current value of each parameter</span>
+<span class="sd">``a8 f0``    a per-profile ordered short list of beverage ids</span>
+<span class="sd">``a4 f0``    profile names (UTF-16BE, user-entered)</span>
+<span class="sd">``aa f0``    custom-recipe slot names</span>
+<span class="sd">``ba f0``    bean-system names</span>
+<span class="sd">===========  ==============================================================</span>
+
+<span class="sd">Rules that make it parseable without per-beverage special cases:</span>
+
+<span class="sd">- **TLV**: tags ``0x01``, ``0x09`` and ``0x0F`` carry a 16-bit big-endian</span>
+<span class="sd">  value, every other tag carries 8 bits. In a ``b0f0`` descriptor the</span>
+<span class="sd">  same tags carry a *triple* (min, default, max).</span>
+<span class="sd">- **Parse by family, never by property name.** Datapoint numbering</span>
+<span class="sd">  differs per model; the blob header is identical.</span>
+
+<span class="sd">Deliberate refusals (a beverage that lies is worse than one missing):</span>
+
+<span class="sd">- A blob failing any gate (prefix, declared length, CRC) is *unreadable*,</span>
+<span class="sd">  never *absent*.</span>
+<span class="sd">- A TLV walk leaving a trailing byte returns ``None`` — a partial parse</span>
+<span class="sd">  could build a wrong brew command, so the whole walk is refused.</span>
+<span class="sd">- ``a8f0`` lists are per-profile recency orderings, NOT the brewable set.</span>
+<span class="sd">"""</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">base64</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">binascii</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">collections.abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Iterator</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">importlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">resources</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">cremalink.core.binary</span><span class="w"> </span><span class="kn">import</span> <span class="n">crc16_ccitt</span>
+
+<span class="n">BLOB_PREFIX</span> <span class="o">=</span> <span class="mh">0xD0</span>
+
+<span class="n">FAMILY_DESCRIPTOR</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">([</span><span class="mh">0xB0</span><span class="p">,</span> <span class="mh">0xF0</span><span class="p">])</span>
+<span class="n">FAMILY_PROFILE_RECIPE</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">([</span><span class="mh">0xA6</span><span class="p">,</span> <span class="mh">0xF0</span><span class="p">])</span>
+<span class="n">FAMILY_PRIORITY</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">([</span><span class="mh">0xA8</span><span class="p">,</span> <span class="mh">0xF0</span><span class="p">])</span>
+<span class="n">FAMILY_PROFILE_NAMES</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">([</span><span class="mh">0xA4</span><span class="p">,</span> <span class="mh">0xF0</span><span class="p">])</span>
+<span class="n">FAMILY_CUSTOM_NAMES</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">([</span><span class="mh">0xAA</span><span class="p">,</span> <span class="mh">0xF0</span><span class="p">])</span>
+<span class="n">FAMILY_BEAN_NAMES</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">([</span><span class="mh">0xBA</span><span class="p">,</span> <span class="mh">0xF0</span><span class="p">])</span>
+
+<span class="n">FAMILY_LABELS</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">FAMILY_DESCRIPTOR</span><span class="p">:</span> <span class="s2">"factory_descriptor"</span><span class="p">,</span>
+    <span class="n">FAMILY_PROFILE_RECIPE</span><span class="p">:</span> <span class="s2">"profile_recipe"</span><span class="p">,</span>
+    <span class="n">FAMILY_PRIORITY</span><span class="p">:</span> <span class="s2">"priority_list"</span><span class="p">,</span>
+    <span class="n">FAMILY_PROFILE_NAMES</span><span class="p">:</span> <span class="s2">"profile_names"</span><span class="p">,</span>
+    <span class="n">FAMILY_CUSTOM_NAMES</span><span class="p">:</span> <span class="s2">"custom_names"</span><span class="p">,</span>
+    <span class="n">FAMILY_BEAN_NAMES</span><span class="p">:</span> <span class="s2">"bean_names"</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="c1">#: Families carrying user-entered names — diagnostics redact their content.</span>
+<span class="n">TEXT_BLOB_FAMILIES</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">(</span>
+    <span class="p">{</span><span class="n">FAMILY_PROFILE_NAMES</span><span class="p">,</span> <span class="n">FAMILY_CUSTOM_NAMES</span><span class="p">,</span> <span class="n">FAMILY_BEAN_NAMES</span><span class="p">}</span>
+<span class="p">)</span>
+
+<span class="c1">#: TLV tags whose value is 16-bit big-endian; every other tag is 8-bit.</span>
+<span class="n">WIDE_TAGS</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">({</span><span class="mh">0x01</span><span class="p">,</span> <span class="mh">0x09</span><span class="p">,</span> <span class="mh">0x0F</span><span class="p">})</span>
+
+<span class="c1">#: Beverage-id ranges that are not one of the built-in drinks.</span>
+<span class="n">CUSTOM_SLOT_IDS</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mh">0xE6</span><span class="p">,</span> <span class="mh">0xEC</span><span class="p">))</span>
+<span class="n">BEAN_SYSTEM_IDS</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mh">0xC8</span><span class="p">,</span> <span class="mh">0xCE</span><span class="p">))</span>
+
+<span class="n">TAG_COFFEE_ML</span> <span class="o">=</span> <span class="mh">0x01</span>
+<span class="n">TAG_MILK</span> <span class="o">=</span> <span class="mh">0x09</span>
+<span class="n">TAG_WATER_ML</span> <span class="o">=</span> <span class="mh">0x0F</span>
+<span class="n">TAG_TEMPERATURE</span> <span class="o">=</span> <span class="mh">0x1B</span>
+<span class="n">TAG_CUP_COUNT</span> <span class="o">=</span> <span class="mh">0x1E</span>
+<span class="n">TAG_INTENSITY</span> <span class="o">=</span> <span class="mh">0x02</span>
+
+<span class="n">TAG_NAMES</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">TAG_COFFEE_ML</span><span class="p">:</span> <span class="s2">"coffee_ml"</span><span class="p">,</span>
+    <span class="n">TAG_MILK</span><span class="p">:</span> <span class="s2">"milk"</span><span class="p">,</span>
+    <span class="n">TAG_WATER_ML</span><span class="p">:</span> <span class="s2">"water_ml"</span><span class="p">,</span>
+    <span class="n">TAG_TEMPERATURE</span><span class="p">:</span> <span class="s2">"temperature"</span><span class="p">,</span>
+    <span class="n">TAG_CUP_COUNT</span><span class="p">:</span> <span class="s2">"cup_count"</span><span class="p">,</span>
+    <span class="n">TAG_INTENSITY</span><span class="p">:</span> <span class="s2">"intensity"</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="c1">#: Smallest payload each family can carry and still be indexable.</span>
+<span class="n">_MIN_PAYLOAD</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">FAMILY_DESCRIPTOR</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="n">FAMILY_PROFILE_RECIPE</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+    <span class="n">FAMILY_PRIORITY</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="n">FAMILY_PROFILE_NAMES</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+    <span class="n">FAMILY_CUSTOM_NAMES</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+    <span class="n">FAMILY_BEAN_NAMES</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+<span class="p">}</span>
+
+
+<div class="viewcode-block" id="Beverage">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.catalog.html#cremalink.ecam.Beverage">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Beverage</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""One catalogue beverage."""</span>
+
+    <span class="n">bev_id</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">kind</span><span class="p">:</span> <span class="nb">str</span>  <span class="c1"># "builtin" | "custom" | "bean_system"</span>
+    <span class="n">declared</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">ranges</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>  <span class="c1"># tag -&gt; (min, default, max)</span>
+    <span class="n">profiles</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>  <span class="c1"># profile -&gt; {tag: value}</span>
+    <span class="n">in_priority_list</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">priority_position</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>
+    <span class="n">defined</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># custom slot actually programmed</span>
+    <span class="n">profiles_differ</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">off_default</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">source_properties</span><span class="p">:</span> <span class="nb">tuple</span> <span class="o">=</span> <span class="p">()</span>
+    <span class="c1"># Filled from the app's model table (``source == "model_table"``) only.</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">ingredients</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">()</span>  <span class="c1"># parameter ids the drink uses</span>
+    <span class="n">use_for_custom</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="RecipeCatalogue">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.catalog.html#cremalink.ecam.RecipeCatalogue">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">RecipeCatalogue</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""The parsed recipe catalogue — advisory only; brew never depends on it."""</span>
+
+    <span class="n">fingerprint</span><span class="p">:</span> <span class="nb">tuple</span>
+    <span class="n">source</span><span class="p">:</span> <span class="nb">str</span>  <span class="c1"># "machine" | "model_table" | "empty"</span>
+    <span class="n">beverages</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">Beverage</span><span class="p">]</span>
+    <span class="n">priority_lists</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span>
+    <span class="n">names</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span>
+    <span class="n">stats</span><span class="p">:</span> <span class="nb">dict</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_b64_bytes</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Decode a datapoint value to bytes, tolerating a truncated dump."""</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="n">clean</span> <span class="o">=</span> <span class="s2">""</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">split</span><span class="p">())</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">clean</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64decode</span><span class="p">(</span><span class="n">clean</span><span class="p">[:</span> <span class="nb">len</span><span class="p">(</span><span class="n">clean</span><span class="p">)</span> <span class="o">//</span> <span class="mi">4</span> <span class="o">*</span> <span class="mi">4</span><span class="p">],</span> <span class="n">validate</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="n">binascii</span><span class="o">.</span><span class="n">Error</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+
+<div class="viewcode-block" id="blob_family">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.catalog.html#cremalink.ecam.blob_family">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">blob_family</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""The family bytes of a machine blob, read without decoding all of it."""</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="n">head</span> <span class="o">=</span> <span class="s2">""</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">split</span><span class="p">())[:</span><span class="mi">8</span><span class="p">]</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">head</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">8</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">raw</span> <span class="o">=</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64decode</span><span class="p">(</span><span class="n">head</span><span class="p">,</span> <span class="n">validate</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="n">binascii</span><span class="o">.</span><span class="n">Error</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">return</span> <span class="nb">bytes</span><span class="p">(</span><span class="n">raw</span><span class="p">[</span><span class="mi">2</span><span class="p">:</span><span class="mi">4</span><span class="p">])</span> <span class="k">if</span> <span class="n">raw</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">BLOB_PREFIX</span> <span class="k">else</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="fingerprint">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.catalog.html#cremalink.ecam.fingerprint">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">fingerprint</span><span class="p">(</span><span class="n">properties</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""A change-detection key over catalogue datapoints, and only those."""</span>
+    <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span>
+        <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="s2">""</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">split</span><span class="p">()))</span>
+        <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">properties</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="p">(</span>
+            <span class="n">properties</span><span class="p">[</span><span class="n">name</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"value"</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">properties</span><span class="p">[</span><span class="n">name</span><span class="p">],</span> <span class="nb">dict</span><span class="p">)</span>
+            <span class="k">else</span> <span class="n">properties</span><span class="p">[</span><span class="n">name</span><span class="p">],</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="n">blob_family</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="ow">in</span> <span class="n">FAMILY_LABELS</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="decode_blob">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.catalog.html#cremalink.ecam.decode_blob">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">decode_blob</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Classify one datapoint value as a machine blob, or ``None``.</span>
+
+<span class="sd">    Three gates: ``0xd0`` prefix, declared length, CRC. The length gate is</span>
+<span class="sd">    ``declared &lt;= len(raw)``: the machine appends a 4-byte timestamp to</span>
+<span class="sd">    some datapoints, and strict equality misgrades those live channels as</span>
+<span class="sd">    truncated.</span>
+<span class="sd">    """</span>
+    <span class="n">raw</span> <span class="o">=</span> <span class="n">_b64_bytes</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">raw</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">6</span> <span class="ow">or</span> <span class="n">raw</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">BLOB_PREFIX</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="n">declared</span> <span class="o">=</span> <span class="n">raw</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>
+    <span class="n">family</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">(</span><span class="n">raw</span><span class="p">[</span><span class="mi">2</span><span class="p">:</span><span class="mi">4</span><span class="p">])</span>
+    <span class="n">out</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">"raw"</span><span class="p">:</span> <span class="n">raw</span><span class="p">,</span>
+        <span class="s2">"family"</span><span class="p">:</span> <span class="n">family</span><span class="p">,</span>
+        <span class="s2">"family_label"</span><span class="p">:</span> <span class="n">FAMILY_LABELS</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">family</span><span class="p">,</span> <span class="n">family</span><span class="o">.</span><span class="n">hex</span><span class="p">(</span><span class="s2">" "</span><span class="p">)),</span>
+        <span class="s2">"declared_length"</span><span class="p">:</span> <span class="n">declared</span><span class="p">,</span>
+        <span class="s2">"length"</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">raw</span><span class="p">),</span>
+    <span class="p">}</span>
+    <span class="k">if</span> <span class="n">declared</span> <span class="o">&gt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">raw</span><span class="p">):</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">truncated</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">crc_valid</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">frame</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">payload</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">out</span>
+    <span class="n">frame</span> <span class="o">=</span> <span class="n">raw</span><span class="p">[:</span><span class="n">declared</span><span class="p">]</span>
+    <span class="n">crc_valid</span> <span class="o">=</span> <span class="n">crc16_ccitt</span><span class="p">(</span><span class="n">frame</span><span class="p">[:</span><span class="o">-</span><span class="mi">2</span><span class="p">])</span> <span class="o">==</span> <span class="n">frame</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:]</span>
+    <span class="n">out</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+        <span class="n">truncated</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">crc_valid</span><span class="o">=</span><span class="n">crc_valid</span><span class="p">,</span>
+        <span class="n">frame</span><span class="o">=</span><span class="n">frame</span><span class="p">,</span>
+        <span class="n">trailer</span><span class="o">=</span><span class="n">raw</span><span class="p">[</span><span class="n">declared</span><span class="p">:],</span>
+        <span class="n">payload</span><span class="o">=</span><span class="n">frame</span><span class="p">[</span><span class="mi">4</span><span class="p">:</span><span class="o">-</span><span class="mi">2</span><span class="p">],</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">out</span></div>
+
+
+
+<div class="viewcode-block" id="parse_tlv">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.catalog.html#cremalink.ecam.parse_tlv">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">parse_tlv</span><span class="p">(</span><span class="n">payload</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Parse a TLV parameter payload; ``None`` if it does not consume exactly."""</span>
+    <span class="n">out</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">end</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span>
+    <span class="k">while</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">end</span><span class="p">:</span>
+        <span class="n">tag</span> <span class="o">=</span> <span class="n">payload</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="n">width</span> <span class="o">=</span> <span class="mi">2</span> <span class="k">if</span> <span class="n">tag</span> <span class="ow">in</span> <span class="n">WIDE_TAGS</span> <span class="k">else</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">width</span> <span class="o">&gt;</span> <span class="n">end</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="n">out</span><span class="p">[</span><span class="n">tag</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="o">.</span><span class="n">from_bytes</span><span class="p">(</span><span class="n">payload</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span> <span class="p">:</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">width</span><span class="p">],</span> <span class="s2">"big"</span><span class="p">)</span>
+        <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">width</span>
+    <span class="k">return</span> <span class="n">out</span></div>
+
+
+
+<div class="viewcode-block" id="parse_triples">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.catalog.html#cremalink.ecam.parse_triples">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">parse_triples</span><span class="p">(</span><span class="n">payload</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Parse a factory descriptor into ``tag -&gt; (min, default, max)``."""</span>
+    <span class="n">out</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">end</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span>
+    <span class="k">while</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">end</span><span class="p">:</span>
+        <span class="n">tag</span> <span class="o">=</span> <span class="n">payload</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="n">width</span> <span class="o">=</span> <span class="mi">2</span> <span class="k">if</span> <span class="n">tag</span> <span class="ow">in</span> <span class="n">WIDE_TAGS</span> <span class="k">else</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">+</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">width</span> <span class="o">&gt;</span> <span class="n">end</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="n">out</span><span class="p">[</span><span class="n">tag</span><span class="p">]</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span>
+            <span class="nb">int</span><span class="o">.</span><span class="n">from_bytes</span><span class="p">(</span><span class="n">payload</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">n</span> <span class="o">*</span> <span class="n">width</span> <span class="p">:</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">+</span> <span class="p">(</span><span class="n">n</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">width</span><span class="p">],</span> <span class="s2">"big"</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span> <span class="o">+</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">width</span>
+    <span class="k">return</span> <span class="n">out</span></div>
+
+
+
+<div class="viewcode-block" id="decode_text">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.catalog.html#cremalink.ecam.decode_text">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">decode_text</span><span class="p">(</span><span class="n">payload</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Decode the first UTF-16BE name in a text blob payload."""</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">text</span> <span class="o">=</span> <span class="n">payload</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">"utf-16-be"</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="s2">"ignore"</span><span class="p">)</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">UnicodeDecodeError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="n">text</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">"</span><span class="se">\x00</span><span class="s2">"</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">name</span> <span class="ow">or</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="iter_blobs">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.catalog.html#cremalink.ecam.iter_blobs">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">iter_blobs</span><span class="p">(</span><span class="n">properties</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">"""Yield ``(property_name, decoded_blob)`` for every machine blob."""</span>
+    <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">properties</span><span class="p">):</span>
+        <span class="n">prop</span> <span class="o">=</span> <span class="n">properties</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="n">prop</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"value"</span><span class="p">)</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">prop</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="k">else</span> <span class="n">prop</span>
+        <span class="n">blob</span> <span class="o">=</span> <span class="n">decode_blob</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">blob</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="n">name</span><span class="p">,</span> <span class="n">blob</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_slot_is_defined</span><span class="p">(</span><span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""True when a custom slot is actually programmed (dispenses anything)."""</span>
+    <span class="k">return</span> <span class="nb">any</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">tag</span><span class="p">)</span> <span class="k">for</span> <span class="n">tag</span> <span class="ow">in</span> <span class="p">(</span><span class="n">TAG_COFFEE_ML</span><span class="p">,</span> <span class="n">TAG_MILK</span><span class="p">,</span> <span class="n">TAG_WATER_ML</span><span class="p">))</span>
+
+
+<div class="viewcode-block" id="build_catalog">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.catalog.html#cremalink.ecam.build_catalog">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">build_catalog</span><span class="p">(</span><span class="n">properties</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RecipeCatalogue</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Build the machine's beverage catalogue from property values."""</span>
+    <span class="n">beverages</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">priority</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">names</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"profiles"</span><span class="p">:</span> <span class="p">{},</span> <span class="s2">"custom"</span><span class="p">:</span> <span class="p">{},</span> <span class="s2">"beans"</span><span class="p">:</span> <span class="p">{}}</span>
+    <span class="n">stats</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">"blobs"</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="s2">"crc_ok"</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="s2">"crc_failed"</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="s2">"truncated"</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="s2">"unparsed_payloads"</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="s2">"short_payloads"</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="s2">"families"</span><span class="p">:</span> <span class="p">{},</span>
+    <span class="p">}</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">entry</span><span class="p">(</span><span class="n">bev_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">bev_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">beverages</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">bev_id</span> <span class="ow">in</span> <span class="n">CUSTOM_SLOT_IDS</span><span class="p">:</span>
+                <span class="n">kind</span> <span class="o">=</span> <span class="s2">"custom"</span>
+            <span class="k">elif</span> <span class="n">bev_id</span> <span class="ow">in</span> <span class="n">BEAN_SYSTEM_IDS</span><span class="p">:</span>
+                <span class="n">kind</span> <span class="o">=</span> <span class="s2">"bean_system"</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">kind</span> <span class="o">=</span> <span class="s2">"builtin"</span>
+            <span class="n">beverages</span><span class="p">[</span><span class="n">bev_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">"id"</span><span class="p">:</span> <span class="n">bev_id</span><span class="p">,</span>
+                <span class="s2">"kind"</span><span class="p">:</span> <span class="n">kind</span><span class="p">,</span>
+                <span class="s2">"declared"</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+                <span class="s2">"ranges"</span><span class="p">:</span> <span class="p">{},</span>
+                <span class="s2">"profiles"</span><span class="p">:</span> <span class="p">{},</span>
+                <span class="s2">"in_priority_list"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="s2">"priority_position"</span><span class="p">:</span> <span class="p">{},</span>
+                <span class="s2">"defined"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="s2">"profiles_differ"</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+                <span class="s2">"off_default"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="s2">"source_properties"</span><span class="p">:</span> <span class="p">[],</span>
+            <span class="p">}</span>
+        <span class="k">return</span> <span class="n">beverages</span><span class="p">[</span><span class="n">bev_id</span><span class="p">]</span>
+
+    <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">blob</span> <span class="ow">in</span> <span class="n">iter_blobs</span><span class="p">(</span><span class="n">properties</span><span class="p">):</span>
+        <span class="n">stats</span><span class="p">[</span><span class="s2">"blobs"</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">label</span> <span class="o">=</span> <span class="n">blob</span><span class="p">[</span><span class="s2">"family_label"</span><span class="p">]</span>
+        <span class="n">stats</span><span class="p">[</span><span class="s2">"families"</span><span class="p">][</span><span class="n">label</span><span class="p">]</span> <span class="o">=</span> <span class="n">stats</span><span class="p">[</span><span class="s2">"families"</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="n">blob</span><span class="p">[</span><span class="s2">"truncated"</span><span class="p">]:</span>
+            <span class="n">stats</span><span class="p">[</span><span class="s2">"truncated"</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="c1"># A truncated descriptor still proves the drink exists.</span>
+            <span class="k">if</span> <span class="n">blob</span><span class="p">[</span><span class="s2">"family"</span><span class="p">]</span> <span class="o">==</span> <span class="n">FAMILY_DESCRIPTOR</span> <span class="ow">and</span> <span class="n">blob</span><span class="p">[</span><span class="s2">"length"</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="mi">5</span><span class="p">:</span>
+                <span class="n">item</span> <span class="o">=</span> <span class="n">entry</span><span class="p">(</span><span class="n">blob</span><span class="p">[</span><span class="s2">"raw"</span><span class="p">][</span><span class="mi">4</span><span class="p">])</span>
+                <span class="n">item</span><span class="p">[</span><span class="s2">"declared"</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+                <span class="n">item</span><span class="p">[</span><span class="s2">"source_properties"</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+            <span class="k">continue</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">blob</span><span class="p">[</span><span class="s2">"crc_valid"</span><span class="p">]:</span>
+            <span class="n">stats</span><span class="p">[</span><span class="s2">"crc_failed"</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">continue</span>
+        <span class="n">stats</span><span class="p">[</span><span class="s2">"crc_ok"</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">family</span><span class="p">,</span> <span class="n">payload</span> <span class="o">=</span> <span class="n">blob</span><span class="p">[</span><span class="s2">"family"</span><span class="p">],</span> <span class="n">blob</span><span class="p">[</span><span class="s2">"payload"</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">_MIN_PAYLOAD</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">family</span><span class="p">,</span> <span class="mi">0</span><span class="p">):</span>
+            <span class="n">stats</span><span class="p">[</span><span class="s2">"short_payloads"</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">continue</span>
+
+        <span class="k">if</span> <span class="n">family</span> <span class="o">==</span> <span class="n">FAMILY_DESCRIPTOR</span><span class="p">:</span>
+            <span class="n">bev_id</span><span class="p">,</span> <span class="n">body</span> <span class="o">=</span> <span class="n">payload</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">payload</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+            <span class="n">item</span> <span class="o">=</span> <span class="n">entry</span><span class="p">(</span><span class="n">bev_id</span><span class="p">)</span>
+            <span class="n">item</span><span class="p">[</span><span class="s2">"declared"</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">item</span><span class="p">[</span><span class="s2">"source_properties"</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+            <span class="n">triples</span> <span class="o">=</span> <span class="n">parse_triples</span><span class="p">(</span><span class="n">body</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">triples</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">stats</span><span class="p">[</span><span class="s2">"unparsed_payloads"</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">item</span><span class="p">[</span><span class="s2">"ranges"</span><span class="p">]</span> <span class="o">=</span> <span class="n">triples</span>
+        <span class="k">elif</span> <span class="n">family</span> <span class="o">==</span> <span class="n">FAMILY_PROFILE_RECIPE</span><span class="p">:</span>
+            <span class="n">profile</span><span class="p">,</span> <span class="n">bev_id</span><span class="p">,</span> <span class="n">body</span> <span class="o">=</span> <span class="n">payload</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">payload</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">payload</span><span class="p">[</span><span class="mi">2</span><span class="p">:]</span>
+            <span class="n">item</span> <span class="o">=</span> <span class="n">entry</span><span class="p">(</span><span class="n">bev_id</span><span class="p">)</span>
+            <span class="n">item</span><span class="p">[</span><span class="s2">"source_properties"</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+            <span class="n">params</span> <span class="o">=</span> <span class="n">parse_tlv</span><span class="p">(</span><span class="n">body</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">params</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">stats</span><span class="p">[</span><span class="s2">"unparsed_payloads"</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">item</span><span class="p">[</span><span class="s2">"profiles"</span><span class="p">][</span><span class="n">profile</span><span class="p">]</span> <span class="o">=</span> <span class="n">params</span>
+        <span class="k">elif</span> <span class="n">family</span> <span class="o">==</span> <span class="n">FAMILY_PRIORITY</span><span class="p">:</span>
+            <span class="c1"># payload = &lt;profile&gt; &lt;bevid…&gt;; NO header byte after profile.</span>
+            <span class="n">priority</span><span class="p">[</span><span class="n">payload</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">payload</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+        <span class="k">elif</span> <span class="n">family</span> <span class="ow">in</span> <span class="p">(</span><span class="n">FAMILY_PROFILE_NAMES</span><span class="p">,</span> <span class="n">FAMILY_CUSTOM_NAMES</span><span class="p">,</span> <span class="n">FAMILY_BEAN_NAMES</span><span class="p">):</span>
+            <span class="n">bucket</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="n">FAMILY_PROFILE_NAMES</span><span class="p">:</span> <span class="s2">"profiles"</span><span class="p">,</span>
+                <span class="n">FAMILY_CUSTOM_NAMES</span><span class="p">:</span> <span class="s2">"custom"</span><span class="p">,</span>
+                <span class="n">FAMILY_BEAN_NAMES</span><span class="p">:</span> <span class="s2">"beans"</span><span class="p">,</span>
+            <span class="p">}[</span><span class="n">family</span><span class="p">]</span>
+            <span class="n">text</span> <span class="o">=</span> <span class="n">decode_text</span><span class="p">(</span><span class="n">payload</span><span class="p">[</span><span class="mi">2</span><span class="p">:])</span>
+            <span class="k">if</span> <span class="n">text</span><span class="p">:</span>
+                <span class="n">names</span><span class="p">[</span><span class="n">bucket</span><span class="p">][</span><span class="n">payload</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">=</span> <span class="n">text</span>
+
+    <span class="n">_apply_priority</span><span class="p">(</span><span class="n">beverages</span><span class="p">,</span> <span class="n">priority</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">beverages</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+        <span class="n">_finalize</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+
+    <span class="n">beverage_objs</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">bev_id</span><span class="p">:</span> <span class="n">Beverage</span><span class="p">(</span>
+            <span class="n">bev_id</span><span class="o">=</span><span class="n">item</span><span class="p">[</span><span class="s2">"id"</span><span class="p">],</span>
+            <span class="n">kind</span><span class="o">=</span><span class="n">item</span><span class="p">[</span><span class="s2">"kind"</span><span class="p">],</span>
+            <span class="n">declared</span><span class="o">=</span><span class="n">item</span><span class="p">[</span><span class="s2">"declared"</span><span class="p">],</span>
+            <span class="n">ranges</span><span class="o">=</span><span class="n">item</span><span class="p">[</span><span class="s2">"ranges"</span><span class="p">],</span>
+            <span class="n">profiles</span><span class="o">=</span><span class="n">item</span><span class="p">[</span><span class="s2">"profiles"</span><span class="p">],</span>
+            <span class="n">in_priority_list</span><span class="o">=</span><span class="n">item</span><span class="p">[</span><span class="s2">"in_priority_list"</span><span class="p">],</span>
+            <span class="n">priority_position</span><span class="o">=</span><span class="n">item</span><span class="p">[</span><span class="s2">"priority_position"</span><span class="p">],</span>
+            <span class="n">defined</span><span class="o">=</span><span class="n">item</span><span class="p">[</span><span class="s2">"defined"</span><span class="p">],</span>
+            <span class="n">profiles_differ</span><span class="o">=</span><span class="n">item</span><span class="p">[</span><span class="s2">"profiles_differ"</span><span class="p">],</span>
+            <span class="n">off_default</span><span class="o">=</span><span class="n">item</span><span class="p">[</span><span class="s2">"off_default"</span><span class="p">],</span>
+            <span class="n">source_properties</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="s2">"source_properties"</span><span class="p">]),</span>
+        <span class="p">)</span>
+        <span class="k">for</span> <span class="n">bev_id</span><span class="p">,</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">beverages</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+    <span class="p">}</span>
+
+    <span class="k">return</span> <span class="n">RecipeCatalogue</span><span class="p">(</span>
+        <span class="n">fingerprint</span><span class="o">=</span><span class="n">fingerprint</span><span class="p">(</span><span class="n">properties</span><span class="p">),</span>
+        <span class="n">source</span><span class="o">=</span><span class="s2">"machine"</span> <span class="k">if</span> <span class="n">beverage_objs</span> <span class="k">else</span> <span class="s2">"empty"</span><span class="p">,</span>
+        <span class="n">beverages</span><span class="o">=</span><span class="n">beverage_objs</span><span class="p">,</span>
+        <span class="n">priority_lists</span><span class="o">=</span><span class="n">priority</span><span class="p">,</span>
+        <span class="n">names</span><span class="o">=</span><span class="n">names</span><span class="p">,</span>
+        <span class="n">stats</span><span class="o">=</span><span class="n">stats</span><span class="p">,</span>
+    <span class="p">)</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_apply_priority</span><span class="p">(</span><span class="n">beverages</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">dict</span><span class="p">],</span> <span class="n">priority</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Record which drinks appear in each profile's ordered short list."""</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">priority</span><span class="p">:</span>
+        <span class="k">return</span>
+    <span class="n">listed</span> <span class="o">=</span> <span class="p">{</span><span class="n">bev_id</span> <span class="k">for</span> <span class="n">ids</span> <span class="ow">in</span> <span class="n">priority</span><span class="o">.</span><span class="n">values</span><span class="p">()</span> <span class="k">for</span> <span class="n">bev_id</span> <span class="ow">in</span> <span class="n">ids</span><span class="p">}</span>
+    <span class="k">for</span> <span class="n">profile</span><span class="p">,</span> <span class="n">ids</span> <span class="ow">in</span> <span class="n">priority</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">for</span> <span class="n">position</span><span class="p">,</span> <span class="n">bev_id</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">ids</span><span class="p">):</span>
+            <span class="n">item</span> <span class="o">=</span> <span class="n">beverages</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span>
+                <span class="n">bev_id</span><span class="p">,</span>
+                <span class="p">{</span>
+                    <span class="s2">"id"</span><span class="p">:</span> <span class="n">bev_id</span><span class="p">,</span>
+                    <span class="s2">"kind"</span><span class="p">:</span> <span class="p">(</span>
+                        <span class="s2">"custom"</span>
+                        <span class="k">if</span> <span class="n">bev_id</span> <span class="ow">in</span> <span class="n">CUSTOM_SLOT_IDS</span>
+                        <span class="k">else</span> <span class="s2">"bean_system"</span>
+                        <span class="k">if</span> <span class="n">bev_id</span> <span class="ow">in</span> <span class="n">BEAN_SYSTEM_IDS</span>
+                        <span class="k">else</span> <span class="s2">"builtin"</span>
+                    <span class="p">),</span>
+                    <span class="s2">"declared"</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+                    <span class="s2">"ranges"</span><span class="p">:</span> <span class="p">{},</span>
+                    <span class="s2">"profiles"</span><span class="p">:</span> <span class="p">{},</span>
+                    <span class="s2">"in_priority_list"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                    <span class="s2">"priority_position"</span><span class="p">:</span> <span class="p">{},</span>
+                    <span class="s2">"defined"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                    <span class="s2">"profiles_differ"</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+                    <span class="s2">"off_default"</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+                    <span class="s2">"source_properties"</span><span class="p">:</span> <span class="p">[],</span>
+                <span class="p">},</span>
+            <span class="p">)</span>
+            <span class="n">item</span><span class="p">[</span><span class="s2">"priority_position"</span><span class="p">][</span><span class="n">profile</span><span class="p">]</span> <span class="o">=</span> <span class="n">position</span>
+    <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">beverages</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+        <span class="n">item</span><span class="p">[</span><span class="s2">"in_priority_list"</span><span class="p">]</span> <span class="o">=</span> <span class="n">item</span><span class="p">[</span><span class="s2">"id"</span><span class="p">]</span> <span class="ow">in</span> <span class="n">listed</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_finalize</span><span class="p">(</span><span class="n">item</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Derive the customisation signals once all blobs have been folded in."""</span>
+    <span class="n">profiles</span> <span class="o">=</span> <span class="n">item</span><span class="p">[</span><span class="s2">"profiles"</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">item</span><span class="p">[</span><span class="s2">"kind"</span><span class="p">]</span> <span class="o">==</span> <span class="s2">"custom"</span> <span class="ow">and</span> <span class="n">profiles</span><span class="p">:</span>
+        <span class="n">item</span><span class="p">[</span><span class="s2">"defined"</span><span class="p">]</span> <span class="o">=</span> <span class="nb">any</span><span class="p">(</span><span class="n">_slot_is_defined</span><span class="p">(</span><span class="n">params</span><span class="p">)</span> <span class="k">for</span> <span class="n">params</span> <span class="ow">in</span> <span class="n">profiles</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">profiles</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">tags</span> <span class="o">=</span> <span class="p">{</span><span class="n">tag</span> <span class="k">for</span> <span class="n">params</span> <span class="ow">in</span> <span class="n">profiles</span><span class="o">.</span><span class="n">values</span><span class="p">()</span> <span class="k">for</span> <span class="n">tag</span> <span class="ow">in</span> <span class="n">params</span><span class="p">}</span>
+        <span class="n">item</span><span class="p">[</span><span class="s2">"profiles_differ"</span><span class="p">]</span> <span class="o">=</span> <span class="nb">any</span><span class="p">(</span>
+            <span class="nb">len</span><span class="p">({</span><span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">tag</span><span class="p">)</span> <span class="k">for</span> <span class="n">params</span> <span class="ow">in</span> <span class="n">profiles</span><span class="o">.</span><span class="n">values</span><span class="p">()})</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">for</span> <span class="n">tag</span> <span class="ow">in</span> <span class="n">tags</span>
+        <span class="p">)</span>
+
+    <span class="c1"># Only a readable factory descriptor can say whether a value changed.</span>
+    <span class="k">if</span> <span class="n">item</span><span class="p">[</span><span class="s2">"ranges"</span><span class="p">]</span> <span class="ow">and</span> <span class="n">profiles</span><span class="p">:</span>
+        <span class="n">off_default</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">tag</span><span class="p">,</span> <span class="n">triple</span> <span class="ow">in</span> <span class="n">item</span><span class="p">[</span><span class="s2">"ranges"</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">default</span> <span class="o">=</span> <span class="n">triple</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">values</span> <span class="o">=</span> <span class="p">[</span><span class="n">params</span><span class="p">[</span><span class="n">tag</span><span class="p">]</span> <span class="k">for</span> <span class="n">params</span> <span class="ow">in</span> <span class="n">profiles</span><span class="o">.</span><span class="n">values</span><span class="p">()</span> <span class="k">if</span> <span class="n">tag</span> <span class="ow">in</span> <span class="n">params</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">values</span><span class="p">:</span>
+                <span class="n">off_default</span><span class="p">[</span><span class="n">tag</span><span class="p">]</span> <span class="o">=</span> <span class="nb">any</span><span class="p">(</span><span class="n">value</span> <span class="o">!=</span> <span class="n">default</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">values</span><span class="p">)</span>
+        <span class="n">item</span><span class="p">[</span><span class="s2">"off_default"</span><span class="p">]</span> <span class="o">=</span> <span class="n">off_default</span>
+
+
+<div class="viewcode-block" id="catalog_beverage_ids">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.catalog.html#cremalink.ecam.catalog_beverage_ids">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">catalog_beverage_ids</span><span class="p">(</span><span class="n">catalog</span><span class="p">:</span> <span class="n">RecipeCatalogue</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">set</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Every beverage id the machine declared, whatever its kind."""</span>
+    <span class="k">if</span> <span class="n">catalog</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="k">return</span> <span class="p">{</span><span class="n">bev_id</span> <span class="k">for</span> <span class="n">bev_id</span><span class="p">,</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">catalog</span><span class="o">.</span><span class="n">beverages</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">item</span><span class="o">.</span><span class="n">declared</span><span class="p">}</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_bev_kind</span><span class="p">(</span><span class="n">bev_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">bev_id</span> <span class="ow">in</span> <span class="n">CUSTOM_SLOT_IDS</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">"custom"</span>
+    <span class="k">return</span> <span class="s2">"bean_system"</span> <span class="k">if</span> <span class="n">bev_id</span> <span class="ow">in</span> <span class="n">BEAN_SYSTEM_IDS</span> <span class="k">else</span> <span class="s2">"builtin"</span>
+
+
+<div class="viewcode-block" id="load_model_declaration">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.catalog.html#cremalink.ecam.load_model_declaration">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">load_model_declaration</span><span class="p">(</span><span class="n">model</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""The app's own recipe declaration for an ``appModelId``, or ``None``.</span>
+
+<span class="sd">    Source: ``MachinesModels.json`` (Coffee Link 4.9.6) — shipped as</span>
+<span class="sd">    ``resources/model_recipes.json`` for the Wi-Fi families only</span>
+<span class="sd">    (``PD_SOUL``, ``PD_SOUL_BETTER``, ``STRIKER_BEST``). ``STRIKER_GOOD``</span>
+<span class="sd">    declares no recipes in the table, so it has no entry.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">model</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="n">table</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span>
+        <span class="n">resources</span><span class="o">.</span><span class="n">files</span><span class="p">(</span><span class="s2">"cremalink.resources"</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s2">"model_recipes.json"</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">read_text</span><span class="p">(</span><span class="n">encoding</span><span class="o">=</span><span class="s2">"utf-8"</span><span class="p">)</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">table</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">model</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="build_declared_catalog">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.catalog.html#cremalink.ecam.build_declared_catalog">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">build_declared_catalog</span><span class="p">(</span><span class="n">model</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RecipeCatalogue</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Build an advisory catalogue from the app's model table.</span>
+
+<span class="sd">    Carries what the table declares — beverage ids, names and the</span>
+<span class="sd">    parameter ids each drink uses — and nothing the machine alone knows:</span>
+<span class="sd">    no min/default/max ranges and no per-profile values. Use it when the</span>
+<span class="sd">    machine publishes no recipe datapoints (striker models) or to</span>
+<span class="sd">    cross-check a machine-built catalogue with :func:`diff_declared`.</span>
+<span class="sd">    """</span>
+    <span class="n">declaration</span> <span class="o">=</span> <span class="n">load_model_declaration</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">declaration</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">RecipeCatalogue</span><span class="p">(</span>
+            <span class="n">fingerprint</span><span class="o">=</span><span class="p">(),</span>
+            <span class="n">source</span><span class="o">=</span><span class="s2">"empty"</span><span class="p">,</span>
+            <span class="n">beverages</span><span class="o">=</span><span class="p">{},</span>
+            <span class="n">priority_lists</span><span class="o">=</span><span class="p">{},</span>
+            <span class="n">names</span><span class="o">=</span><span class="p">{</span><span class="s2">"beverages"</span><span class="p">:</span> <span class="p">{}},</span>
+            <span class="n">stats</span><span class="o">=</span><span class="p">{</span><span class="s2">"model"</span><span class="p">:</span> <span class="n">model</span><span class="p">,</span> <span class="s2">"declared"</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
+        <span class="p">)</span>
+    <span class="n">beverages</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">recipe</span><span class="p">[</span><span class="s2">"id"</span><span class="p">]:</span> <span class="n">Beverage</span><span class="p">(</span>
+            <span class="n">bev_id</span><span class="o">=</span><span class="n">recipe</span><span class="p">[</span><span class="s2">"id"</span><span class="p">],</span>
+            <span class="n">kind</span><span class="o">=</span><span class="n">_bev_kind</span><span class="p">(</span><span class="n">recipe</span><span class="p">[</span><span class="s2">"id"</span><span class="p">]),</span>
+            <span class="n">declared</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="n">recipe</span><span class="p">[</span><span class="s2">"name"</span><span class="p">],</span>
+            <span class="n">ingredients</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">recipe</span><span class="p">[</span><span class="s2">"ingredients"</span><span class="p">]),</span>
+            <span class="n">use_for_custom</span><span class="o">=</span><span class="n">recipe</span><span class="p">[</span><span class="s2">"use_for_custom"</span><span class="p">],</span>
+        <span class="p">)</span>
+        <span class="k">for</span> <span class="n">recipe</span> <span class="ow">in</span> <span class="n">declaration</span><span class="p">[</span><span class="s2">"recipes"</span><span class="p">]</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="n">RecipeCatalogue</span><span class="p">(</span>
+        <span class="n">fingerprint</span><span class="o">=</span><span class="p">(</span>
+            <span class="s2">"model_table"</span><span class="p">,</span>
+            <span class="n">model</span><span class="p">,</span>
+            <span class="nb">tuple</span><span class="p">((</span><span class="n">b</span><span class="o">.</span><span class="n">bev_id</span><span class="p">,</span> <span class="n">b</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">b</span><span class="o">.</span><span class="n">ingredients</span><span class="p">)</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">beverages</span><span class="o">.</span><span class="n">values</span><span class="p">()),</span>
+        <span class="p">),</span>
+        <span class="n">source</span><span class="o">=</span><span class="s2">"model_table"</span><span class="p">,</span>
+        <span class="n">beverages</span><span class="o">=</span><span class="n">beverages</span><span class="p">,</span>
+        <span class="n">priority_lists</span><span class="o">=</span><span class="p">{},</span>
+        <span class="n">names</span><span class="o">=</span><span class="p">{</span><span class="s2">"beverages"</span><span class="p">:</span> <span class="p">{</span><span class="n">b</span><span class="o">.</span><span class="n">bev_id</span><span class="p">:</span> <span class="n">b</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">beverages</span><span class="o">.</span><span class="n">values</span><span class="p">()}},</span>
+        <span class="n">stats</span><span class="o">=</span><span class="p">{</span>
+            <span class="s2">"model"</span><span class="p">:</span> <span class="n">model</span><span class="p">,</span>
+            <span class="s2">"source_type"</span><span class="p">:</span> <span class="n">declaration</span><span class="p">[</span><span class="s2">"source_type"</span><span class="p">],</span>
+            <span class="s2">"declared"</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">beverages</span><span class="p">),</span>
+            <span class="s2">"n_standard"</span><span class="p">:</span> <span class="n">declaration</span><span class="p">[</span><span class="s2">"n_standard"</span><span class="p">],</span>
+            <span class="s2">"n_custom"</span><span class="p">:</span> <span class="n">declaration</span><span class="p">[</span><span class="s2">"n_custom"</span><span class="p">],</span>
+        <span class="p">},</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="diff_declared">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.catalog.html#cremalink.ecam.diff_declared">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">diff_declared</span><span class="p">(</span><span class="n">machine</span><span class="p">:</span> <span class="n">RecipeCatalogue</span><span class="p">,</span> <span class="n">declared</span><span class="p">:</span> <span class="n">RecipeCatalogue</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Compare a machine-built catalogue with the model-table declaration.</span>
+
+<span class="sd">    A non-empty result flags model-map drift (wrong ``recipe_declaration``</span>
+<span class="sd">    or a firmware that changed the drink set) — not a catalogue failure.</span>
+<span class="sd">    """</span>
+    <span class="n">on_machine</span> <span class="o">=</span> <span class="n">catalog_beverage_ids</span><span class="p">(</span><span class="n">machine</span><span class="p">)</span>
+    <span class="n">in_table</span> <span class="o">=</span> <span class="n">catalog_beverage_ids</span><span class="p">(</span><span class="n">declared</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">"missing_on_machine"</span><span class="p">:</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">in_table</span> <span class="o">-</span> <span class="n">on_machine</span><span class="p">),</span>
+        <span class="s2">"not_in_table"</span><span class="p">:</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">on_machine</span> <span class="o">-</span> <span class="n">in_table</span><span class="p">),</span>
+    <span class="p">}</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Midian Tekle Elfu.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

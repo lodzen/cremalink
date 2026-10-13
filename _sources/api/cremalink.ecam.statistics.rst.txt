@@ -1,0 +1,7 @@
+cremalink.ecam.statistics module
+================================
+
+.. automodule:: cremalink.ecam.statistics
+   :members:
+   :show-inheritance:
+   :undoc-members:

@@ -1,0 +1,7 @@
+cremalink.ecam.session module
+=============================
+
+.. automodule:: cremalink.ecam.session
+   :members:
+   :show-inheritance:
+   :undoc-members:

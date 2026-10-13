@@ -1,0 +1,7 @@
+cremalink.ecam.settings module
+==============================
+
+.. automodule:: cremalink.ecam.settings
+   :members:
+   :show-inheritance:
+   :undoc-members:

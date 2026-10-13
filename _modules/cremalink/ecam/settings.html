@@ -1,0 +1,186 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>cremalink.ecam.settings &mdash; cremalink 0.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=7026087e"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html">
+            
+              <img src="../../../_static/cremalink.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">Home</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/cremalink.html">cremalink package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">cremalink</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">cremalink.ecam.settings</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for cremalink.ecam.settings</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""</span>
+<span class="sd">Writable machine settings — ``0x95`` reads and ``0x90`` writes.</span>
+
+<span class="sd">Four ``0x95`` answer shapes were observed on Soul LAN (§3):</span>
+
+<span class="sd">- short stored-value blob: ``95 0f &lt;param:2B&gt; &lt;u32&gt;`` (the republished</span>
+<span class="sd">  ``dNNN`` backing property, e.g. ``d282_mchn_sett_aoff``);</span>
+<span class="sd">- full republish: ``95 f0 &lt;param:2B&gt; &lt;u32&gt; &lt;descriptor tail…&gt;``;</span>
+<span class="sd">- ack echo: ``95 f0 &lt;param:2B&gt;`` (2-byte payload, no value);</span>
+<span class="sd">- unknown parameter: 36 zero bytes (no entry produced).</span>
+
+<span class="sd">The APK ``q0()`` list parser (``count=(len-7)/4`` consecutive u32s from</span>
+<span class="sd">``start=u16@[4,5]``) covers the value-bearing shapes uniformly.</span>
+<span class="sd">"""</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">cremalink.ecam.builder</span><span class="w"> </span><span class="kn">import</span> <span class="n">trim_frame</span><span class="p">,</span> <span class="n">verify_frame</span>
+
+
+<div class="viewcode-block" id="WritableSetting">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.settings.html#cremalink.ecam.WritableSetting">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">WritableSetting</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""A capability-gated machine setting writable via ``0x90``."""</span>
+
+    <span class="n">key</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">param_id</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">options</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span>  <span class="c1"># raw index -&gt; label</span>
+    <span class="n">capability</span><span class="p">:</span> <span class="nb">str</span>  <span class="c1"># device-map `capabilities` flag gating the HA select</span>
+    <span class="n">datapoint_hint</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">""</span>  <span class="c1"># substring of the republished dNNN backing property</span></div>
+
+
+
+<span class="c1">#: Verified option maps (auto-off labels from the machine display; water</span>
+<span class="c1">#: hardness stores a 0-based index, displayed level = raw+1).</span>
+<span class="n">SETTING_OPTION_MAPS</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">WritableSetting</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">"auto_off"</span><span class="p">:</span> <span class="n">WritableSetting</span><span class="p">(</span>
+        <span class="n">key</span><span class="o">=</span><span class="s2">"auto_off"</span><span class="p">,</span>
+        <span class="n">param_id</span><span class="o">=</span><span class="mh">0x003E</span><span class="p">,</span>
+        <span class="n">options</span><span class="o">=</span><span class="p">{</span><span class="mi">0</span><span class="p">:</span> <span class="s2">"15 min"</span><span class="p">,</span> <span class="mi">1</span><span class="p">:</span> <span class="s2">"30 min"</span><span class="p">,</span> <span class="mi">2</span><span class="p">:</span> <span class="s2">"1 h"</span><span class="p">,</span> <span class="mi">3</span><span class="p">:</span> <span class="s2">"3 h"</span><span class="p">},</span>
+        <span class="n">capability</span><span class="o">=</span><span class="s2">"auto_off_settings"</span><span class="p">,</span>
+        <span class="n">datapoint_hint</span><span class="o">=</span><span class="s2">"aoff"</span><span class="p">,</span>
+    <span class="p">),</span>
+    <span class="s2">"water_hardness"</span><span class="p">:</span> <span class="n">WritableSetting</span><span class="p">(</span>
+        <span class="n">key</span><span class="o">=</span><span class="s2">"water_hardness"</span><span class="p">,</span>
+        <span class="n">param_id</span><span class="o">=</span><span class="mh">0x0032</span><span class="p">,</span>
+        <span class="n">options</span><span class="o">=</span><span class="p">{</span><span class="mi">0</span><span class="p">:</span> <span class="s2">"level_1"</span><span class="p">,</span> <span class="mi">1</span><span class="p">:</span> <span class="s2">"level_2"</span><span class="p">,</span> <span class="mi">2</span><span class="p">:</span> <span class="s2">"level_3"</span><span class="p">,</span> <span class="mi">3</span><span class="p">:</span> <span class="s2">"level_4"</span><span class="p">},</span>
+        <span class="n">capability</span><span class="o">=</span><span class="s2">"water_hardness_settings"</span><span class="p">,</span>
+        <span class="n">datapoint_hint</span><span class="o">=</span><span class="s2">"water"</span><span class="p">,</span>
+    <span class="p">),</span>
+<span class="p">}</span>
+
+
+<div class="viewcode-block" id="parse_settings">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.settings.html#cremalink.ecam.parse_settings">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">parse_settings</span><span class="p">(</span><span class="n">blob</span><span class="p">:</span> <span class="nb">bytes</span> <span class="o">|</span> <span class="nb">bytearray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Parse a ``0x95`` answer/stored blob into ``{param_id: raw_u32}``.</span>
+
+<span class="sd">    Shape-tolerant: short stored values, full republish blobs (descriptor</span>
+<span class="sd">    tail ignored), ack echoes (no values) and all-zero unknown-parameter</span>
+<span class="sd">    blobs are all handled without raising.</span>
+<span class="sd">    """</span>
+    <span class="n">frame</span> <span class="o">=</span> <span class="n">trim_frame</span><span class="p">(</span><span class="n">blob</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">verify_frame</span><span class="p">(</span><span class="n">frame</span><span class="p">)</span> <span class="ow">or</span> <span class="n">frame</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="mh">0xD0</span> <span class="ow">or</span> <span class="n">frame</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">!=</span> <span class="mh">0x95</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">{}</span>
+    <span class="n">payload</span> <span class="o">=</span> <span class="n">frame</span><span class="p">[</span><span class="mi">4</span><span class="p">:</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">6</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">any</span><span class="p">(</span><span class="n">payload</span><span class="p">):</span>
+        <span class="c1"># ack echo without value (`95 f0 &lt;param:2B&gt;`) or the all-zero</span>
+        <span class="c1"># unknown-parameter answer — neither carries an entry.</span>
+        <span class="k">return</span> <span class="p">{}</span>
+    <span class="n">start</span> <span class="o">=</span> <span class="nb">int</span><span class="o">.</span><span class="n">from_bytes</span><span class="p">(</span><span class="n">payload</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">2</span><span class="p">],</span> <span class="s2">"big"</span><span class="p">)</span>
+    <span class="n">values_blob</span> <span class="o">=</span> <span class="n">payload</span><span class="p">[</span><span class="mi">2</span><span class="p">:]</span>
+    <span class="n">out</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">off</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">values_blob</span><span class="p">)</span> <span class="o">-</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">):</span>
+        <span class="n">out</span><span class="p">[</span><span class="n">start</span> <span class="o">+</span> <span class="n">off</span> <span class="o">//</span> <span class="mi">4</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="o">.</span><span class="n">from_bytes</span><span class="p">(</span><span class="n">values_blob</span><span class="p">[</span><span class="n">off</span> <span class="p">:</span> <span class="n">off</span> <span class="o">+</span> <span class="mi">4</span><span class="p">],</span> <span class="s2">"big"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">out</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Midian Tekle Elfu.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

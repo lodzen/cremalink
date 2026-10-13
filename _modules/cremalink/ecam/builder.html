@@ -1,0 +1,594 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>cremalink.ecam.builder &mdash; cremalink 0.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=7026087e"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html">
+            
+              <img src="../../../_static/cremalink.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">Home</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/cremalink.html">cremalink package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">cremalink</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">cremalink.ecam.builder</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for cremalink.ecam.builder</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""</span>
+<span class="sd">Parametric ECAM command-frame construction.</span>
+
+<span class="sd">Wire frame layout (verified against the decompiled Coffee Link builders</span>
+<span class="sd">and live LAN captures)::</span>
+
+<span class="sd">    &lt;0x0D&gt; &lt;len:1B&gt; &lt;family:2B&gt; &lt;payload…&gt; &lt;crc16:2B&gt;</span>
+
+<span class="sd">``len`` counts the bytes from the length byte itself through the CRC —</span>
+<span class="sd">i.e. ``len == total_frame_length - 1``; it is derived from emitted</span>
+<span class="sd">content so variable-length payloads are supported (FR-003). The CRC is</span>
+<span class="sd">``crc16_ccitt`` (init ``0x1D0F``, poly ``0x1021``) over every byte</span>
+<span class="sd">preceding it (FR-004/008).</span>
+
+<span class="sd">Transport encoding appends a 4-byte big-endian unix timestamp (never</span>
+<span class="sd">CRC-covered) and, on striker machines, the registered 4-byte app-id</span>
+<span class="sd">trailer (FR-005/007).</span>
+
+<span class="sd">All functions are pure: no I/O, no network, no Home Assistant imports.</span>
+<span class="sd">"""</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">base64</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">collections.abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Iterable</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">enum</span><span class="w"> </span><span class="kn">import</span> <span class="n">Enum</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">cremalink.core.binary</span><span class="w"> </span><span class="kn">import</span> <span class="n">crc16_ccitt</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">cremalink.ecam.machine_profiles</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">TRAILER_APP_ID</span><span class="p">,</span>
+    <span class="n">MachineProfile</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">CMD_PREFIX</span> <span class="o">=</span> <span class="mh">0x0D</span>
+<span class="n">ANSWER_PREFIX</span> <span class="o">=</span> <span class="mh">0xD0</span>
+
+<span class="c1"># Request ids (the high byte of the family pair).</span>
+<span class="n">REQ_MONITOR</span> <span class="o">=</span> <span class="mh">0x75</span>
+<span class="n">REQ_BREW</span> <span class="o">=</span> <span class="mh">0x83</span>
+<span class="n">REQ_POWER</span> <span class="o">=</span> <span class="mh">0x84</span>
+<span class="n">REQ_WRITE_PARAM</span> <span class="o">=</span> <span class="mh">0x90</span>
+<span class="n">REQ_READ_PARAM</span> <span class="o">=</span> <span class="mh">0x95</span>
+<span class="n">REQ_READ_EXTENDED</span> <span class="o">=</span> <span class="mh">0xA1</span>
+<span class="n">REQ_STATISTICS</span> <span class="o">=</span> <span class="mh">0xA2</span>
+<span class="n">REQ_PROFILE_NAMES</span> <span class="o">=</span> <span class="mh">0xA4</span>
+<span class="n">REQ_PROFILE_NAMES_WRITE</span> <span class="o">=</span> <span class="mh">0xA5</span>
+<span class="n">REQ_RECIPE_VALUES</span> <span class="o">=</span> <span class="mh">0xA6</span>
+<span class="n">REQ_PRIORITY_LIST</span> <span class="o">=</span> <span class="mh">0xA8</span>
+<span class="n">REQ_PROFILE_SELECT</span> <span class="o">=</span> <span class="mh">0xA9</span>
+<span class="n">REQ_RECIPE_NAMES</span> <span class="o">=</span> <span class="mh">0xAA</span>
+<span class="n">REQ_FACTORY_DESCRIPTOR</span> <span class="o">=</span> <span class="mh">0xB0</span>
+<span class="n">REQ_BEAN_SYSTEM</span> <span class="o">=</span> <span class="mh">0xBA</span>
+<span class="n">REQ_STRIKER_HANDSHAKE</span> <span class="o">=</span> <span class="mh">0xE8</span>
+
+<span class="n">ANSWER_SYNC_TIMEOUT</span> <span class="o">=</span> <span class="mh">0xE1</span>
+
+<span class="c1">#: Human-readable labels for request ids (diagnostics/logging).</span>
+<span class="n">REQUEST_NAMES</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">REQ_MONITOR</span><span class="p">:</span> <span class="s2">"monitor"</span><span class="p">,</span>
+    <span class="n">REQ_BREW</span><span class="p">:</span> <span class="s2">"brew"</span><span class="p">,</span>
+    <span class="n">REQ_POWER</span><span class="p">:</span> <span class="s2">"power"</span><span class="p">,</span>
+    <span class="n">REQ_WRITE_PARAM</span><span class="p">:</span> <span class="s2">"write_param"</span><span class="p">,</span>
+    <span class="n">REQ_READ_PARAM</span><span class="p">:</span> <span class="s2">"read_param"</span><span class="p">,</span>
+    <span class="n">REQ_READ_EXTENDED</span><span class="p">:</span> <span class="s2">"read_extended"</span><span class="p">,</span>
+    <span class="n">REQ_STATISTICS</span><span class="p">:</span> <span class="s2">"statistics"</span><span class="p">,</span>
+    <span class="n">REQ_PROFILE_NAMES</span><span class="p">:</span> <span class="s2">"profile_names"</span><span class="p">,</span>
+    <span class="n">REQ_PROFILE_NAMES_WRITE</span><span class="p">:</span> <span class="s2">"profile_names_write"</span><span class="p">,</span>
+    <span class="n">REQ_RECIPE_VALUES</span><span class="p">:</span> <span class="s2">"recipe_values"</span><span class="p">,</span>
+    <span class="n">REQ_PRIORITY_LIST</span><span class="p">:</span> <span class="s2">"priority_list"</span><span class="p">,</span>
+    <span class="n">REQ_PROFILE_SELECT</span><span class="p">:</span> <span class="s2">"profile_select"</span><span class="p">,</span>
+    <span class="n">REQ_RECIPE_NAMES</span><span class="p">:</span> <span class="s2">"recipe_names"</span><span class="p">,</span>
+    <span class="n">REQ_FACTORY_DESCRIPTOR</span><span class="p">:</span> <span class="s2">"factory_descriptor"</span><span class="p">,</span>
+    <span class="n">REQ_BEAN_SYSTEM</span><span class="p">:</span> <span class="s2">"bean_system"</span><span class="p">,</span>
+    <span class="n">REQ_STRIKER_HANDSHAKE</span><span class="p">:</span> <span class="s2">"striker_handshake"</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="c1">#: Param ids excluded from a brew recipe by the app's ``O()`` builder:</span>
+<span class="c1">#: param 8 (``DUExPER``) is always dropped; the ``E0`` predicate then keeps</span>
+<span class="c1">#: only ids &lt; 23 or in {27, 28, 31, 33, 38, 39} (INDEX_LENGTH, ACCESSORIO,</span>
+<span class="c1">#: ICED, MUG_ADJUST, INTENSITY, RINSE). On the verified Soul corpus the two</span>
+<span class="c1">#: rules together remove tags {0x08, 0x19}.</span>
+<span class="n">BREW_DROP_TAGS</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">({</span><span class="mh">0x08</span><span class="p">})</span>
+<span class="n">BREW_KEEP_EXTENDED</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">({</span><span class="mi">27</span><span class="p">,</span> <span class="mi">28</span><span class="p">,</span> <span class="mi">31</span><span class="p">,</span> <span class="mi">33</span><span class="p">,</span> <span class="mi">38</span><span class="p">,</span> <span class="mi">39</span><span class="p">})</span>
+
+<span class="c1">#: Default recipe TLVs (captured hot-water command: 250 ml, temp index 1).</span>
+<span class="c1">#: The trailing brew trailer byte is NOT part of the recipe — ``build_brew``</span>
+<span class="c1">#: appends ``(profile_slot&lt;&lt;2)|accessory`` itself. Opaque bytes — brews are</span>
+<span class="c1">#: normally built from the machine's own ``0xA6`` recipe or a command-map</span>
+<span class="c1">#: entry; this is only a safe fallback.</span>
+<span class="n">DEFAULT_RECIPE</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">([</span><span class="mh">0x0F</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0xFA</span><span class="p">,</span> <span class="mh">0x1B</span><span class="p">,</span> <span class="mh">0x01</span><span class="p">])</span>
+
+
+<div class="viewcode-block" id="brew_param_included">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.builder.html#cremalink.ecam.brew_param_included">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">brew_param_included</span><span class="p">(</span><span class="n">param_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""The app-side ``E0`` predicate: which recipe params go on the wire."""</span>
+    <span class="k">if</span> <span class="n">param_id</span> <span class="ow">in</span> <span class="n">BREW_DROP_TAGS</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">return</span> <span class="n">param_id</span> <span class="o">&lt;</span> <span class="mi">23</span> <span class="ow">or</span> <span class="n">param_id</span> <span class="ow">in</span> <span class="n">BREW_KEEP_EXTENDED</span></div>
+
+
+
+<div class="viewcode-block" id="BrewAction">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.builder.html#cremalink.ecam.BrewAction">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">BrewAction</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">Enum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Action/strength byte of a ``0x83`` brew frame."""</span>
+
+    <span class="n">START</span> <span class="o">=</span> <span class="mh">0x01</span>
+    <span class="n">STOP</span> <span class="o">=</span> <span class="mh">0x02</span></div>
+
+
+
+<div class="viewcode-block" id="PowerCommand">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.builder.html#cremalink.ecam.PowerCommand">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">PowerCommand</span><span class="p">(</span><span class="nb">bytes</span><span class="p">,</span> <span class="n">Enum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Payloads of the ``0x84 0x0F`` power/session family (verified)."""</span>
+
+    <span class="n">STANDBY</span> <span class="o">=</span> <span class="sa">b</span><span class="s2">"</span><span class="se">\x01\x01</span><span class="s2">"</span>
+    <span class="n">WAKE</span> <span class="o">=</span> <span class="sa">b</span><span class="s2">"</span><span class="se">\x02\x01</span><span class="s2">"</span>
+    <span class="n">SESSION_REFRESH</span> <span class="o">=</span> <span class="sa">b</span><span class="s2">"</span><span class="se">\x03\x02</span><span class="s2">"</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_require_profile</span><span class="p">(</span><span class="n">profile</span><span class="p">:</span> <span class="n">MachineProfile</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MachineProfile</span><span class="p">:</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">profile</span><span class="p">,</span> <span class="n">MachineProfile</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">"a bound MachineProfile is required to construct frames "</span>
+            <span class="s2">"(fail closed per FR-006)"</span>
+        <span class="p">)</span>
+    <span class="k">return</span> <span class="n">profile</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_frame</span><span class="p">(</span><span class="n">request_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">flag</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">payload</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Assemble ``&lt;0x0D&gt; &lt;len&gt; &lt;request_id&gt; &lt;flag&gt; &lt;payload&gt; &lt;crc16&gt;``."""</span>
+    <span class="n">body</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">([</span><span class="n">request_id</span> <span class="o">&amp;</span> <span class="mh">0xFF</span><span class="p">,</span> <span class="n">flag</span> <span class="o">&amp;</span> <span class="mh">0xFF</span><span class="p">])</span> <span class="o">+</span> <span class="nb">bytes</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span>
+    <span class="n">length</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">body</span><span class="p">)</span> <span class="o">+</span> <span class="mi">3</span>  <span class="c1"># len byte + body + 2 CRC bytes</span>
+    <span class="n">head</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">([</span><span class="n">CMD_PREFIX</span><span class="p">,</span> <span class="n">length</span><span class="p">])</span> <span class="o">+</span> <span class="n">body</span>
+    <span class="k">return</span> <span class="n">head</span> <span class="o">+</span> <span class="n">crc16_ccitt</span><span class="p">(</span><span class="n">head</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="trim_frame">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.builder.html#cremalink.ecam.trim_frame">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">trim_frame</span><span class="p">(</span><span class="n">blob</span><span class="p">:</span> <span class="nb">bytes</span> <span class="o">|</span> <span class="nb">bytearray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Cut a received blob to its declared frame, dropping any trailer.</span>
+
+<span class="sd">    ``data_response``/republished datapoints append a 4-byte timestamp</span>
+<span class="sd">    after the CRC — the trailing bytes are transport metadata, not frame.</span>
+<span class="sd">    """</span>
+    <span class="n">b</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">(</span><span class="n">blob</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">b</span>
+    <span class="n">declared</span> <span class="o">=</span> <span class="n">b</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>
+    <span class="k">return</span> <span class="n">b</span><span class="p">[:</span><span class="n">declared</span><span class="p">]</span> <span class="k">if</span> <span class="n">declared</span> <span class="o">&lt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">b</span><span class="p">)</span> <span class="k">else</span> <span class="n">b</span></div>
+
+
+
+<div class="viewcode-block" id="verify_frame">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.builder.html#cremalink.ecam.verify_frame">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">verify_frame</span><span class="p">(</span><span class="n">frame</span><span class="p">:</span> <span class="nb">bytes</span> <span class="o">|</span> <span class="nb">bytearray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Validate a wire frame's length byte and CRC.</span>
+
+<span class="sd">    Bytes beyond the declared length (e.g. the datapoint timestamp</span>
+<span class="sd">    trailer) are ignored. Returns ``False`` on any structural violation</span>
+<span class="sd">    — never raises.</span>
+<span class="sd">    """</span>
+    <span class="n">frame</span> <span class="o">=</span> <span class="n">trim_frame</span><span class="p">(</span><span class="n">frame</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">frame</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">5</span> <span class="ow">or</span> <span class="n">frame</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="n">CMD_PREFIX</span><span class="p">,</span> <span class="n">ANSWER_PREFIX</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">if</span> <span class="n">frame</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">frame</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">False</span>
+    <span class="k">return</span> <span class="n">crc16_ccitt</span><span class="p">(</span><span class="n">frame</span><span class="p">[:</span><span class="o">-</span><span class="mi">2</span><span class="p">])</span> <span class="o">==</span> <span class="n">frame</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:]</span></div>
+
+
+
+<div class="viewcode-block" id="build_brew">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.builder.html#cremalink.ecam.build_brew">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">build_brew</span><span class="p">(</span>
+    <span class="n">beverage_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">action</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="n">BrewAction</span><span class="p">,</span>
+    <span class="n">recipe</span><span class="p">:</span> <span class="nb">bytes</span> <span class="o">|</span> <span class="nb">bytearray</span> <span class="o">|</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+    <span class="n">profile</span><span class="p">:</span> <span class="n">MachineProfile</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">profile_slot</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="n">accessory</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Build a ``0x83`` brew frame.</span>
+
+<span class="sd">    ``0D LEN 83 F0 &lt;bev&gt; &lt;action&gt; &lt;recipe…&gt; &lt;(profile_slot&lt;&lt;2)|accessory&gt;``</span>
+<span class="sd">    — the frame names its profile in the trailer byte; the recipe bytes</span>
+<span class="sd">    must be that same profile's values (``0xA6`` reads are profile-scoped).</span>
+<span class="sd">    """</span>
+    <span class="n">_require_profile</span><span class="p">(</span><span class="n">profile</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">beverage_id</span> <span class="o">&lt;=</span> <span class="mh">0xFF</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"beverage_id out of range: </span><span class="si">{</span><span class="n">beverage_id</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="n">action_i</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">action</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">action_i</span> <span class="o">&lt;=</span> <span class="mh">0xFF</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"action out of range: </span><span class="si">{</span><span class="n">action_i</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="n">recipe_b</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">(</span><span class="n">recipe</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">recipe_b</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">200</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"recipe payload too large: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">recipe_b</span><span class="p">)</span><span class="si">}</span><span class="s2"> bytes"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">profile_slot</span> <span class="o">&lt;=</span> <span class="mh">0x3F</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"profile_slot out of range: </span><span class="si">{</span><span class="n">profile_slot</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="n">tail</span> <span class="o">=</span> <span class="p">(</span><span class="n">profile_slot</span> <span class="o">&lt;&lt;</span> <span class="mi">2</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="n">accessory</span> <span class="o">&amp;</span> <span class="mh">0x03</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">_frame</span><span class="p">(</span>
+        <span class="n">REQ_BREW</span><span class="p">,</span> <span class="mh">0xF0</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">([</span><span class="n">beverage_id</span><span class="p">,</span> <span class="n">action_i</span><span class="p">])</span> <span class="o">+</span> <span class="n">recipe_b</span> <span class="o">+</span> <span class="nb">bytes</span><span class="p">([</span><span class="n">tail</span><span class="p">])</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="build_power">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.builder.html#cremalink.ecam.build_power">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">build_power</span><span class="p">(</span><span class="n">kind</span><span class="p">:</span> <span class="n">PowerCommand</span><span class="p">,</span> <span class="n">profile</span><span class="p">:</span> <span class="n">MachineProfile</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Build an ``0x84 0x0F`` power/session frame."""</span>
+    <span class="n">_require_profile</span><span class="p">(</span><span class="n">profile</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">kind</span><span class="p">,</span> <span class="n">PowerCommand</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"unknown power command: </span><span class="si">{</span><span class="n">kind</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">_frame</span><span class="p">(</span><span class="n">REQ_POWER</span><span class="p">,</span> <span class="mh">0x0F</span><span class="p">,</span> <span class="n">kind</span><span class="o">.</span><span class="n">value</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="build_write_param">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.builder.html#cremalink.ecam.build_write_param">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">build_write_param</span><span class="p">(</span>
+    <span class="n">param_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">value</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">profile</span><span class="p">:</span> <span class="n">MachineProfile</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">flag</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Build a ``0x90`` parameter-write frame.</span>
+
+<span class="sd">    ``0D 0B 90 &lt;flag&gt; &lt;param:2B&gt; &lt;u32:4B&gt;`` — byte-identical to the app's</span>
+<span class="sd">    ``n0()`` builder: flag ``0xF0`` for ``param &gt;= 1000``, else ``0x0F``</span>
+<span class="sd">    (protocol.md §14.5 verified ``90 0F 00 3E …`` committing under the</span>
+<span class="sd">    ``device_connected`` session announce; a ``90 F0`` write without the</span>
+<span class="sd">    announce only staged transiently). ``flag`` stays overridable.</span>
+<span class="sd">    """</span>
+    <span class="n">_require_profile</span><span class="p">(</span><span class="n">profile</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">flag</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">flag</span> <span class="o">=</span> <span class="mh">0xF0</span> <span class="k">if</span> <span class="n">param_id</span> <span class="o">&gt;=</span> <span class="mi">1000</span> <span class="k">else</span> <span class="mh">0x0F</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">param_id</span> <span class="o">&lt;=</span> <span class="mh">0xFFFF</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"param_id out of range: </span><span class="si">{</span><span class="n">param_id</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">value</span> <span class="o">&lt;=</span> <span class="mh">0xFFFFFFFF</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"value out of range: </span><span class="si">{</span><span class="n">value</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="n">payload</span> <span class="o">=</span> <span class="n">param_id</span><span class="o">.</span><span class="n">to_bytes</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s2">"big"</span><span class="p">)</span> <span class="o">+</span> <span class="n">value</span><span class="o">.</span><span class="n">to_bytes</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="s2">"big"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">_frame</span><span class="p">(</span><span class="n">REQ_WRITE_PARAM</span><span class="p">,</span> <span class="n">flag</span><span class="p">,</span> <span class="n">payload</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="build_read">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.builder.html#cremalink.ecam.build_read">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">build_read</span><span class="p">(</span>
+    <span class="n">request_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">args</span><span class="p">:</span> <span class="nb">bytes</span> <span class="o">|</span> <span class="nb">bytearray</span> <span class="o">|</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="sa">b</span><span class="s2">""</span><span class="p">,</span>
+    <span class="n">profile</span><span class="p">:</span> <span class="n">MachineProfile</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">flag</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Build a read-style request frame for the given request id.</span>
+
+<span class="sd">    ``args`` is the raw payload after the flag byte. Flags: ``0x0F`` for</span>
+<span class="sd">    the statistics family, ``0xF0`` (answer wanted) elsewhere — both</span>
+<span class="sd">    verified on live LAN. Use the ``build_read_*`` helpers below for the</span>
+<span class="sd">    structured payloads.</span>
+<span class="sd">    """</span>
+    <span class="n">_require_profile</span><span class="p">(</span><span class="n">profile</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">request_id</span> <span class="o">&lt;=</span> <span class="mh">0xFF</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"request_id out of range: </span><span class="si">{</span><span class="n">request_id</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">flag</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">flag</span> <span class="o">=</span> <span class="mh">0x0F</span> <span class="k">if</span> <span class="n">request_id</span> <span class="o">==</span> <span class="n">REQ_STATISTICS</span> <span class="k">else</span> <span class="mh">0xF0</span>
+    <span class="k">return</span> <span class="n">_frame</span><span class="p">(</span><span class="n">request_id</span><span class="p">,</span> <span class="n">flag</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">(</span><span class="n">args</span><span class="p">))</span></div>
+
+
+
+<div class="viewcode-block" id="build_read_param">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.builder.html#cremalink.ecam.build_read_param">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">build_read_param</span><span class="p">(</span><span class="n">param_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">profile</span><span class="p">:</span> <span class="n">MachineProfile</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""``0D 07 95 F0 &lt;param:2B&gt;`` — single parameter read (captured)."""</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">param_id</span> <span class="o">&lt;=</span> <span class="mh">0xFFFF</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"param_id out of range: </span><span class="si">{</span><span class="n">param_id</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">build_read</span><span class="p">(</span><span class="n">REQ_READ_PARAM</span><span class="p">,</span> <span class="n">param_id</span><span class="o">.</span><span class="n">to_bytes</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s2">"big"</span><span class="p">),</span> <span class="n">profile</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="build_read_params">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.builder.html#cremalink.ecam.build_read_params">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">build_read_params</span><span class="p">(</span>
+    <span class="n">first_param</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">last_param</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">profile</span><span class="p">:</span> <span class="n">MachineProfile</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""``0D 09 95 F0 &lt;first:2B&gt; &lt;last:2B&gt;`` — param range read (captured)."""</span>
+    <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="p">(</span><span class="n">first_param</span><span class="p">,</span> <span class="n">last_param</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">p</span> <span class="o">&lt;=</span> <span class="mh">0xFFFF</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"param id out of range: </span><span class="si">{</span><span class="n">p</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">build_read</span><span class="p">(</span>
+        <span class="n">REQ_READ_PARAM</span><span class="p">,</span>
+        <span class="n">first_param</span><span class="o">.</span><span class="n">to_bytes</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s2">"big"</span><span class="p">)</span> <span class="o">+</span> <span class="n">last_param</span><span class="o">.</span><span class="n">to_bytes</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s2">"big"</span><span class="p">),</span>
+        <span class="n">profile</span><span class="p">,</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="build_read_block">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.builder.html#cremalink.ecam.build_read_block">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">build_read_block</span><span class="p">(</span><span class="n">param_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">count</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">profile</span><span class="p">:</span> <span class="n">MachineProfile</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""``0D 08 &lt;0x95|0xA1&gt; &lt;flag&gt; &lt;param:2B&gt; &lt;count&gt;`` — APK ``r0`` block read.</span>
+
+<span class="sd">    ``count &gt; 4`` goes out as the ``0xA1`` extended read; the machine</span>
+<span class="sd">    normalises the answer back to a ``0x95`` param list.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">param_id</span> <span class="o">&lt;=</span> <span class="mh">0xFFFF</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"param_id out of range: </span><span class="si">{</span><span class="n">param_id</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="mi">1</span> <span class="o">&lt;=</span> <span class="n">count</span> <span class="o">&lt;=</span> <span class="mi">10</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"count out of range: </span><span class="si">{</span><span class="n">count</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="n">request_id</span> <span class="o">=</span> <span class="n">REQ_READ_PARAM</span> <span class="k">if</span> <span class="n">count</span> <span class="o">&lt;=</span> <span class="mi">4</span> <span class="k">else</span> <span class="n">REQ_READ_EXTENDED</span>
+    <span class="n">flag</span> <span class="o">=</span> <span class="mh">0xF0</span> <span class="k">if</span> <span class="n">param_id</span> <span class="o">&gt;=</span> <span class="mi">1000</span> <span class="k">else</span> <span class="mh">0x0F</span>
+    <span class="k">return</span> <span class="n">build_read</span><span class="p">(</span>
+        <span class="n">request_id</span><span class="p">,</span> <span class="n">param_id</span><span class="o">.</span><span class="n">to_bytes</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s2">"big"</span><span class="p">)</span> <span class="o">+</span> <span class="nb">bytes</span><span class="p">([</span><span class="n">count</span><span class="p">]),</span> <span class="n">profile</span><span class="p">,</span> <span class="n">flag</span><span class="o">=</span><span class="n">flag</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="build_statistics_page">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.builder.html#cremalink.ecam.build_statistics_page">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">build_statistics_page</span><span class="p">(</span><span class="n">start_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">count</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">profile</span><span class="p">:</span> <span class="n">MachineProfile</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""``0D 08 A2 0F &lt;start_id:2B&gt; &lt;count:1B&gt;`` — statistics page read."""</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">start_id</span> <span class="o">&lt;=</span> <span class="mh">0xFFFF</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"start_id out of range: </span><span class="si">{</span><span class="n">start_id</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="mi">1</span> <span class="o">&lt;=</span> <span class="n">count</span> <span class="o">&lt;=</span> <span class="mi">10</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"count out of range: </span><span class="si">{</span><span class="n">count</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">build_read</span><span class="p">(</span>
+        <span class="n">REQ_STATISTICS</span><span class="p">,</span> <span class="n">start_id</span><span class="o">.</span><span class="n">to_bytes</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s2">"big"</span><span class="p">)</span> <span class="o">+</span> <span class="nb">bytes</span><span class="p">([</span><span class="n">count</span><span class="p">]),</span> <span class="n">profile</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="build_profile_names">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.builder.html#cremalink.ecam.build_profile_names">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">build_profile_names</span><span class="p">(</span><span class="n">first</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">count</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">profile</span><span class="p">:</span> <span class="n">MachineProfile</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""``0D 07 A4 F0 &lt;first&gt; &lt;count&gt;`` — profile-name read (APK ``t0``)."""</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">first</span> <span class="o">&lt;=</span> <span class="mh">0xFF</span> <span class="ow">or</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">count</span> <span class="o">&lt;=</span> <span class="mh">0xFF</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"profile-name range out of bounds"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">build_read</span><span class="p">(</span><span class="n">REQ_PROFILE_NAMES</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">([</span><span class="n">first</span><span class="p">,</span> <span class="n">count</span><span class="p">]),</span> <span class="n">profile</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="build_recipe_values">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.builder.html#cremalink.ecam.build_recipe_values">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">build_recipe_values</span><span class="p">(</span>
+    <span class="n">profile_slot</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">beverage_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">profile</span><span class="p">:</span> <span class="n">MachineProfile</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""``0D 07 A6 F0 &lt;prof&gt; &lt;bev&gt;`` — profile-scoped recipe read (APK ``M0``)."""</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">profile_slot</span> <span class="o">&lt;=</span> <span class="mh">0xFF</span> <span class="ow">or</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">beverage_id</span> <span class="o">&lt;=</span> <span class="mh">0xFF</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"recipe read args out of bounds"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">build_read</span><span class="p">(</span><span class="n">REQ_RECIPE_VALUES</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">([</span><span class="n">profile_slot</span><span class="p">,</span> <span class="n">beverage_id</span><span class="p">]),</span> <span class="n">profile</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="build_recipe_names">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.builder.html#cremalink.ecam.build_recipe_names">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">build_recipe_names</span><span class="p">(</span><span class="n">first</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">count</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">profile</span><span class="p">:</span> <span class="n">MachineProfile</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""``0D 07 AA F0 &lt;first&gt; &lt;count&gt;`` — custom recipe-name read (APK ``v0``)."""</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">first</span> <span class="o">&lt;=</span> <span class="mh">0xFF</span> <span class="ow">or</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">count</span> <span class="o">&lt;=</span> <span class="mh">0xFF</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"recipe-name range out of bounds"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">build_read</span><span class="p">(</span><span class="n">REQ_RECIPE_NAMES</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">([</span><span class="n">first</span><span class="p">,</span> <span class="n">count</span><span class="p">]),</span> <span class="n">profile</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="build_factory_descriptor">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.builder.html#cremalink.ecam.build_factory_descriptor">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">build_factory_descriptor</span><span class="p">(</span><span class="n">beverage_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">profile</span><span class="p">:</span> <span class="n">MachineProfile</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""``0D 06 B0 F0 &lt;bev&gt;`` — min/default/max descriptor read (APK ``Y0``)."""</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">beverage_id</span> <span class="o">&lt;=</span> <span class="mh">0xFF</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"beverage_id out of range: </span><span class="si">{</span><span class="n">beverage_id</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">build_read</span><span class="p">(</span><span class="n">REQ_FACTORY_DESCRIPTOR</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">([</span><span class="n">beverage_id</span><span class="p">]),</span> <span class="n">profile</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="build_priority_list">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.builder.html#cremalink.ecam.build_priority_list">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">build_priority_list</span><span class="p">(</span><span class="n">profile_slot</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">profile</span><span class="p">:</span> <span class="n">MachineProfile</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""``0D 06 A8 F0 &lt;prof&gt;`` — per-profile ordered beverage list."""</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">profile_slot</span> <span class="o">&lt;=</span> <span class="mh">0xFF</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"profile_slot out of range: </span><span class="si">{</span><span class="n">profile_slot</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">build_read</span><span class="p">(</span><span class="n">REQ_PRIORITY_LIST</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">([</span><span class="n">profile_slot</span><span class="p">]),</span> <span class="n">profile</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="build_bean_system">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.builder.html#cremalink.ecam.build_bean_system">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">build_bean_system</span><span class="p">(</span><span class="n">index</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">profile</span><span class="p">:</span> <span class="n">MachineProfile</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""``0D 06 BA F0 &lt;index&gt;`` — bean-system slot read (APK ``U``)."""</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">index</span> <span class="o">&lt;=</span> <span class="mh">0xFF</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"bean-system index out of range: </span><span class="si">{</span><span class="n">index</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">build_read</span><span class="p">(</span><span class="n">REQ_BEAN_SYSTEM</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">([</span><span class="n">index</span><span class="p">]),</span> <span class="n">profile</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="build_profile_select">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.builder.html#cremalink.ecam.build_profile_select">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">build_profile_select</span><span class="p">(</span><span class="n">profile_slot</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">profile</span><span class="p">:</span> <span class="n">MachineProfile</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""``0D 06 A9 F0 &lt;prof&gt;`` — profile select (verified live).</span>
+
+<span class="sd">    This is a *gated write*: the session must be announced first.</span>
+<span class="sd">    """</span>
+    <span class="n">_require_profile</span><span class="p">(</span><span class="n">profile</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">profile_slot</span> <span class="o">&lt;=</span> <span class="mh">0xFF</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"profile_slot out of range: </span><span class="si">{</span><span class="n">profile_slot</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">_frame</span><span class="p">(</span><span class="n">REQ_PROFILE_SELECT</span><span class="p">,</span> <span class="mh">0xF0</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">([</span><span class="n">profile_slot</span><span class="p">]))</span></div>
+
+
+
+<div class="viewcode-block" id="build_striker_handshake">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.builder.html#cremalink.ecam.build_striker_handshake">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">build_striker_handshake</span><span class="p">(</span><span class="n">profile</span><span class="p">:</span> <span class="n">MachineProfile</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""``0D 06 E8 F0 00`` — striker session handshake (APK ``z0``)."""</span>
+    <span class="n">_require_profile</span><span class="p">(</span><span class="n">profile</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">_frame</span><span class="p">(</span><span class="n">REQ_STRIKER_HANDSHAKE</span><span class="p">,</span> <span class="mh">0xF0</span><span class="p">,</span> <span class="sa">b</span><span class="s2">"</span><span class="se">\x00</span><span class="s2">"</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="build_monitor_request">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.builder.html#cremalink.ecam.build_monitor_request">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">build_monitor_request</span><span class="p">(</span><span class="n">profile</span><span class="p">:</span> <span class="n">MachineProfile</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""``0D 05 &lt;monitor_id&gt; 0F`` — monitor snapshot request (APK ``V``)."""</span>
+    <span class="n">_require_profile</span><span class="p">(</span><span class="n">profile</span><span class="p">)</span>
+    <span class="n">request_id</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">profile</span><span class="o">.</span><span class="n">monitor_request_ids</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">_frame</span><span class="p">(</span><span class="n">request_id</span><span class="p">,</span> <span class="mh">0x0F</span><span class="p">,</span> <span class="sa">b</span><span class="s2">""</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="describe_request_frame">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.builder.html#cremalink.ecam.describe_request_frame">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">describe_request_frame</span><span class="p">(</span><span class="n">blob</span><span class="p">:</span> <span class="nb">bytes</span> <span class="o">|</span> <span class="nb">bytearray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Summarize an outbound (``0x0D``) request frame for logging.</span>
+
+<span class="sd">    Best-effort and never raises: the returned dict always has a ``frame``</span>
+<span class="sd">    hex string; a well-formed request adds ``request_id``, ``request``</span>
+<span class="sd">    (label from :data:`REQUEST_NAMES`), ``flag``, ``params`` (hex) and</span>
+<span class="sd">    ``crc_ok``. Transport trailers (timestamp/app-id) are trimmed first.</span>
+<span class="sd">    """</span>
+    <span class="n">frame</span> <span class="o">=</span> <span class="n">trim_frame</span><span class="p">(</span><span class="nb">bytes</span><span class="p">(</span><span class="n">blob</span><span class="p">))</span>
+    <span class="n">out</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"frame"</span><span class="p">:</span> <span class="n">frame</span><span class="o">.</span><span class="n">hex</span><span class="p">()}</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">frame</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">5</span> <span class="ow">and</span> <span class="n">frame</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">CMD_PREFIX</span> <span class="ow">and</span> <span class="n">frame</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">frame</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+            <span class="p">{</span>
+                <span class="s2">"request_id"</span><span class="p">:</span> <span class="n">frame</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
+                <span class="s2">"request"</span><span class="p">:</span> <span class="n">REQUEST_NAMES</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">frame</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="sa">f</span><span class="s2">"0x</span><span class="si">{</span><span class="n">frame</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="si">:</span><span class="s2">02x</span><span class="si">}</span><span class="s2">"</span><span class="p">),</span>
+                <span class="s2">"flag"</span><span class="p">:</span> <span class="n">frame</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span>
+                <span class="s2">"params"</span><span class="p">:</span> <span class="n">frame</span><span class="p">[</span><span class="mi">4</span><span class="p">:</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">hex</span><span class="p">(),</span>
+                <span class="s2">"crc_ok"</span><span class="p">:</span> <span class="n">verify_frame</span><span class="p">(</span><span class="n">frame</span><span class="p">),</span>
+            <span class="p">}</span>
+        <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">out</span><span class="p">[</span><span class="s2">"request"</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">return</span> <span class="n">out</span></div>
+
+
+
+<div class="viewcode-block" id="encode_for_transport">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.builder.html#cremalink.ecam.encode_for_transport">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">encode_for_transport</span><span class="p">(</span>
+    <span class="n">frame</span><span class="p">:</span> <span class="nb">bytes</span> <span class="o">|</span> <span class="nb">bytearray</span><span class="p">,</span>
+    <span class="n">profile</span><span class="p">:</span> <span class="n">MachineProfile</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">timestamp</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">app_id</span><span class="p">:</span> <span class="nb">bytes</span> <span class="o">|</span> <span class="nb">bytearray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Base64-encode ``frame + &lt;ts:4B BE&gt; [+ &lt;app_id:4B&gt;]`` for the wire.</span>
+
+<span class="sd">    The timestamp is never CRC-covered; the striker app-id trailer follows</span>
+<span class="sd">    it (FR-004/005/007).</span>
+<span class="sd">    """</span>
+    <span class="n">_require_profile</span><span class="p">(</span><span class="n">profile</span><span class="p">)</span>
+    <span class="n">frame_b</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">(</span><span class="n">frame</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">verify_frame</span><span class="p">(</span><span class="n">frame_b</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"encode_for_transport given an invalid frame"</span><span class="p">)</span>
+    <span class="n">ts</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span> <span class="k">if</span> <span class="n">timestamp</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">int</span><span class="p">(</span><span class="n">timestamp</span><span class="p">)</span>
+    <span class="n">payload</span> <span class="o">=</span> <span class="n">frame_b</span> <span class="o">+</span> <span class="n">ts</span><span class="o">.</span><span class="n">to_bytes</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="s2">"big"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">profile</span><span class="o">.</span><span class="n">trailer</span> <span class="o">==</span> <span class="n">TRAILER_APP_ID</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">app_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"striker profile requires an app_id trailer"</span><span class="p">)</span>
+        <span class="n">app_id_b</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">(</span><span class="n">app_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">app_id_b</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">4</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"striker app_id trailer must be 4 bytes"</span><span class="p">)</span>
+        <span class="n">payload</span> <span class="o">+=</span> <span class="n">app_id_b</span>
+    <span class="k">return</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64encode</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">"utf-8"</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Midian Tekle Elfu.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

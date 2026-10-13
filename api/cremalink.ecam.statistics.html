@@ -1,0 +1,347 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>cremalink.ecam.statistics module &mdash; cremalink 0.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=7026087e"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="cremalink.local_server_app package" href="cremalink.local_server_app.html" />
+    <link rel="prev" title="cremalink.ecam.settings module" href="cremalink.ecam.settings.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html">
+            
+              <img src="../_static/cremalink.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../index.html">Home</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="cremalink.html">cremalink package</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.Client"><code class="docutils literal notranslate"><span class="pre">Client</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.Device"><code class="docutils literal notranslate"><span class="pre">Device</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.EmbeddedLocalServer"><code class="docutils literal notranslate"><span class="pre">EmbeddedLocalServer</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.LocalServer"><code class="docutils literal notranslate"><span class="pre">LocalServer</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.ServerSettings"><code class="docutils literal notranslate"><span class="pre">ServerSettings</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.authenticate_cloud"><code class="docutils literal notranslate"><span class="pre">authenticate_cloud()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.create_app"><code class="docutils literal notranslate"><span class="pre">create_app()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.create_cloud_device"><code class="docutils literal notranslate"><span class="pre">create_cloud_device()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.create_local_device"><code class="docutils literal notranslate"><span class="pre">create_local_device()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.detect_model_id"><code class="docutils literal notranslate"><span class="pre">detect_model_id()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.device_map"><code class="docutils literal notranslate"><span class="pre">device_map()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.log_event"><code class="docutils literal notranslate"><span class="pre">log_event()</span></code></a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="cremalink.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="cremalink.clients.html">cremalink.clients package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.core.html">cremalink.core package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.crypto.html">cremalink.crypto package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.devices.html">cremalink.devices package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.domain.html">cremalink.domain package</a></li>
+<li class="toctree-l3 current"><a class="reference internal" href="cremalink.ecam.html">cremalink.ecam package</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.Beverage"><code class="docutils literal notranslate"><span class="pre">Beverage</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.BrewAction"><code class="docutils literal notranslate"><span class="pre">BrewAction</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.MachineProfile"><code class="docutils literal notranslate"><span class="pre">MachineProfile</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.PowerCommand"><code class="docutils literal notranslate"><span class="pre">PowerCommand</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.ProfileSlot"><code class="docutils literal notranslate"><span class="pre">ProfileSlot</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.RecipeCatalogue"><code class="docutils literal notranslate"><span class="pre">RecipeCatalogue</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.SessionGate"><code class="docutils literal notranslate"><span class="pre">SessionGate</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.StatisticEntry"><code class="docutils literal notranslate"><span class="pre">StatisticEntry</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.StatisticsReport"><code class="docutils literal notranslate"><span class="pre">StatisticsReport</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.WritableSetting"><code class="docutils literal notranslate"><span class="pre">WritableSetting</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.answer_flag"><code class="docutils literal notranslate"><span class="pre">answer_flag()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.answer_id"><code class="docutils literal notranslate"><span class="pre">answer_id()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.blob_family"><code class="docutils literal notranslate"><span class="pre">blob_family()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.brew_param_included"><code class="docutils literal notranslate"><span class="pre">brew_param_included()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_bean_system"><code class="docutils literal notranslate"><span class="pre">build_bean_system()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_brew"><code class="docutils literal notranslate"><span class="pre">build_brew()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_catalog"><code class="docutils literal notranslate"><span class="pre">build_catalog()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_factory_descriptor"><code class="docutils literal notranslate"><span class="pre">build_factory_descriptor()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_monitor_request"><code class="docutils literal notranslate"><span class="pre">build_monitor_request()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_power"><code class="docutils literal notranslate"><span class="pre">build_power()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_priority_list"><code class="docutils literal notranslate"><span class="pre">build_priority_list()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_profile_names"><code class="docutils literal notranslate"><span class="pre">build_profile_names()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_profile_select"><code class="docutils literal notranslate"><span class="pre">build_profile_select()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_read"><code class="docutils literal notranslate"><span class="pre">build_read()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_read_block"><code class="docutils literal notranslate"><span class="pre">build_read_block()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_read_param"><code class="docutils literal notranslate"><span class="pre">build_read_param()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_read_params"><code class="docutils literal notranslate"><span class="pre">build_read_params()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_recipe_names"><code class="docutils literal notranslate"><span class="pre">build_recipe_names()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_recipe_values"><code class="docutils literal notranslate"><span class="pre">build_recipe_values()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_statistics_page"><code class="docutils literal notranslate"><span class="pre">build_statistics_page()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_striker_handshake"><code class="docutils literal notranslate"><span class="pre">build_striker_handshake()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_write_param"><code class="docutils literal notranslate"><span class="pre">build_write_param()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.catalog_beverage_ids"><code class="docutils literal notranslate"><span class="pre">catalog_beverage_ids()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.counter_breakdown"><code class="docutils literal notranslate"><span class="pre">counter_breakdown()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.decode_a2_page"><code class="docutils literal notranslate"><span class="pre">decode_a2_page()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.decode_blob"><code class="docutils literal notranslate"><span class="pre">decode_blob()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.encode_for_transport"><code class="docutils literal notranslate"><span class="pre">encode_for_transport()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.fingerprint"><code class="docutils literal notranslate"><span class="pre">fingerprint()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.interpret"><code class="docutils literal notranslate"><span class="pre">interpret()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.is_sync_timeout"><code class="docutils literal notranslate"><span class="pre">is_sync_timeout()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.parse_a9_ack"><code class="docutils literal notranslate"><span class="pre">parse_a9_ack()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.parse_counter_value"><code class="docutils literal notranslate"><span class="pre">parse_counter_value()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.parse_profile_names"><code class="docutils literal notranslate"><span class="pre">parse_profile_names()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.parse_settings"><code class="docutils literal notranslate"><span class="pre">parse_settings()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.parse_simple_ack"><code class="docutils literal notranslate"><span class="pre">parse_simple_ack()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.parse_tlv"><code class="docutils literal notranslate"><span class="pre">parse_tlv()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.parse_triples"><code class="docutils literal notranslate"><span class="pre">parse_triples()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.parse_water_volume_liters"><code class="docutils literal notranslate"><span class="pre">parse_water_volume_liters()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.parse_write_ack"><code class="docutils literal notranslate"><span class="pre">parse_write_ack()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.profile_from_map"><code class="docutils literal notranslate"><span class="pre">profile_from_map()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.resolve_cloud_breakdowns"><code class="docutils literal notranslate"><span class="pre">resolve_cloud_breakdowns()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.resolve_cloud_counters"><code class="docutils literal notranslate"><span class="pre">resolve_cloud_counters()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.trim_frame"><code class="docutils literal notranslate"><span class="pre">trim_frame()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.verify_frame"><code class="docutils literal notranslate"><span class="pre">verify_frame()</span></code></a></li>
+<li class="toctree-l4 current"><a class="reference internal" href="cremalink.ecam.html#submodules">Submodules</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.local_server_app.html">cremalink.local_server_app package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.parsing.html">cremalink.parsing package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.resources.html">cremalink.resources package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.transports.html">cremalink.transports package</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#submodules">Submodules</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">cremalink</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="cremalink.html">cremalink package</a></li>
+          <li class="breadcrumb-item"><a href="cremalink.ecam.html">cremalink.ecam package</a></li>
+      <li class="breadcrumb-item active">cremalink.ecam.statistics module</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/cremalink.ecam.statistics.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-cremalink.ecam.statistics">
+<span id="cremalink-ecam-statistics-module"></span><h1>cremalink.ecam.statistics module<a class="headerlink" href="#module-cremalink.ecam.statistics" title="Link to this heading"></a></h1>
+<p>ECAM usage statistics — native <code class="docutils literal notranslate"><span class="pre">0xA2</span></code> pages and cloud counters.</p>
+<p>Native path (<code class="docutils literal notranslate"><span class="pre">statistics_source:</span> <span class="pre">&quot;native&quot;</span></code> maps): the machine exposes a
+sparse <code class="docutils literal notranslate"><span class="pre">&lt;id:2B&gt;</span> <span class="pre">&lt;u32&gt;</span></code> table through <code class="docutils literal notranslate"><span class="pre">0xA2</span></code> paged reads on
+<code class="docutils literal notranslate"><span class="pre">data_request</span></code> / <code class="docutils literal notranslate"><span class="pre">data_response</span></code>. Paging rules (live-verified):
+start at id 0 with <code class="docutils literal notranslate"><span class="pre">count</span> <span class="pre">=</span> <span class="pre">10</span></code>; a page shorter than <code class="docutils literal notranslate"><span class="pre">count</span></code> is the
+end of the table; a timeout is <strong>never</strong> end-of-table — retry the same
+<code class="docutils literal notranslate"><span class="pre">start_id</span></code> with <code class="docutils literal notranslate"><span class="pre">count</span> <span class="pre">-</span> <span class="pre">1</span></code> (floor 1).</p>
+<p>Cloud path (<code class="docutils literal notranslate"><span class="pre">statistics_source:</span> <span class="pre">&quot;cloud_counters&quot;</span></code> maps — striker
+machines without LAN): logical counters resolve through
+<a class="reference internal" href="#cremalink.ecam.statistics.CLOUD_COUNTER_CANDIDATES" title="cremalink.ecam.statistics.CLOUD_COUNTER_CANDIDATES"><code class="xref py py-data docutils literal notranslate"><span class="pre">CLOUD_COUNTER_CANDIDATES</span></code></a> name lists against the Ayla datapoint
+cache, parsed per the reference rules: plain ints pass through, JSON
+per-recipe objects sum to a total and keep their breakdown, anything
+unparseable becomes <code class="docutils literal notranslate"><span class="pre">None</span></code> (unknown — never invented).</p>
+<dl class="py data">
+<dt class="sig sig-object py" id="cremalink.ecam.statistics.CLOUD_COUNTER_CANDIDATES">
+<span class="sig-prename descclassname"><span class="pre">cremalink.ecam.statistics.</span></span><span class="sig-name descname"><span class="pre">CLOUD_COUNTER_CANDIDATES</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.15)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{'americano':</span> <span class="pre">['d709_id6_americano'],</span> <span class="pre">'brew_over_ice':</span> <span class="pre">['d730_tot_id27_brew_over_ice'],</span> <span class="pre">'caffe_latte':</span> <span class="pre">['d712_id9_cafflatt'],</span> <span class="pre">'cappuccino':</span> <span class="pre">['d710_tot_id7_capp'],</span> <span class="pre">'cappuccino_doppio':</span> <span class="pre">['d716_id13_cappdoppio_p'],</span> <span class="pre">'cappuccino_reverse':</span> <span class="pre">['d717_id15_caprev'],</span> <span class="pre">'coffee':</span> <span class="pre">['d706_tot_id2_coffee'],</span> <span class="pre">'coffee_pot':</span> <span class="pre">['d720_tot_id23_coffee_pot'],</span> <span class="pre">'cortado':</span> <span class="pre">['d727_id24_cortado'],</span> <span class="pre">'descale_status':</span> <span class="pre">['d825_descale_status'],</span> <span class="pre">'descales':</span> <span class="pre">['d552_cnt_calc_tot'],</span> <span class="pre">'doppio':</span> <span class="pre">['d708_tot_id5_doppio_p'],</span> <span class="pre">'espresso':</span> <span class="pre">['d705_tot_id1_espr'],</span> <span class="pre">'espresso_macchiato':</span> <span class="pre">['d714_id11_esprmacc'],</span> <span class="pre">'filters':</span> <span class="pre">['d554_cnt_filter_tot'],</span> <span class="pre">'flat_white':</span> <span class="pre">['d713_id10_flatwhite'],</span> <span class="pre">'grounds_counter':</span> <span class="pre">['d551_cnt_coffee_fondi'],</span> <span class="pre">'hot_milk':</span> <span class="pre">['d715_id12_hotmilk'],</span> <span class="pre">'hot_water':</span> <span class="pre">['d718_id16_hotwater'],</span> <span class="pre">'latte_macchiato':</span> <span class="pre">['d711_id8_lattmacc'],</span> <span class="pre">'long_black':</span> <span class="pre">['d728_id25_long_black'],</span> <span class="pre">'long_coffee':</span> <span class="pre">['d707_tot_id3_long'],</span> <span class="pre">'mug_to_go':</span> <span class="pre">['d729_id26_travel_mug'],</span> <span class="pre">'tea':</span> <span class="pre">['d719_id22_tea'],</span> <span class="pre">'total_beverages':</span> <span class="pre">['d700_tot_bev_b',</span> <span class="pre">'d701_tot_bev_b'],</span> <span class="pre">'total_espresso':</span> <span class="pre">['d704_tot_bev_espressi'],</span> <span class="pre">'total_milk_drinks':</span> <span class="pre">['d701_tot_bev_bw'],</span> <span class="pre">'total_milk_only':</span> <span class="pre">['d703_tot_bev_w'],</span> <span class="pre">'total_other_beverages':</span> <span class="pre">['d702_tot_bev_other'],</span> <span class="pre">'water_filter_quantity':</span> <span class="pre">['d555_water_filter_qty'],</span> <span class="pre">'water_hardness':</span> <span class="pre">['d556_water_hardness'],</span> <span class="pre">'water_total_quantity':</span> <span class="pre">['d553_water_tot_qty']}</span></span><a class="headerlink" href="#cremalink.ecam.statistics.CLOUD_COUNTER_CANDIDATES" title="Link to this definition"></a></dt>
+<dd><p>Logical counter → candidate Ayla datapoint names; the first name
+present on the device wins (Soul <code class="docutils literal notranslate"><span class="pre">d700_*</span></code> vs Eletta <code class="docutils literal notranslate"><span class="pre">d701_*</span></code> are
+not the same counters — see the reference integration’s const.py).</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="cremalink.ecam.statistics.STAT_LABELS">
+<span class="sig-prename descclassname"><span class="pre">cremalink.ecam.statistics.</span></span><span class="sig-name descname"><span class="pre">STAT_LABELS</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#tuple" title="(in Python v3.15)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{105:</span> <span class="pre">('descales',</span> <span class="pre">'count'),</span> <span class="pre">106:</span> <span class="pre">('water_total',</span> <span class="pre">'l'),</span> <span class="pre">108:</span> <span class="pre">('filters',</span> <span class="pre">'count'),</span> <span class="pre">115:</span> <span class="pre">('milk_cleans',</span> <span class="pre">'count'),</span> <span class="pre">3000:</span> <span class="pre">('total_black',</span> <span class="pre">'count'),</span> <span class="pre">3001:</span> <span class="pre">('total_milk_coffee',</span> <span class="pre">'count'),</span> <span class="pre">3002:</span> <span class="pre">('total_other',</span> <span class="pre">'count'),</span> <span class="pre">3003:</span> <span class="pre">('total_milk_only',</span> <span class="pre">'count'),</span> <span class="pre">3004:</span> <span class="pre">('total_espressos',</span> <span class="pre">'count'),</span> <span class="pre">3005:</span> <span class="pre">('espresso',</span> <span class="pre">'count'),</span> <span class="pre">3006:</span> <span class="pre">('coffee',</span> <span class="pre">'count'),</span> <span class="pre">3007:</span> <span class="pre">('long_coffee',</span> <span class="pre">'count'),</span> <span class="pre">3008:</span> <span class="pre">('doppio',</span> <span class="pre">'count'),</span> <span class="pre">3009:</span> <span class="pre">('americano',</span> <span class="pre">'count'),</span> <span class="pre">3010:</span> <span class="pre">('cappuccino',</span> <span class="pre">'count'),</span> <span class="pre">3011:</span> <span class="pre">('latte_macchiato',</span> <span class="pre">'count'),</span> <span class="pre">3012:</span> <span class="pre">('caffe_latte',</span> <span class="pre">'count'),</span> <span class="pre">3013:</span> <span class="pre">('flat_white',</span> <span class="pre">'count'),</span> <span class="pre">3014:</span> <span class="pre">('espresso_macchiato',</span> <span class="pre">'count'),</span> <span class="pre">3015:</span> <span class="pre">('hot_milk',</span> <span class="pre">'count'),</span> <span class="pre">3016:</span> <span class="pre">('cappuccino_doppio',</span> <span class="pre">'count'),</span> <span class="pre">3017:</span> <span class="pre">('cappuccino_mix',</span> <span class="pre">'count'),</span> <span class="pre">3018:</span> <span class="pre">('hot_water',</span> <span class="pre">'count'),</span> <span class="pre">3019:</span> <span class="pre">('tea',</span> <span class="pre">'count'),</span> <span class="pre">3020:</span> <span class="pre">('coffee_pot',</span> <span class="pre">'count'),</span> <span class="pre">3021:</span> <span class="pre">('choco',</span> <span class="pre">'count'),</span> <span class="pre">3025:</span> <span class="pre">('tea_iced',</span> <span class="pre">'count'),</span> <span class="pre">43010:</span> <span class="pre">('total_beverages',</span> <span class="pre">'count')}</span></span><a class="headerlink" href="#cremalink.ecam.statistics.STAT_LABELS" title="Link to this definition"></a></dt>
+<dd><p>Official labels for the A2 sparse ids, verified against the machine’s
+own statistics display (<code class="docutils literal notranslate"><span class="pre">z7.w$a</span></code> categories / display-match corpus).
+<code class="docutils literal notranslate"><span class="pre">a2_id</span> <span class="pre">-&gt;</span> <span class="pre">(label,</span> <span class="pre">unit)</span></code>; unit <code class="docutils literal notranslate"><span class="pre">&quot;l&quot;</span></code> means <code class="docutils literal notranslate"><span class="pre">value</span> <span class="pre">=</span> <span class="pre">raw</span> <span class="pre">/</span> <span class="pre">2000</span></code>
+(half-millilitres → litres per <code class="docutils literal notranslate"><span class="pre">z7.u.a</span></code>).</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="cremalink.ecam.statistics.StatisticEntry">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">cremalink.ecam.statistics.</span></span><span class="sig-name descname"><span class="pre">StatisticEntry</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">a2_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">raw</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">label</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.15)"><span class="pre">float</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">unit</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cremalink/ecam/statistics.html#StatisticEntry"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cremalink.ecam.statistics.StatisticEntry" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/builtins/functions.html#object" title="(in Python v3.15)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>One interpreted A2 statistic.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cremalink.ecam.statistics.StatisticEntry.a2_id">
+<span class="sig-name descname"><span class="pre">a2_id</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span><a class="headerlink" href="#cremalink.ecam.statistics.StatisticEntry.a2_id" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cremalink.ecam.statistics.StatisticEntry.label">
+<span class="sig-name descname"><span class="pre">label</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span><a class="headerlink" href="#cremalink.ecam.statistics.StatisticEntry.label" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cremalink.ecam.statistics.StatisticEntry.raw">
+<span class="sig-name descname"><span class="pre">raw</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span><a class="headerlink" href="#cremalink.ecam.statistics.StatisticEntry.raw" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cremalink.ecam.statistics.StatisticEntry.unit">
+<span class="sig-name descname"><span class="pre">unit</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span><a class="headerlink" href="#cremalink.ecam.statistics.StatisticEntry.unit" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cremalink.ecam.statistics.StatisticEntry.value">
+<span class="sig-name descname"><span class="pre">value</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.15)"><span class="pre">float</span></a></span><a class="headerlink" href="#cremalink.ecam.statistics.StatisticEntry.value" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="cremalink.ecam.statistics.StatisticsReport">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">cremalink.ecam.statistics.</span></span><span class="sig-name descname"><span class="pre">StatisticsReport</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">source</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">entries</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict[int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">~cremalink.ecam.statistics.StatisticEntry]</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">complete</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fetched_at</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.15)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cloud_counters</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict[str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">int</span> <span class="pre">|</span> <span class="pre">float</span> <span class="pre">|</span> <span class="pre">None]</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">breakdowns</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict[str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dict]</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">&lt;factory&gt;</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cremalink/ecam/statistics.html#StatisticsReport"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cremalink.ecam.statistics.StatisticsReport" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/builtins/functions.html#object" title="(in Python v3.15)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Result of one statistics fetch.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cremalink.ecam.statistics.StatisticsReport.breakdowns">
+<span class="sig-name descname"><span class="pre">breakdowns</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)"><span class="pre">dict</span></a><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#cremalink.ecam.statistics.StatisticsReport.breakdowns" title="Link to this definition"></a></dt>
+<dd><p>per-counter JSON breakdowns (Eletta aggregated counters)</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cremalink.ecam.statistics.StatisticsReport.cloud_counters">
+<span class="sig-name descname"><span class="pre">cloud_counters</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.15)"><span class="pre">float</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#cremalink.ecam.statistics.StatisticsReport.cloud_counters" title="Link to this definition"></a></dt>
+<dd><p>logical cloud counters when source == “cloud_counters”</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cremalink.ecam.statistics.StatisticsReport.complete">
+<span class="sig-name descname"><span class="pre">complete</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><span class="pre">bool</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></span><a class="headerlink" href="#cremalink.ecam.statistics.StatisticsReport.complete" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cremalink.ecam.statistics.StatisticsReport.entries">
+<span class="sig-name descname"><span class="pre">entries</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#cremalink.ecam.statistics.StatisticEntry" title="cremalink.ecam.statistics.StatisticEntry"><span class="pre">StatisticEntry</span></a><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#cremalink.ecam.statistics.StatisticsReport.entries" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cremalink.ecam.statistics.StatisticsReport.fetched_at">
+<span class="sig-name descname"><span class="pre">fetched_at</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.15)"><span class="pre">float</span></a></span><a class="headerlink" href="#cremalink.ecam.statistics.StatisticsReport.fetched_at" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cremalink.ecam.statistics.StatisticsReport.source">
+<span class="sig-name descname"><span class="pre">source</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span><a class="headerlink" href="#cremalink.ecam.statistics.StatisticsReport.source" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cremalink.ecam.statistics.counter_breakdown">
+<span class="sig-prename descclassname"><span class="pre">cremalink.ecam.statistics.</span></span><span class="sig-name descname"><span class="pre">counter_breakdown</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">val</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><span class="pre">Any</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)"><span class="pre">dict</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/cremalink/ecam/statistics.html#counter_breakdown"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cremalink.ecam.statistics.counter_breakdown" title="Link to this definition"></a></dt>
+<dd><p>Return the per-recipe JSON breakdown of a counter, else <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cremalink.ecam.statistics.decode_a2_page">
+<span class="sig-prename descclassname"><span class="pre">cremalink.ecam.statistics.</span></span><span class="sig-name descname"><span class="pre">decode_a2_page</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">frame</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#bytes" title="(in Python v3.15)"><span class="pre">bytes</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#bytearray" title="(in Python v3.15)"><span class="pre">bytearray</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.15)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#tuple" title="(in Python v3.15)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/cremalink/ecam/answers.html#decode_a2_page"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cremalink.ecam.statistics.decode_a2_page" title="Link to this definition"></a></dt>
+<dd><p><code class="docutils literal notranslate"><span class="pre">0xA2</span></code>/<code class="docutils literal notranslate"><span class="pre">0xA1</span></code> statistics page → <code class="docutils literal notranslate"><span class="pre">[(id,</span> <span class="pre">raw_u32),</span> <span class="pre">…]</span></code>.</p>
+<p>Records are 6 bytes <code class="docutils literal notranslate"><span class="pre">&lt;id:2B&gt;</span> <span class="pre">&lt;u32:4B&gt;</span></code> starting at payload offset 2
+(APK <code class="docutils literal notranslate"><span class="pre">h.u</span></code> parser); trailing partial records are ignored.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cremalink.ecam.statistics.interpret">
+<span class="sig-prename descclassname"><span class="pre">cremalink.ecam.statistics.</span></span><span class="sig-name descname"><span class="pre">interpret</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entries</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Iterable" title="(in Python v3.15)"><span class="pre">Iterable</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#tuple" title="(in Python v3.15)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">source</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'native'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">complete</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fetched_at</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.15)"><span class="pre">float</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#cremalink.ecam.statistics.StatisticsReport" title="cremalink.ecam.statistics.StatisticsReport"><span class="pre">StatisticsReport</span></a></span></span><a class="reference internal" href="../_modules/cremalink/ecam/statistics.html#interpret"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cremalink.ecam.statistics.interpret" title="Link to this definition"></a></dt>
+<dd><p>Fold <code class="docutils literal notranslate"><span class="pre">(a2_id,</span> <span class="pre">raw)</span></code> pairs into a labelled <a class="reference internal" href="#cremalink.ecam.statistics.StatisticsReport" title="cremalink.ecam.statistics.StatisticsReport"><code class="xref py py-class docutils literal notranslate"><span class="pre">StatisticsReport</span></code></a>.</p>
+<p>Unlabeled ids pass through with <code class="docutils literal notranslate"><span class="pre">label=None</span></code> — they are real
+machine data, just not display-named.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cremalink.ecam.statistics.parse_counter_value">
+<span class="sig-prename descclassname"><span class="pre">cremalink.ecam.statistics.</span></span><span class="sig-name descname"><span class="pre">parse_counter_value</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">val</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><span class="pre">Any</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/cremalink/ecam/statistics.html#parse_counter_value"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cremalink.ecam.statistics.parse_counter_value" title="Link to this definition"></a></dt>
+<dd><p>Return the integer state for a counter value, or <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p>
+<p>Plain integers pass through; a JSON object is summed over its
+integer sub-values; anything else yields <code class="docutils literal notranslate"><span class="pre">None</span></code> (unknown).</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cremalink.ecam.statistics.parse_water_volume_liters">
+<span class="sig-prename descclassname"><span class="pre">cremalink.ecam.statistics.</span></span><span class="sig-name descname"><span class="pre">parse_water_volume_liters</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">val</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><span class="pre">Any</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.15)"><span class="pre">float</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/cremalink/ecam/statistics.html#parse_water_volume_liters"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cremalink.ecam.statistics.parse_water_volume_liters" title="Link to this definition"></a></dt>
+<dd><p>Convert a millilitre counter value to litres.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cremalink.ecam.statistics.resolve_cloud_counters">
+<span class="sig-prename descclassname"><span class="pre">cremalink.ecam.statistics.</span></span><span class="sig-name descname"><span class="pre">resolve_cloud_counters</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">properties</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.15)"><span class="pre">Any</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.15)"><span class="pre">float</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/cremalink/ecam/statistics.html#resolve_cloud_counters"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cremalink.ecam.statistics.resolve_cloud_counters" title="Link to this definition"></a></dt>
+<dd><p>Resolve logical counters against the property/dp cache.</p>
+<p><code class="docutils literal notranslate"><span class="pre">properties</span></code> maps datapoint name → value (or a <code class="docutils literal notranslate"><span class="pre">{&quot;value&quot;:</span> <span class="pre">…}</span></code>
+wrapper). First present candidate wins; absent candidates produce no
+key — an unresolved counter is “absent”, not <code class="docutils literal notranslate"><span class="pre">None</span></code> (FR-016d).</p>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="cremalink.ecam.settings.html" class="btn btn-neutral float-left" title="cremalink.ecam.settings module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="cremalink.local_server_app.html" class="btn btn-neutral float-right" title="cremalink.local_server_app package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Midian Tekle Elfu.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

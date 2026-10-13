@@ -1,0 +1,221 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>cremalink.ecam.machine_profiles &mdash; cremalink 0.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=7026087e"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html">
+            
+              <img src="../../../_static/cremalink.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">Home</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/cremalink.html">cremalink package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">cremalink</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">cremalink.ecam.machine_profiles</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for cremalink.ecam.machine_profiles</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""</span>
+<span class="sd">Machine dialect profiles for the ECAM protocol layer.</span>
+
+<span class="sd">Different De'Longhi machine families speak slightly different dialects of the</span>
+<span class="sd">same Ayla/ECAM protocol. Rather than scattering ``if model == ...`` checks</span>
+<span class="sd">throughout the code, each family's differences live in one frozen</span>
+<span class="sd">:class:`MachineProfile` here, bound explicitly via the ``machine_profile``</span>
+<span class="sd">field of the device map (FR-006).</span>
+<span class="sd">"""</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+<span class="c1"># Transport trailer appended after the 4-byte big-endian timestamp.</span>
+<span class="n">TRAILER_NONE</span> <span class="o">=</span> <span class="s2">"none"</span>
+<span class="n">TRAILER_APP_ID</span> <span class="o">=</span> <span class="s2">"app_id"</span>
+
+<span class="c1"># How the profile establishes the session that gates writes.</span>
+<span class="n">SESSION_DEVICE_CONNECTED_TS</span> <span class="o">=</span> <span class="s2">"device_connected_ts"</span>
+<span class="n">SESSION_E8_APPID</span> <span class="o">=</span> <span class="s2">"e8_appid"</span>
+
+
+<div class="viewcode-block" id="MachineProfile">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.machine_profiles.html#cremalink.ecam.MachineProfile">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">MachineProfile</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Dialect declaration a device binds to via ``machine_profile``.</span>
+
+<span class="sd">    Fields:</span>
+
+<span class="sd">    - ``key``: stable identifier (``"non_striker"`` / ``"striker"``).</span>
+<span class="sd">    - ``command_property``: property frames are written to</span>
+<span class="sd">      (``data_request`` vs ``app_data_request``).</span>
+<span class="sd">    - ``trailer``: transport suffix after the timestamp</span>
+<span class="sd">      (``NONE`` timestamp only, ``APP_ID`` 4-byte registered app id).</span>
+<span class="sd">    - ``session``: write-gate mechanism (plain unix timestamp write to</span>
+<span class="sd">      ``device_connected`` vs ``0xE8`` handshake + ``84 0f 03 02``</span>
+<span class="sd">      registration).</span>
+<span class="sd">    - ``monitor_request_ids``: request ids that carry monitor frames</span>
+<span class="sd">      (the device map's ``monitor_profile`` stays authoritative per</span>
+<span class="sd">      data-model.md; this is informational).</span>
+<span class="sd">    - ``profile_entry_size``: bytes per profile entry in ``0xA4`` blobs</span>
+<span class="sd">      (21 non-striker / 22 striker incl. mug byte).</span>
+<span class="sd">    - ``grinder_scale``: multiplier applied to bean-system grinder values</span>
+<span class="sd">      on striker (write ``*2``, read ``/2`` per APK ``O0``/``G0``).</span>
+<span class="sd">    """</span>
+
+    <span class="n">key</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">command_property</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">trailer</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">session</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">monitor_request_ids</span><span class="p">:</span> <span class="nb">frozenset</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
+    <span class="n">profile_entry_size</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">grinder_scale</span><span class="p">:</span> <span class="nb">float</span></div>
+
+
+
+<span class="n">NON_STRIKER</span> <span class="o">=</span> <span class="n">MachineProfile</span><span class="p">(</span>
+    <span class="n">key</span><span class="o">=</span><span class="s2">"non_striker"</span><span class="p">,</span>
+    <span class="n">command_property</span><span class="o">=</span><span class="s2">"data_request"</span><span class="p">,</span>
+    <span class="n">trailer</span><span class="o">=</span><span class="n">TRAILER_NONE</span><span class="p">,</span>
+    <span class="n">session</span><span class="o">=</span><span class="n">SESSION_DEVICE_CONNECTED_TS</span><span class="p">,</span>
+    <span class="n">monitor_request_ids</span><span class="o">=</span><span class="nb">frozenset</span><span class="p">({</span><span class="mh">0x75</span><span class="p">}),</span>
+    <span class="n">profile_entry_size</span><span class="o">=</span><span class="mi">21</span><span class="p">,</span>
+    <span class="n">grinder_scale</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">STRIKER</span> <span class="o">=</span> <span class="n">MachineProfile</span><span class="p">(</span>
+    <span class="n">key</span><span class="o">=</span><span class="s2">"striker"</span><span class="p">,</span>
+    <span class="n">command_property</span><span class="o">=</span><span class="s2">"app_data_request"</span><span class="p">,</span>
+    <span class="n">trailer</span><span class="o">=</span><span class="n">TRAILER_APP_ID</span><span class="p">,</span>
+    <span class="n">session</span><span class="o">=</span><span class="n">SESSION_E8_APPID</span><span class="p">,</span>
+    <span class="n">monitor_request_ids</span><span class="o">=</span><span class="nb">frozenset</span><span class="p">({</span><span class="mh">0x60</span><span class="p">,</span> <span class="mh">0x70</span><span class="p">}),</span>
+    <span class="n">profile_entry_size</span><span class="o">=</span><span class="mi">22</span><span class="p">,</span>
+    <span class="n">grinder_scale</span><span class="o">=</span><span class="mf">2.0</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">_PROFILES</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">MachineProfile</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">NON_STRIKER</span><span class="o">.</span><span class="n">key</span><span class="p">:</span> <span class="n">NON_STRIKER</span><span class="p">,</span>
+    <span class="n">STRIKER</span><span class="o">.</span><span class="n">key</span><span class="p">:</span> <span class="n">STRIKER</span><span class="p">,</span>
+<span class="p">}</span>
+
+
+<div class="viewcode-block" id="profile_from_map">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.machine_profiles.html#cremalink.ecam.profile_from_map">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">profile_from_map</span><span class="p">(</span>
+    <span class="n">map_data</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="o">*</span><span class="p">,</span> <span class="n">logger_</span><span class="p">:</span> <span class="n">logging</span><span class="o">.</span><span class="n">Logger</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MachineProfile</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Bind the device map's ``machine_profile`` field to a preset.</span>
+
+<span class="sd">    A missing field binds :data:`NON_STRIKER` with a logged warning (the</span>
+<span class="sd">    verified Soul behaviour). An unrecognized value raises ``ValueError``</span>
+<span class="sd">    — failing closed is required because command construction on the</span>
+<span class="sd">    wrong dialect produces frames the machine ignores (FR-006).</span>
+<span class="sd">    """</span>
+    <span class="n">log</span> <span class="o">=</span> <span class="n">logger_</span> <span class="ow">or</span> <span class="n">logger</span>
+    <span class="n">key</span> <span class="o">=</span> <span class="n">map_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"machine_profile"</span><span class="p">)</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">map_data</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">key</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">log</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+            <span class="s2">"device map carries no 'machine_profile'; defaulting to "</span>
+            <span class="s2">"'non_striker' (Soul-style dialect)"</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">NON_STRIKER</span>
+    <span class="n">profile</span> <span class="o">=</span> <span class="n">_PROFILES</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">key</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">())</span>
+    <span class="k">if</span> <span class="n">profile</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"unknown machine_profile </span><span class="si">{</span><span class="n">key</span><span class="si">!r}</span><span class="s2">; expected one of "</span>
+            <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="n">_PROFILES</span><span class="p">)</span><span class="si">}</span><span class="s2"> — refusing to construct commands"</span>
+        <span class="p">)</span>
+    <span class="k">return</span> <span class="n">profile</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Midian Tekle Elfu.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

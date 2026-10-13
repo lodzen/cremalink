@@ -1,0 +1,407 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>cremalink.ecam.statistics &mdash; cremalink 0.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=7026087e"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html">
+            
+              <img src="../../../_static/cremalink.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">Home</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/cremalink.html">cremalink package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">cremalink</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">cremalink.ecam.statistics</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for cremalink.ecam.statistics</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""</span>
+<span class="sd">ECAM usage statistics — native ``0xA2`` pages and cloud counters.</span>
+
+<span class="sd">Native path (``statistics_source: "native"`` maps): the machine exposes a</span>
+<span class="sd">sparse ``&lt;id:2B&gt; &lt;u32&gt;`` table through ``0xA2`` paged reads on</span>
+<span class="sd">``data_request`` / ``data_response``. Paging rules (live-verified):</span>
+<span class="sd">start at id 0 with ``count = 10``; a page shorter than ``count`` is the</span>
+<span class="sd">end of the table; a timeout is **never** end-of-table — retry the same</span>
+<span class="sd">``start_id`` with ``count - 1`` (floor 1).</span>
+
+<span class="sd">Cloud path (``statistics_source: "cloud_counters"`` maps — striker</span>
+<span class="sd">machines without LAN): logical counters resolve through</span>
+<span class="sd">:data:`CLOUD_COUNTER_CANDIDATES` name lists against the Ayla datapoint</span>
+<span class="sd">cache, parsed per the reference rules: plain ints pass through, JSON</span>
+<span class="sd">per-recipe objects sum to a total and keep their breakdown, anything</span>
+<span class="sd">unparseable becomes ``None`` (unknown — never invented).</span>
+<span class="sd">"""</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Iterable</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">cremalink.ecam.answers</span><span class="w"> </span><span class="kn">import</span> <span class="n">decode_a2_page</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">"CLOUD_COUNTER_CANDIDATES"</span><span class="p">,</span>
+    <span class="s2">"MEASUREMENT_WATER_LITERS"</span><span class="p">,</span>
+    <span class="s2">"STAT_LABELS"</span><span class="p">,</span>
+    <span class="s2">"StatisticEntry"</span><span class="p">,</span>
+    <span class="s2">"StatisticsReport"</span><span class="p">,</span>
+    <span class="s2">"counter_breakdown"</span><span class="p">,</span>
+    <span class="s2">"decode_a2_page"</span><span class="p">,</span>
+    <span class="s2">"interpret"</span><span class="p">,</span>
+    <span class="s2">"parse_counter_value"</span><span class="p">,</span>
+    <span class="s2">"parse_water_volume_liters"</span><span class="p">,</span>
+    <span class="s2">"resolve_cloud_counters"</span><span class="p">,</span>
+<span class="p">]</span>
+
+
+<span class="c1">#: Official labels for the A2 sparse ids, verified against the machine's</span>
+<span class="c1">#: own statistics display (``z7.w$a`` categories / display-match corpus).</span>
+<span class="c1">#: ``a2_id -&gt; (label, unit)``; unit ``"l"`` means ``value = raw / 2000``</span>
+<span class="c1">#: (half-millilitres → litres per ``z7.u.a``).</span>
+<span class="n">STAT_LABELS</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="mi">105</span><span class="p">:</span> <span class="p">(</span><span class="s2">"descales"</span><span class="p">,</span> <span class="s2">"count"</span><span class="p">),</span>
+    <span class="mi">106</span><span class="p">:</span> <span class="p">(</span><span class="s2">"water_total"</span><span class="p">,</span> <span class="s2">"l"</span><span class="p">),</span>
+    <span class="mi">108</span><span class="p">:</span> <span class="p">(</span><span class="s2">"filters"</span><span class="p">,</span> <span class="s2">"count"</span><span class="p">),</span>
+    <span class="mi">115</span><span class="p">:</span> <span class="p">(</span><span class="s2">"milk_cleans"</span><span class="p">,</span> <span class="s2">"count"</span><span class="p">),</span>
+    <span class="mi">3000</span><span class="p">:</span> <span class="p">(</span><span class="s2">"total_black"</span><span class="p">,</span> <span class="s2">"count"</span><span class="p">),</span>
+    <span class="mi">3001</span><span class="p">:</span> <span class="p">(</span><span class="s2">"total_milk_coffee"</span><span class="p">,</span> <span class="s2">"count"</span><span class="p">),</span>
+    <span class="mi">3002</span><span class="p">:</span> <span class="p">(</span><span class="s2">"total_other"</span><span class="p">,</span> <span class="s2">"count"</span><span class="p">),</span>
+    <span class="mi">3003</span><span class="p">:</span> <span class="p">(</span><span class="s2">"total_milk_only"</span><span class="p">,</span> <span class="s2">"count"</span><span class="p">),</span>
+    <span class="mi">3004</span><span class="p">:</span> <span class="p">(</span><span class="s2">"total_espressos"</span><span class="p">,</span> <span class="s2">"count"</span><span class="p">),</span>
+    <span class="mi">3005</span><span class="p">:</span> <span class="p">(</span><span class="s2">"espresso"</span><span class="p">,</span> <span class="s2">"count"</span><span class="p">),</span>
+    <span class="mi">3006</span><span class="p">:</span> <span class="p">(</span><span class="s2">"coffee"</span><span class="p">,</span> <span class="s2">"count"</span><span class="p">),</span>
+    <span class="mi">3007</span><span class="p">:</span> <span class="p">(</span><span class="s2">"long_coffee"</span><span class="p">,</span> <span class="s2">"count"</span><span class="p">),</span>
+    <span class="mi">3008</span><span class="p">:</span> <span class="p">(</span><span class="s2">"doppio"</span><span class="p">,</span> <span class="s2">"count"</span><span class="p">),</span>
+    <span class="mi">3009</span><span class="p">:</span> <span class="p">(</span><span class="s2">"americano"</span><span class="p">,</span> <span class="s2">"count"</span><span class="p">),</span>
+    <span class="mi">3010</span><span class="p">:</span> <span class="p">(</span><span class="s2">"cappuccino"</span><span class="p">,</span> <span class="s2">"count"</span><span class="p">),</span>
+    <span class="mi">3011</span><span class="p">:</span> <span class="p">(</span><span class="s2">"latte_macchiato"</span><span class="p">,</span> <span class="s2">"count"</span><span class="p">),</span>
+    <span class="mi">3012</span><span class="p">:</span> <span class="p">(</span><span class="s2">"caffe_latte"</span><span class="p">,</span> <span class="s2">"count"</span><span class="p">),</span>
+    <span class="mi">3013</span><span class="p">:</span> <span class="p">(</span><span class="s2">"flat_white"</span><span class="p">,</span> <span class="s2">"count"</span><span class="p">),</span>
+    <span class="mi">3014</span><span class="p">:</span> <span class="p">(</span><span class="s2">"espresso_macchiato"</span><span class="p">,</span> <span class="s2">"count"</span><span class="p">),</span>
+    <span class="mi">3015</span><span class="p">:</span> <span class="p">(</span><span class="s2">"hot_milk"</span><span class="p">,</span> <span class="s2">"count"</span><span class="p">),</span>
+    <span class="mi">3016</span><span class="p">:</span> <span class="p">(</span><span class="s2">"cappuccino_doppio"</span><span class="p">,</span> <span class="s2">"count"</span><span class="p">),</span>
+    <span class="mi">3017</span><span class="p">:</span> <span class="p">(</span><span class="s2">"cappuccino_mix"</span><span class="p">,</span> <span class="s2">"count"</span><span class="p">),</span>
+    <span class="mi">3018</span><span class="p">:</span> <span class="p">(</span><span class="s2">"hot_water"</span><span class="p">,</span> <span class="s2">"count"</span><span class="p">),</span>
+    <span class="mi">3019</span><span class="p">:</span> <span class="p">(</span><span class="s2">"tea"</span><span class="p">,</span> <span class="s2">"count"</span><span class="p">),</span>
+    <span class="mi">3020</span><span class="p">:</span> <span class="p">(</span><span class="s2">"coffee_pot"</span><span class="p">,</span> <span class="s2">"count"</span><span class="p">),</span>
+    <span class="mi">3021</span><span class="p">:</span> <span class="p">(</span><span class="s2">"choco"</span><span class="p">,</span> <span class="s2">"count"</span><span class="p">),</span>
+    <span class="mi">3025</span><span class="p">:</span> <span class="p">(</span><span class="s2">"tea_iced"</span><span class="p">,</span> <span class="s2">"count"</span><span class="p">),</span>
+    <span class="mi">43010</span><span class="p">:</span> <span class="p">(</span><span class="s2">"total_beverages"</span><span class="p">,</span> <span class="s2">"count"</span><span class="p">),</span>
+<span class="p">}</span>
+
+<span class="c1">#: A2 ids reported in litres (raw half-millilitres → ``raw / 2000``).</span>
+<span class="n">_WATER_IDS</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">(</span>
+    <span class="n">stat_id</span> <span class="k">for</span> <span class="n">stat_id</span><span class="p">,</span> <span class="p">(</span><span class="n">_</span><span class="p">,</span> <span class="n">unit</span><span class="p">)</span> <span class="ow">in</span> <span class="n">STAT_LABELS</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">unit</span> <span class="o">==</span> <span class="s2">"l"</span>
+<span class="p">)</span>
+
+<span class="n">MEASUREMENT_WATER_LITERS</span> <span class="o">=</span> <span class="s2">"water_liters"</span>
+
+
+<div class="viewcode-block" id="StatisticEntry">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.statistics.html#cremalink.ecam.StatisticEntry">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">StatisticEntry</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""One interpreted A2 statistic."""</span>
+
+    <span class="n">a2_id</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">raw</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span>
+    <span class="n">value</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">float</span>
+    <span class="n">unit</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="StatisticsReport">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.statistics.html#cremalink.ecam.StatisticsReport">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">StatisticsReport</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Result of one statistics fetch."""</span>
+
+    <span class="n">source</span><span class="p">:</span> <span class="nb">str</span>  <span class="c1"># "native" | "cloud_counters"</span>
+    <span class="n">entries</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">StatisticEntry</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>
+    <span class="n">complete</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">fetched_at</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">)</span>
+    <span class="c1">#: logical cloud counters when source == "cloud_counters"</span>
+    <span class="n">cloud_counters</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>
+    <span class="c1">#: per-counter JSON breakdowns (Eletta aggregated counters)</span>
+    <span class="n">breakdowns</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="interpret">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.statistics.html#cremalink.ecam.interpret">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">interpret</span><span class="p">(</span>
+    <span class="n">entries</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]],</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">source</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"native"</span><span class="p">,</span>
+    <span class="n">complete</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">fetched_at</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StatisticsReport</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Fold ``(a2_id, raw)`` pairs into a labelled :class:`StatisticsReport`.</span>
+
+<span class="sd">    Unlabeled ids pass through with ``label=None`` — they are real</span>
+<span class="sd">    machine data, just not display-named.</span>
+<span class="sd">    """</span>
+    <span class="n">report</span> <span class="o">=</span> <span class="n">StatisticsReport</span><span class="p">(</span>
+        <span class="n">source</span><span class="o">=</span><span class="n">source</span><span class="p">,</span>
+        <span class="n">complete</span><span class="o">=</span><span class="n">complete</span><span class="p">,</span>
+        <span class="n">fetched_at</span><span class="o">=</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="k">if</span> <span class="n">fetched_at</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">fetched_at</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="k">for</span> <span class="n">a2_id</span><span class="p">,</span> <span class="n">raw</span> <span class="ow">in</span> <span class="n">entries</span><span class="p">:</span>
+        <span class="n">label</span><span class="p">,</span> <span class="n">unit</span> <span class="o">=</span> <span class="n">STAT_LABELS</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">a2_id</span><span class="p">,</span> <span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="s2">"count"</span><span class="p">))</span>
+        <span class="n">value</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">float</span> <span class="o">=</span> <span class="nb">round</span><span class="p">(</span><span class="n">raw</span> <span class="o">/</span> <span class="mi">2000</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span> <span class="k">if</span> <span class="n">a2_id</span> <span class="ow">in</span> <span class="n">_WATER_IDS</span> <span class="k">else</span> <span class="n">raw</span>
+        <span class="n">report</span><span class="o">.</span><span class="n">entries</span><span class="p">[</span><span class="n">a2_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">StatisticEntry</span><span class="p">(</span>
+            <span class="n">a2_id</span><span class="o">=</span><span class="n">a2_id</span><span class="p">,</span> <span class="n">raw</span><span class="o">=</span><span class="n">raw</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="n">label</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="n">value</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="n">unit</span>
+        <span class="p">)</span>
+    <span class="k">return</span> <span class="n">report</span></div>
+
+
+
+<span class="c1"># --- Cloud counters path -------------------------------------------------</span>
+
+<span class="c1">#: Logical counter → candidate Ayla datapoint names; the first name</span>
+<span class="c1">#: present on the device wins (Soul ``d700_*`` vs Eletta ``d701_*`` are</span>
+<span class="c1">#: not the same counters — see the reference integration's const.py).</span>
+<span class="n">CLOUD_COUNTER_CANDIDATES</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">"total_beverages"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"d700_tot_bev_b"</span><span class="p">,</span> <span class="s2">"d701_tot_bev_b"</span><span class="p">],</span>
+    <span class="s2">"total_other_beverages"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"d702_tot_bev_other"</span><span class="p">],</span>
+    <span class="s2">"total_espresso"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"d704_tot_bev_espressi"</span><span class="p">],</span>
+    <span class="s2">"total_milk_drinks"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"d701_tot_bev_bw"</span><span class="p">],</span>
+    <span class="s2">"total_milk_only"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"d703_tot_bev_w"</span><span class="p">],</span>
+    <span class="s2">"espresso"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"d705_tot_id1_espr"</span><span class="p">],</span>
+    <span class="s2">"coffee"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"d706_tot_id2_coffee"</span><span class="p">],</span>
+    <span class="s2">"long_coffee"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"d707_tot_id3_long"</span><span class="p">],</span>
+    <span class="s2">"doppio"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"d708_tot_id5_doppio_p"</span><span class="p">],</span>
+    <span class="s2">"americano"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"d709_id6_americano"</span><span class="p">],</span>
+    <span class="s2">"cappuccino"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"d710_tot_id7_capp"</span><span class="p">],</span>
+    <span class="s2">"latte_macchiato"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"d711_id8_lattmacc"</span><span class="p">],</span>
+    <span class="s2">"caffe_latte"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"d712_id9_cafflatt"</span><span class="p">],</span>
+    <span class="s2">"flat_white"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"d713_id10_flatwhite"</span><span class="p">],</span>
+    <span class="s2">"espresso_macchiato"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"d714_id11_esprmacc"</span><span class="p">],</span>
+    <span class="s2">"hot_milk"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"d715_id12_hotmilk"</span><span class="p">],</span>
+    <span class="s2">"cappuccino_doppio"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"d716_id13_cappdoppio_p"</span><span class="p">],</span>
+    <span class="s2">"cappuccino_reverse"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"d717_id15_caprev"</span><span class="p">],</span>
+    <span class="s2">"hot_water"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"d718_id16_hotwater"</span><span class="p">],</span>
+    <span class="s2">"tea"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"d719_id22_tea"</span><span class="p">],</span>
+    <span class="s2">"coffee_pot"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"d720_tot_id23_coffee_pot"</span><span class="p">],</span>
+    <span class="s2">"cortado"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"d727_id24_cortado"</span><span class="p">],</span>
+    <span class="s2">"long_black"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"d728_id25_long_black"</span><span class="p">],</span>
+    <span class="s2">"mug_to_go"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"d729_id26_travel_mug"</span><span class="p">],</span>
+    <span class="s2">"brew_over_ice"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"d730_tot_id27_brew_over_ice"</span><span class="p">],</span>
+    <span class="s2">"grounds_counter"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"d551_cnt_coffee_fondi"</span><span class="p">],</span>
+    <span class="s2">"descales"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"d552_cnt_calc_tot"</span><span class="p">],</span>
+    <span class="s2">"water_total_quantity"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"d553_water_tot_qty"</span><span class="p">],</span>
+    <span class="s2">"filters"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"d554_cnt_filter_tot"</span><span class="p">],</span>
+    <span class="s2">"water_filter_quantity"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"d555_water_filter_qty"</span><span class="p">],</span>
+    <span class="s2">"descale_status"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"d825_descale_status"</span><span class="p">],</span>
+    <span class="s2">"water_hardness"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"d556_water_hardness"</span><span class="p">],</span>
+<span class="p">}</span>
+
+<span class="c1">#: Logical counters that carry millilitres (converted to litres).</span>
+<span class="n">_COUNTER_MEASUREMENTS</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">"water_total_quantity"</span><span class="p">:</span> <span class="n">MEASUREMENT_WATER_LITERS</span><span class="p">,</span>
+    <span class="s2">"water_filter_quantity"</span><span class="p">:</span> <span class="n">MEASUREMENT_WATER_LITERS</span><span class="p">,</span>
+<span class="p">}</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_looks_like_json_object</span><span class="p">(</span><span class="n">val_str</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">val_str</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">"{"</span><span class="p">)</span> <span class="ow">and</span> <span class="n">val_str</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">"}"</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="parse_counter_value">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.statistics.html#cremalink.ecam.parse_counter_value">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">parse_counter_value</span><span class="p">(</span><span class="n">val</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Return the integer state for a counter value, or ``None``.</span>
+
+<span class="sd">    Plain integers pass through; a JSON object is summed over its</span>
+<span class="sd">    integer sub-values; anything else yields ``None`` (unknown).</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="n">val</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="nb">bool</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">val</span>
+    <span class="n">val_str</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">val</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">_looks_like_json_object</span><span class="p">(</span><span class="n">val_str</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">val_str</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">json</span><span class="o">.</span><span class="n">JSONDecodeError</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="n">total</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">sub</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">total</span> <span class="o">+=</span> <span class="nb">int</span><span class="p">(</span><span class="n">sub</span><span class="p">)</span>
+            <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">):</span>
+                <span class="k">pass</span>
+        <span class="k">return</span> <span class="n">total</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">val_str</span><span class="p">)</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">TypeError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="counter_breakdown">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.statistics.html#cremalink.ecam.counter_breakdown">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">counter_breakdown</span><span class="p">(</span><span class="n">val</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Return the per-recipe JSON breakdown of a counter, else ``None``."""</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">val</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)):</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="n">val_str</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">val</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">_looks_like_json_object</span><span class="p">(</span><span class="n">val_str</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">val_str</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">json</span><span class="o">.</span><span class="n">JSONDecodeError</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="n">data</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="k">return</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="parse_water_volume_liters">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.statistics.html#cremalink.ecam.parse_water_volume_liters">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">parse_water_volume_liters</span><span class="p">(</span><span class="n">val</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Convert a millilitre counter value to litres."""</span>
+    <span class="n">milliliters</span> <span class="o">=</span> <span class="n">parse_counter_value</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">milliliters</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">return</span> <span class="nb">round</span><span class="p">(</span><span class="n">milliliters</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="resolve_cloud_counters">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.statistics.html#cremalink.ecam.resolve_cloud_counters">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">resolve_cloud_counters</span><span class="p">(</span><span class="n">properties</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Resolve logical counters against the property/dp cache.</span>
+
+<span class="sd">    ``properties`` maps datapoint name → value (or a ``{"value": …}``</span>
+<span class="sd">    wrapper). First present candidate wins; absent candidates produce no</span>
+<span class="sd">    key — an unresolved counter is "absent", not ``None`` (FR-016d).</span>
+<span class="sd">    """</span>
+    <span class="n">out</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">logical</span><span class="p">,</span> <span class="n">candidates</span> <span class="ow">in</span> <span class="n">CLOUD_COUNTER_CANDIDATES</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">candidates</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">properties</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">raw</span> <span class="o">=</span> <span class="n">properties</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">raw</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                <span class="n">raw</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"value"</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">_COUNTER_MEASUREMENTS</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">logical</span><span class="p">)</span> <span class="o">==</span> <span class="n">MEASUREMENT_WATER_LITERS</span><span class="p">:</span>
+                <span class="n">out</span><span class="p">[</span><span class="n">logical</span><span class="p">]</span> <span class="o">=</span> <span class="n">parse_water_volume_liters</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">out</span><span class="p">[</span><span class="n">logical</span><span class="p">]</span> <span class="o">=</span> <span class="n">parse_counter_value</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span>
+            <span class="k">break</span>
+    <span class="k">return</span> <span class="n">out</span></div>
+
+
+
+<div class="viewcode-block" id="resolve_cloud_breakdowns">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.html#cremalink.ecam.resolve_cloud_breakdowns">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">resolve_cloud_breakdowns</span><span class="p">(</span><span class="n">properties</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Per-counter JSON breakdowns, keyed by logical counter."""</span>
+    <span class="n">out</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">logical</span><span class="p">,</span> <span class="n">candidates</span> <span class="ow">in</span> <span class="n">CLOUD_COUNTER_CANDIDATES</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">candidates</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">properties</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">raw</span> <span class="o">=</span> <span class="n">properties</span><span class="p">[</span><span class="n">name</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">raw</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                <span class="n">raw</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"value"</span><span class="p">)</span>
+            <span class="n">breakdown</span> <span class="o">=</span> <span class="n">counter_breakdown</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">breakdown</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">out</span><span class="p">[</span><span class="n">logical</span><span class="p">]</span> <span class="o">=</span> <span class="n">breakdown</span>
+            <span class="k">break</span>
+    <span class="k">return</span> <span class="n">out</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Midian Tekle Elfu.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

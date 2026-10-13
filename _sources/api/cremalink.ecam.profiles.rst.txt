@@ -1,0 +1,7 @@
+cremalink.ecam.profiles module
+==============================
+
+.. automodule:: cremalink.ecam.profiles
+   :members:
+   :show-inheritance:
+   :undoc-members:

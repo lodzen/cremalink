@@ -1,0 +1,532 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>cremalink.local_server_app.api &mdash; cremalink 0.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=7026087e"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html">
+            
+              <img src="../../../_static/cremalink.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">Home</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/cremalink.html">cremalink package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">cremalink</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">cremalink.local_server_app.api</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for cremalink.local_server_app.api</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""</span>
+<span class="sd">This module defines the aiohttp application for the local proxy server.</span>
+<span class="sd">It creates all the API endpoints, manages application state, and handles the</span>
+<span class="sd">startup and shutdown of background services.</span>
+<span class="sd">"""</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">base64</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">aiohttp</span><span class="w"> </span><span class="kn">import</span> <span class="n">web</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="n">ValidationError</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">cremalink.ecam</span><span class="w"> </span><span class="kn">import</span> <span class="n">builder</span> <span class="k">as</span> <span class="n">ecam_builder</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">cremalink.local_server_app</span><span class="w"> </span><span class="kn">import</span> <span class="n">protocol</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">cremalink.local_server_app.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">ServerSettings</span><span class="p">,</span> <span class="n">get_settings</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">cremalink.local_server_app.device_adapter</span><span class="w"> </span><span class="kn">import</span> <span class="n">DeviceAdapter</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">cremalink.local_server_app.jobs</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">JobManager</span><span class="p">,</span>
+    <span class="n">monitor_job</span><span class="p">,</span>
+    <span class="n">nudger_job</span><span class="p">,</span>
+    <span class="n">rekey_job</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">cremalink.local_server_app.logging</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_logger</span><span class="p">,</span> <span class="n">log_event</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">cremalink.local_server_app.models</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">CommandPollResponse</span><span class="p">,</span>
+    <span class="n">CommandRequest</span><span class="p">,</span>
+    <span class="n">ConfigureRequest</span><span class="p">,</span>
+    <span class="n">EncPayload</span><span class="p">,</span>
+    <span class="n">KeyExchangeRequest</span><span class="p">,</span>
+    <span class="n">MonitorResponse</span><span class="p">,</span>
+    <span class="n">PropertiesResponse</span><span class="p">,</span>
+    <span class="n">PropertyGetRequest</span><span class="p">,</span>
+    <span class="n">PropertySetRequest</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">cremalink.local_server_app.state</span><span class="w"> </span><span class="kn">import</span> <span class="n">LocalServerState</span>
+
+<span class="c1">#: Typed keys for app-level storage (tests/introspection), mirroring the</span>
+<span class="c1">#: previous FastAPI app.state.* pattern.</span>
+<span class="n">LOCAL_STATE_KEY</span><span class="p">:</span> <span class="n">web</span><span class="o">.</span><span class="n">AppKey</span><span class="p">[</span><span class="n">LocalServerState</span><span class="p">]</span> <span class="o">=</span> <span class="n">web</span><span class="o">.</span><span class="n">AppKey</span><span class="p">(</span><span class="s2">"local_state"</span><span class="p">)</span>
+<span class="n">SETTINGS_KEY</span><span class="p">:</span> <span class="n">web</span><span class="o">.</span><span class="n">AppKey</span><span class="p">[</span><span class="n">ServerSettings</span><span class="p">]</span> <span class="o">=</span> <span class="n">web</span><span class="o">.</span><span class="n">AppKey</span><span class="p">(</span><span class="s2">"settings"</span><span class="p">)</span>
+<span class="n">ADAPTER_KEY</span><span class="p">:</span> <span class="n">web</span><span class="o">.</span><span class="n">AppKey</span><span class="p">[</span><span class="n">DeviceAdapter</span><span class="p">]</span> <span class="o">=</span> <span class="n">web</span><span class="o">.</span><span class="n">AppKey</span><span class="p">(</span><span class="s2">"adapter"</span><span class="p">)</span>
+<span class="n">JOBS_KEY</span><span class="p">:</span> <span class="n">web</span><span class="o">.</span><span class="n">AppKey</span><span class="p">[</span><span class="n">JobManager</span><span class="p">]</span> <span class="o">=</span> <span class="n">web</span><span class="o">.</span><span class="n">AppKey</span><span class="p">(</span><span class="s2">"jobs"</span><span class="p">)</span>
+<span class="n">STOP_EVENT_KEY</span><span class="p">:</span> <span class="n">web</span><span class="o">.</span><span class="n">AppKey</span><span class="p">[</span><span class="n">asyncio</span><span class="o">.</span><span class="n">Event</span><span class="p">]</span> <span class="o">=</span> <span class="n">web</span><span class="o">.</span><span class="n">AppKey</span><span class="p">(</span><span class="s2">"stop_event"</span><span class="p">)</span>
+<span class="n">LOGGER_KEY</span><span class="p">:</span> <span class="n">web</span><span class="o">.</span><span class="n">AppKey</span> <span class="o">=</span> <span class="n">web</span><span class="o">.</span><span class="n">AppKey</span><span class="p">(</span><span class="s2">"logger"</span><span class="p">)</span>
+
+
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">_parse_json_model</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">web</span><span class="o">.</span><span class="n">Request</span><span class="p">,</span> <span class="n">model</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Parses the request body and validates it against a pydantic model."""</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">body</span> <span class="o">=</span> <span class="k">await</span> <span class="n">request</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">model</span><span class="o">.</span><span class="n">model_validate</span><span class="p">(</span><span class="n">body</span><span class="p">)</span>
+    <span class="k">except</span> <span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">JSONDecodeError</span><span class="p">,</span> <span class="n">ValidationError</span><span class="p">)</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="n">web</span><span class="o">.</span><span class="n">HTTPBadRequest</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">))</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">ConnectionError</span><span class="p">,</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">IncompleteReadError</span><span class="p">)</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+        <span class="c1"># The peer (the machine) dropped the connection mid-body; nothing</span>
+        <span class="c1"># can be answered, and it is not a server fault.</span>
+        <span class="k">raise</span> <span class="n">web</span><span class="o">.</span><span class="n">HTTPBadRequest</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"connection closed while reading body"</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_describe_served_payload</span><span class="p">(</span><span class="n">payload_str</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Summarize a queued command payload for debug logging.</span>
+
+<span class="sd">    The served JSON carries one of three shapes: an empty heartbeat, a</span>
+<span class="sd">    `cmds` list of GET requests (`property.json?name=...`), or a</span>
+<span class="sd">    `properties` block of named datapoint writes — `data_request` values</span>
+<span class="sd">    are base64 ECAM frames and get decoded via `describe_request_frame`.</span>
+<span class="sd">    """</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">doc</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">payload_str</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">"type"</span><span class="p">:</span> <span class="s2">"unparseable"</span><span class="p">}</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">doc</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"data"</span><span class="p">)</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">doc</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">data</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">"type"</span><span class="p">:</span> <span class="s2">"heartbeat"</span><span class="p">}</span>
+    <span class="n">cmds</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"cmds"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cmds</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="n">requests</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">{</span><span class="s2">"method"</span><span class="p">:</span> <span class="n">cmd</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"method"</span><span class="p">),</span> <span class="s2">"resource"</span><span class="p">:</span> <span class="n">cmd</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"resource"</span><span class="p">)}</span>
+            <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">cmds</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">((</span><span class="n">cmd</span> <span class="o">:=</span> <span class="n">entry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"cmd"</span><span class="p">)),</span> <span class="nb">dict</span><span class="p">)</span>
+        <span class="p">]</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">"type"</span><span class="p">:</span> <span class="s2">"cmds"</span><span class="p">,</span> <span class="s2">"requests"</span><span class="p">:</span> <span class="n">requests</span><span class="p">}</span>
+    <span class="n">props</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"properties"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">props</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">entries</span> <span class="o">=</span> <span class="n">props</span><span class="o">.</span><span class="n">values</span><span class="p">()</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">props</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="k">else</span> <span class="n">props</span>
+        <span class="n">items</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">entries</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">entries</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="k">else</span> <span class="p">[]:</span>
+            <span class="n">prop</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"property"</span><span class="p">)</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">prop</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                <span class="k">continue</span>
+            <span class="n">item</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="n">prop</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"name"</span><span class="p">)}</span>
+            <span class="n">raw</span> <span class="o">=</span> <span class="n">prop</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"value"</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">raw</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">blob</span> <span class="o">=</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64decode</span><span class="p">(</span><span class="n">raw</span><span class="o">.</span><span class="n">strip</span><span class="p">(),</span> <span class="n">validate</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+                <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">TypeError</span><span class="p">):</span>
+                    <span class="n">blob</span> <span class="o">=</span> <span class="sa">b</span><span class="s2">""</span>
+                <span class="n">described</span> <span class="o">=</span> <span class="n">ecam_builder</span><span class="o">.</span><span class="n">describe_request_frame</span><span class="p">(</span><span class="n">blob</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">described</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"request"</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">item</span><span class="p">[</span><span class="s2">"request"</span><span class="p">]</span> <span class="o">=</span> <span class="n">described</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">item</span><span class="p">[</span><span class="s2">"value"</span><span class="p">]</span> <span class="o">=</span> <span class="n">raw</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+            <span class="n">items</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">"type"</span><span class="p">:</span> <span class="s2">"properties"</span><span class="p">,</span> <span class="s2">"properties"</span><span class="p">:</span> <span class="n">items</span><span class="p">}</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s2">"type"</span><span class="p">:</span> <span class="s2">"other"</span><span class="p">,</span> <span class="s2">"keys"</span><span class="p">:</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">data</span><span class="p">)}</span>
+
+
+<div class="viewcode-block" id="create_app">
+<a class="viewcode-back" href="../../../api/cremalink.local_server_app.api.html#cremalink.create_app">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">create_app</span><span class="p">(</span>
+    <span class="n">settings</span><span class="p">:</span> <span class="n">ServerSettings</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">device_adapter</span><span class="p">:</span> <span class="n">DeviceAdapter</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">logger</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">web</span><span class="o">.</span><span class="n">Application</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""</span>
+<span class="sd">    Application factory for the aiohttp server.</span>
+
+<span class="sd">    Initializes all components (state, settings, adapter, jobs) and wires up</span>
+<span class="sd">    the API routes and startup/cleanup handlers.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A configured aiohttp `Application` instance.</span>
+<span class="sd">    """</span>
+    <span class="c1"># Initialize core components, allowing for dependency injection in tests.</span>
+    <span class="n">settings</span> <span class="o">=</span> <span class="n">settings</span> <span class="ow">or</span> <span class="n">get_settings</span><span class="p">()</span>
+    <span class="n">logger</span> <span class="o">=</span> <span class="n">logger</span> <span class="ow">or</span> <span class="n">create_logger</span><span class="p">(</span>
+        <span class="s2">"local_server"</span><span class="p">,</span> <span class="n">settings</span><span class="o">.</span><span class="n">log_ring_size</span><span class="p">,</span> <span class="n">console</span><span class="o">=</span><span class="kc">True</span>
+    <span class="p">)</span>
+    <span class="n">state</span> <span class="o">=</span> <span class="n">LocalServerState</span><span class="p">(</span><span class="n">settings</span><span class="p">,</span> <span class="n">logger</span><span class="p">)</span>
+    <span class="n">adapter</span> <span class="o">=</span> <span class="n">device_adapter</span> <span class="ow">or</span> <span class="n">DeviceAdapter</span><span class="p">(</span><span class="n">settings</span><span class="p">,</span> <span class="n">logger</span><span class="p">)</span>
+    <span class="n">stop_event</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Event</span><span class="p">()</span>
+    <span class="n">jobs</span> <span class="o">=</span> <span class="n">JobManager</span><span class="p">()</span>
+
+    <span class="n">log_event</span><span class="p">(</span>
+        <span class="n">logger</span><span class="p">,</span>
+        <span class="s2">"Starting cremalink local server"</span><span class="p">,</span>
+        <span class="p">{</span>
+            <span class="s2">"server_ip"</span><span class="p">:</span> <span class="n">settings</span><span class="o">.</span><span class="n">server_ip</span><span class="p">,</span>
+            <span class="s2">"server_port"</span><span class="p">:</span> <span class="n">settings</span><span class="o">.</span><span class="n">server_port</span><span class="p">,</span>
+            <span class="s2">"advertised_ip"</span><span class="p">:</span> <span class="n">settings</span><span class="o">.</span><span class="n">advertised_ip</span><span class="p">,</span>
+        <span class="p">},</span>
+    <span class="p">)</span>
+
+    <span class="n">app</span> <span class="o">=</span> <span class="n">web</span><span class="o">.</span><span class="n">Application</span><span class="p">()</span>
+    <span class="c1"># Exposed for tests/introspection, mirroring the previous FastAPI app.state.* pattern.</span>
+    <span class="n">app</span><span class="p">[</span><span class="n">LOCAL_STATE_KEY</span><span class="p">]</span> <span class="o">=</span> <span class="n">state</span>
+    <span class="n">app</span><span class="p">[</span><span class="n">SETTINGS_KEY</span><span class="p">]</span> <span class="o">=</span> <span class="n">settings</span>
+    <span class="n">app</span><span class="p">[</span><span class="n">ADAPTER_KEY</span><span class="p">]</span> <span class="o">=</span> <span class="n">adapter</span>
+    <span class="n">app</span><span class="p">[</span><span class="n">JOBS_KEY</span><span class="p">]</span> <span class="o">=</span> <span class="n">jobs</span>
+    <span class="n">app</span><span class="p">[</span><span class="n">STOP_EVENT_KEY</span><span class="p">]</span> <span class="o">=</span> <span class="n">stop_event</span>
+    <span class="n">app</span><span class="p">[</span><span class="n">LOGGER_KEY</span><span class="p">]</span> <span class="o">=</span> <span class="n">logger</span>
+
+    <span class="c1"># --- Client-Facing API Endpoints (called by cremalink_ha / LocalTransport) ---</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">configure</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">web</span><span class="o">.</span><span class="n">Request</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">web</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Configures the server with device connection details."""</span>
+        <span class="n">req</span> <span class="o">=</span> <span class="k">await</span> <span class="n">_parse_json_model</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">ConfigureRequest</span><span class="p">)</span>
+        <span class="k">await</span> <span class="n">state</span><span class="o">.</span><span class="n">configure</span><span class="p">(</span>
+            <span class="n">dsn</span><span class="o">=</span><span class="n">req</span><span class="o">.</span><span class="n">dsn</span><span class="p">,</span>
+            <span class="n">device_ip</span><span class="o">=</span><span class="n">req</span><span class="o">.</span><span class="n">device_ip</span><span class="p">,</span>
+            <span class="n">lan_key</span><span class="o">=</span><span class="n">req</span><span class="o">.</span><span class="n">lan_key</span><span class="p">,</span>
+            <span class="n">device_scheme</span><span class="o">=</span><span class="n">req</span><span class="o">.</span><span class="n">device_scheme</span><span class="p">,</span>
+            <span class="n">monitor_property_name</span><span class="o">=</span><span class="n">req</span><span class="o">.</span><span class="n">monitor_property_name</span><span class="p">,</span>
+            <span class="n">data_request_property_name</span><span class="o">=</span><span class="n">req</span><span class="o">.</span><span class="n">data_request_property_name</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="c1"># Attempt an initial registration with the device.</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">await</span> <span class="n">adapter</span><span class="o">.</span><span class="n">register_with_device</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">ConnectionError</span><span class="p">,</span> <span class="ne">TimeoutError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">)</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="n">state</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"local_reg_initial_failed"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"error"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">)})</span>
+        <span class="k">return</span> <span class="n">web</span><span class="o">.</span><span class="n">json_response</span><span class="p">(</span>
+            <span class="p">{</span><span class="s2">"status"</span><span class="p">:</span> <span class="s2">"configured"</span><span class="p">,</span> <span class="s2">"dsn"</span><span class="p">:</span> <span class="n">req</span><span class="o">.</span><span class="n">dsn</span><span class="p">,</span> <span class="s2">"device_scheme"</span><span class="p">:</span> <span class="n">req</span><span class="o">.</span><span class="n">device_scheme</span><span class="p">}</span>
+        <span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">command</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">web</span><span class="o">.</span><span class="n">Request</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">web</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Queues a command to be sent to the device."""</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">state</span><span class="o">.</span><span class="n">is_configured</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">web</span><span class="o">.</span><span class="n">HTTPBadRequest</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Server not configured"</span><span class="p">)</span>
+        <span class="n">req</span> <span class="o">=</span> <span class="k">await</span> <span class="n">_parse_json_model</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">CommandRequest</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">await</span> <span class="n">adapter</span><span class="o">.</span><span class="n">register_with_device</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+            <span class="k">await</span> <span class="n">state</span><span class="o">.</span><span class="n">queue_command</span><span class="p">(</span><span class="n">req</span><span class="o">.</span><span class="n">command</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">OverflowError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">web</span><span class="o">.</span><span class="n">HTTPTooManyRequests</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">))</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+        <span class="k">except</span> <span class="ne">ConnectionError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">web</span><span class="o">.</span><span class="n">HTTPBadGateway</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">))</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+        <span class="k">return</span> <span class="n">web</span><span class="o">.</span><span class="n">json_response</span><span class="p">({</span><span class="s2">"status"</span><span class="p">:</span> <span class="s2">"queued"</span><span class="p">,</span> <span class="s2">"seq"</span><span class="p">:</span> <span class="n">state</span><span class="o">.</span><span class="n">seq</span><span class="p">})</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">set_property</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">web</span><span class="o">.</span><span class="n">Request</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">web</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Queues a write for a single named datapoint."""</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">state</span><span class="o">.</span><span class="n">is_configured</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">web</span><span class="o">.</span><span class="n">HTTPBadRequest</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Server not configured"</span><span class="p">)</span>
+        <span class="n">req</span> <span class="o">=</span> <span class="k">await</span> <span class="n">_parse_json_model</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">PropertySetRequest</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">await</span> <span class="n">adapter</span><span class="o">.</span><span class="n">register_with_device</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+            <span class="k">await</span> <span class="n">state</span><span class="o">.</span><span class="n">queue_property_set</span><span class="p">(</span><span class="n">req</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">req</span><span class="o">.</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">OverflowError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">web</span><span class="o">.</span><span class="n">HTTPTooManyRequests</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">))</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+        <span class="k">except</span> <span class="ne">ConnectionError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">web</span><span class="o">.</span><span class="n">HTTPBadGateway</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">))</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+        <span class="k">return</span> <span class="n">web</span><span class="o">.</span><span class="n">json_response</span><span class="p">({</span><span class="s2">"status"</span><span class="p">:</span> <span class="s2">"queued"</span><span class="p">,</span> <span class="s2">"seq"</span><span class="p">:</span> <span class="n">state</span><span class="o">.</span><span class="n">seq</span><span class="p">})</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">request_property</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">web</span><span class="o">.</span><span class="n">Request</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">web</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Queues a GET for a single named datapoint."""</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">state</span><span class="o">.</span><span class="n">is_configured</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="n">web</span><span class="o">.</span><span class="n">HTTPBadRequest</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Server not configured"</span><span class="p">)</span>
+        <span class="n">req</span> <span class="o">=</span> <span class="k">await</span> <span class="n">_parse_json_model</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">PropertyGetRequest</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">await</span> <span class="n">adapter</span><span class="o">.</span><span class="n">register_with_device</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+            <span class="k">await</span> <span class="n">state</span><span class="o">.</span><span class="n">queue_property_get</span><span class="p">(</span><span class="n">req</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">OverflowError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">web</span><span class="o">.</span><span class="n">HTTPTooManyRequests</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">))</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+        <span class="k">except</span> <span class="ne">ConnectionError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">web</span><span class="o">.</span><span class="n">HTTPBadGateway</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">))</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+        <span class="k">return</span> <span class="n">web</span><span class="o">.</span><span class="n">json_response</span><span class="p">({</span><span class="s2">"status"</span><span class="p">:</span> <span class="s2">"queued"</span><span class="p">,</span> <span class="s2">"seq"</span><span class="p">:</span> <span class="n">state</span><span class="o">.</span><span class="n">seq</span><span class="p">})</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_responses</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">web</span><span class="o">.</span><span class="n">Request</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">web</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Returns and clears queued `data_response` mailbox entries."""</span>
+        <span class="n">entries</span> <span class="o">=</span> <span class="k">await</span> <span class="n">state</span><span class="o">.</span><span class="n">drain_responses</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">web</span><span class="o">.</span><span class="n">json_response</span><span class="p">(</span>
+            <span class="p">{</span>
+                <span class="s2">"responses"</span><span class="p">:</span> <span class="p">[</span>
+                    <span class="p">{</span>
+                        <span class="s2">"name"</span><span class="p">:</span> <span class="n">e</span><span class="p">[</span><span class="s2">"name"</span><span class="p">],</span>
+                        <span class="s2">"value_b64"</span><span class="p">:</span> <span class="n">e</span><span class="p">[</span><span class="s2">"value"</span><span class="p">],</span>
+                        <span class="s2">"received_at"</span><span class="p">:</span> <span class="n">e</span><span class="p">[</span><span class="s2">"received_at"</span><span class="p">],</span>
+                    <span class="p">}</span>
+                    <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">entries</span>
+                <span class="p">]</span>
+            <span class="p">}</span>
+        <span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_monitor</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">web</span><span class="o">.</span><span class="n">Request</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">web</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Gets the last known monitor status."""</span>
+        <span class="n">snapshot</span> <span class="o">=</span> <span class="k">await</span> <span class="n">state</span><span class="o">.</span><span class="n">snapshot_monitor</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">web</span><span class="o">.</span><span class="n">json_response</span><span class="p">(</span><span class="n">MonitorResponse</span><span class="o">.</span><span class="n">model_validate</span><span class="p">(</span><span class="n">snapshot</span><span class="p">)</span><span class="o">.</span><span class="n">model_dump</span><span class="p">())</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">refresh_monitor</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">web</span><span class="o">.</span><span class="n">Request</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">web</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Queues a request to refresh the monitor status."""</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">await</span> <span class="n">adapter</span><span class="o">.</span><span class="n">register_with_device</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+            <span class="k">await</span> <span class="n">state</span><span class="o">.</span><span class="n">queue_monitor</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">ConnectionError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">web</span><span class="o">.</span><span class="n">HTTPBadGateway</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">))</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+        <span class="k">return</span> <span class="n">web</span><span class="o">.</span><span class="n">Response</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"queued monitor refresh"</span><span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_properties</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">web</span><span class="o">.</span><span class="n">Request</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">web</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Gets the last known device properties."""</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">await</span> <span class="n">adapter</span><span class="o">.</span><span class="n">register_with_device</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+            <span class="k">await</span> <span class="n">state</span><span class="o">.</span><span class="n">queue_properties</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">ConnectionError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">web</span><span class="o">.</span><span class="n">HTTPBadGateway</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">))</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+        <span class="n">snapshot</span> <span class="o">=</span> <span class="k">await</span> <span class="n">state</span><span class="o">.</span><span class="n">snapshot_properties</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">web</span><span class="o">.</span><span class="n">json_response</span><span class="p">(</span>
+            <span class="n">PropertiesResponse</span><span class="o">.</span><span class="n">model_validate</span><span class="p">(</span><span class="n">snapshot</span><span class="p">)</span><span class="o">.</span><span class="n">model_dump</span><span class="p">()</span>
+        <span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">get_property</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">web</span><span class="o">.</span><span class="n">Request</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">web</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Gets a single property value from the last known snapshot."""</span>
+        <span class="n">property_name</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">match_info</span><span class="p">[</span><span class="s2">"property_name"</span><span class="p">]</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="k">await</span> <span class="n">state</span><span class="o">.</span><span class="n">get_property_value</span><span class="p">(</span><span class="n">property_name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">web</span><span class="o">.</span><span class="n">HTTPNotFound</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Property not found"</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">web</span><span class="o">.</span><span class="n">json_response</span><span class="p">({</span><span class="s2">"name"</span><span class="p">:</span> <span class="n">property_name</span><span class="p">,</span> <span class="s2">"value"</span><span class="p">:</span> <span class="n">value</span><span class="p">})</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">health</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">web</span><span class="o">.</span><span class="n">Request</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">web</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">web</span><span class="o">.</span><span class="n">Response</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"ok"</span><span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">logs</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">web</span><span class="o">.</span><span class="n">Request</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">web</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
+        <span class="n">ring_handler</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span>
+            <span class="p">(</span><span class="n">h</span> <span class="k">for</span> <span class="n">h</span> <span class="ow">in</span> <span class="n">logger</span><span class="o">.</span><span class="n">handlers</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">h</span><span class="p">,</span> <span class="s2">"get_events"</span><span class="p">)),</span> <span class="kc">None</span>
+        <span class="p">)</span>
+        <span class="n">events</span> <span class="o">=</span> <span class="n">ring_handler</span><span class="o">.</span><span class="n">get_events</span><span class="p">()</span> <span class="k">if</span> <span class="n">ring_handler</span> <span class="k">else</span> <span class="p">[]</span>
+        <span class="k">return</span> <span class="n">web</span><span class="o">.</span><span class="n">json_response</span><span class="p">({</span><span class="s2">"events"</span><span class="p">:</span> <span class="n">events</span><span class="p">,</span> <span class="s2">"last_command"</span><span class="p">:</span> <span class="n">state</span><span class="o">.</span><span class="n">last_command</span><span class="p">})</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">debug_queue</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">web</span><span class="o">.</span><span class="n">Request</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">web</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="n">state</span><span class="o">.</span><span class="n">lock</span><span class="p">:</span>  <span class="c1"># type: ignore[attr-defined]</span>
+            <span class="n">next_payload</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">command_queue</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">state</span><span class="o">.</span><span class="n">command_queue</span> <span class="k">else</span> <span class="kc">None</span>
+            <span class="n">queued</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">command_queue</span><span class="p">)</span>
+            <span class="n">seq</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">seq</span>
+        <span class="k">return</span> <span class="n">web</span><span class="o">.</span><span class="n">json_response</span><span class="p">(</span>
+            <span class="p">{</span><span class="s2">"queued"</span><span class="p">:</span> <span class="n">queued</span><span class="p">,</span> <span class="s2">"next_payload"</span><span class="p">:</span> <span class="n">next_payload</span><span class="p">,</span> <span class="s2">"seq"</span><span class="p">:</span> <span class="n">seq</span><span class="p">}</span>
+        <span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">monitor</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">web</span><span class="o">.</span><span class="n">Request</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">web</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="n">state</span><span class="o">.</span><span class="n">lock</span><span class="p">:</span>  <span class="c1"># type: ignore[attr-defined]</span>
+            <span class="k">return</span> <span class="n">web</span><span class="o">.</span><span class="n">json_response</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">last_monitor</span><span class="p">)</span>
+
+    <span class="c1"># --- Device-Facing API Endpoints (called by the coffee machine) ---</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">key_exchange</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">web</span><span class="o">.</span><span class="n">Request</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">web</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Handles the cryptographic key exchange request from the device."""</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">state</span><span class="o">.</span><span class="n">lan_key</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">web</span><span class="o">.</span><span class="n">HTTPBadRequest</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Server not configured"</span><span class="p">)</span>
+        <span class="n">req</span> <span class="o">=</span> <span class="k">await</span> <span class="n">_parse_json_model</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">KeyExchangeRequest</span><span class="p">)</span>
+        <span class="n">exchange</span> <span class="o">=</span> <span class="n">req</span><span class="o">.</span><span class="n">key_exchange</span>
+        <span class="k">await</span> <span class="n">state</span><span class="o">.</span><span class="n">init_crypto</span><span class="p">(</span><span class="n">random_1</span><span class="o">=</span><span class="n">exchange</span><span class="o">.</span><span class="n">random_1</span><span class="p">,</span> <span class="n">time_1</span><span class="o">=</span><span class="n">exchange</span><span class="o">.</span><span class="n">time_1</span><span class="p">)</span>
+        <span class="n">state</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+            <span class="s2">"key_exchange"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"random_1"</span><span class="p">:</span> <span class="n">exchange</span><span class="o">.</span><span class="n">random_1</span><span class="p">,</span> <span class="s2">"time_1"</span><span class="p">:</span> <span class="n">exchange</span><span class="o">.</span><span class="n">time_1</span><span class="p">}</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">web</span><span class="o">.</span><span class="n">json_response</span><span class="p">(</span>
+            <span class="p">{</span><span class="s2">"random_2"</span><span class="p">:</span> <span class="n">state</span><span class="o">.</span><span class="n">random_2</span><span class="p">,</span> <span class="s2">"time_2"</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">time_2</span><span class="p">)},</span>
+            <span class="n">status</span><span class="o">=</span><span class="n">web</span><span class="o">.</span><span class="n">HTTPAccepted</span><span class="o">.</span><span class="n">status_code</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">serve_command_poll</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">CommandPollResponse</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Shared logic for serving the next command to the device."""</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">state</span><span class="o">.</span><span class="n">keys_ready</span><span class="p">():</span>
+            <span class="n">state</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"command_poll_no_keys"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"queued"</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">command_queue</span><span class="p">)})</span>
+            <span class="k">return</span> <span class="n">CommandPollResponse</span><span class="p">(</span><span class="n">enc</span><span class="o">=</span><span class="s2">""</span><span class="p">,</span> <span class="n">sign</span><span class="o">=</span><span class="s2">""</span><span class="p">,</span> <span class="n">seq</span><span class="o">=</span><span class="n">state</span><span class="o">.</span><span class="n">seq</span><span class="p">)</span>
+
+        <span class="n">next_item</span> <span class="o">=</span> <span class="k">await</span> <span class="n">state</span><span class="o">.</span><span class="n">next_command_payload</span><span class="p">()</span>
+        <span class="n">payload</span><span class="p">,</span> <span class="n">current_seq</span> <span class="o">=</span> <span class="n">next_item</span><span class="p">[</span><span class="s2">"payload"</span><span class="p">],</span> <span class="n">next_item</span><span class="p">[</span><span class="s2">"seq"</span><span class="p">]</span>
+
+        <span class="n">enc</span><span class="p">,</span> <span class="n">new_iv</span> <span class="o">=</span> <span class="n">protocol</span><span class="o">.</span><span class="n">encrypt_payload</span><span class="p">(</span>
+            <span class="n">payload</span><span class="p">,</span> <span class="n">state</span><span class="o">.</span><span class="n">app_crypto_key</span><span class="p">,</span> <span class="n">state</span><span class="o">.</span><span class="n">app_iv_seed</span>
+        <span class="p">)</span>
+        <span class="n">state</span><span class="o">.</span><span class="n">app_iv_seed</span> <span class="o">=</span> <span class="n">new_iv</span>
+        <span class="n">sign</span> <span class="o">=</span> <span class="n">protocol</span><span class="o">.</span><span class="n">sign_payload</span><span class="p">(</span><span class="n">payload</span><span class="p">,</span> <span class="n">state</span><span class="o">.</span><span class="n">app_sign_key</span><span class="p">)</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="n">state</span><span class="o">.</span><span class="n">lock</span><span class="p">:</span>
+            <span class="n">state</span><span class="o">.</span><span class="n">command_payload</span> <span class="o">=</span> <span class="n">protocol</span><span class="o">.</span><span class="n">build_empty_payload</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">seq</span><span class="p">)</span>
+        <span class="n">state</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+            <span class="s2">"command_served"</span><span class="p">,</span>
+            <span class="p">{</span>
+                <span class="s2">"seq"</span><span class="p">:</span> <span class="n">current_seq</span><span class="p">,</span>
+                <span class="s2">"queued_remaining"</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">command_queue</span><span class="p">),</span>
+                <span class="s2">"payload_size"</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">payload</span><span class="p">),</span>
+            <span class="p">},</span>
+        <span class="p">)</span>
+        <span class="n">state</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+            <span class="s2">"command_request"</span><span class="p">,</span>
+            <span class="n">_describe_served_payload</span><span class="p">(</span><span class="n">payload</span><span class="p">),</span>
+            <span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">CommandPollResponse</span><span class="p">(</span><span class="n">enc</span><span class="o">=</span><span class="n">enc</span><span class="p">,</span> <span class="n">sign</span><span class="o">=</span><span class="n">sign</span><span class="p">,</span> <span class="n">seq</span><span class="o">=</span><span class="n">current_seq</span><span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">poll_commands</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">web</span><span class="o">.</span><span class="n">Request</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">web</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Endpoint for the device to poll for commands (GET/POST)."""</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">serve_command_poll</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">web</span><span class="o">.</span><span class="n">json_response</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">model_dump</span><span class="p">())</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">datapoint</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">web</span><span class="o">.</span><span class="n">Request</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">web</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Endpoint for the device to push encrypted data to."""</span>
+        <span class="n">payload</span> <span class="o">=</span> <span class="k">await</span> <span class="n">_parse_json_model</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">EncPayload</span><span class="p">)</span>
+        <span class="c1"># Read the keys only after the body arrived: a rekey can reset them</span>
+        <span class="c1"># while the body is still in flight, and nothing may yield between</span>
+        <span class="c1"># this check and the decryption.</span>
+        <span class="n">dev_key</span><span class="p">,</span> <span class="n">dev_iv</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">dev_crypto_key</span><span class="p">,</span> <span class="n">state</span><span class="o">.</span><span class="n">dev_iv_seed</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">dev_key</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">dev_iv</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="n">web</span><span class="o">.</span><span class="n">HTTPServiceUnavailable</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Keys not initialized"</span><span class="p">)</span>
+        <span class="n">decrypted_bytes</span><span class="p">,</span> <span class="n">new_iv</span> <span class="o">=</span> <span class="n">protocol</span><span class="o">.</span><span class="n">decrypt_payload</span><span class="p">(</span><span class="n">payload</span><span class="o">.</span><span class="n">enc</span><span class="p">,</span> <span class="n">dev_key</span><span class="p">,</span> <span class="n">dev_iv</span><span class="p">)</span>
+        <span class="n">state</span><span class="o">.</span><span class="n">dev_iv_seed</span> <span class="o">=</span> <span class="n">new_iv</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">decoded</span> <span class="o">=</span> <span class="n">decrypted_bytes</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">"utf-8"</span><span class="p">)</span>
+            <span class="n">decoded_json</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">decoded</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">UnicodeDecodeError</span><span class="p">:</span>
+            <span class="n">state</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"datapoint_decode_failed_utf8"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"cipher"</span><span class="p">:</span> <span class="n">payload</span><span class="o">.</span><span class="n">enc</span><span class="p">[:</span><span class="mi">32</span><span class="p">]})</span>
+            <span class="k">async</span> <span class="k">with</span> <span class="n">state</span><span class="o">.</span><span class="n">lock</span><span class="p">:</span>
+                <span class="n">state</span><span class="o">.</span><span class="n">_monitor_request_pending</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="n">state</span><span class="o">.</span><span class="n">_properties_request_pending</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">return</span> <span class="n">web</span><span class="o">.</span><span class="n">Response</span><span class="p">(</span><span class="n">status</span><span class="o">=</span><span class="mi">200</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">json</span><span class="o">.</span><span class="n">JSONDecodeError</span><span class="p">:</span>
+            <span class="n">state</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+                <span class="s2">"datapoint_decode_failed_json"</span><span class="p">,</span>
+                <span class="p">{</span><span class="s2">"decoded_prefix"</span><span class="p">:</span> <span class="n">decrypted_bytes</span><span class="p">[:</span><span class="mi">64</span><span class="p">]</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">"utf-8"</span><span class="p">,</span> <span class="s2">"ignore"</span><span class="p">)},</span>
+            <span class="p">)</span>
+            <span class="k">async</span> <span class="k">with</span> <span class="n">state</span><span class="o">.</span><span class="n">lock</span><span class="p">:</span>
+                <span class="n">state</span><span class="o">.</span><span class="n">_monitor_request_pending</span> <span class="o">=</span> <span class="kc">False</span>
+                <span class="n">state</span><span class="o">.</span><span class="n">_properties_request_pending</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="k">return</span> <span class="n">web</span><span class="o">.</span><span class="n">Response</span><span class="p">(</span><span class="n">status</span><span class="o">=</span><span class="mi">200</span><span class="p">)</span>
+
+        <span class="n">state</span><span class="o">.</span><span class="n">log_telemetry</span><span class="p">(</span><span class="s2">"device_datapoint_received"</span><span class="p">,</span> <span class="n">decoded_json</span><span class="p">)</span>
+        <span class="k">await</span> <span class="n">state</span><span class="o">.</span><span class="n">handle_datapoint</span><span class="p">(</span><span class="n">decoded_json</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">web</span><span class="o">.</span><span class="n">json_response</span><span class="p">({})</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">register</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">web</span><span class="o">.</span><span class="n">Request</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">web</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">await</span> <span class="n">adapter</span><span class="o">.</span><span class="n">register_with_device</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">ConnectionError</span><span class="p">,</span> <span class="ne">TimeoutError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">)</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="n">state</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"internal_server_error"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"status_code"</span><span class="p">:</span> <span class="mi">500</span><span class="p">,</span> <span class="s2">"error"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">)})</span>
+            <span class="k">return</span> <span class="n">web</span><span class="o">.</span><span class="n">Response</span><span class="p">(</span><span class="n">status</span><span class="o">=</span><span class="mi">500</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">web</span><span class="o">.</span><span class="n">Response</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"registered"</span><span class="p">)</span>
+
+    <span class="n">app</span><span class="o">.</span><span class="n">router</span><span class="o">.</span><span class="n">add_post</span><span class="p">(</span><span class="s2">"/configure"</span><span class="p">,</span> <span class="n">configure</span><span class="p">)</span>
+    <span class="n">app</span><span class="o">.</span><span class="n">router</span><span class="o">.</span><span class="n">add_post</span><span class="p">(</span><span class="s2">"/command"</span><span class="p">,</span> <span class="n">command</span><span class="p">)</span>
+    <span class="n">app</span><span class="o">.</span><span class="n">router</span><span class="o">.</span><span class="n">add_post</span><span class="p">(</span><span class="s2">"/property"</span><span class="p">,</span> <span class="n">set_property</span><span class="p">)</span>
+    <span class="n">app</span><span class="o">.</span><span class="n">router</span><span class="o">.</span><span class="n">add_post</span><span class="p">(</span><span class="s2">"/properties/request"</span><span class="p">,</span> <span class="n">request_property</span><span class="p">)</span>
+    <span class="n">app</span><span class="o">.</span><span class="n">router</span><span class="o">.</span><span class="n">add_get</span><span class="p">(</span><span class="s2">"/responses"</span><span class="p">,</span> <span class="n">get_responses</span><span class="p">)</span>
+    <span class="n">app</span><span class="o">.</span><span class="n">router</span><span class="o">.</span><span class="n">add_get</span><span class="p">(</span><span class="s2">"/get_monitor"</span><span class="p">,</span> <span class="n">get_monitor</span><span class="p">)</span>
+    <span class="n">app</span><span class="o">.</span><span class="n">router</span><span class="o">.</span><span class="n">add_get</span><span class="p">(</span><span class="s2">"/refresh_monitor"</span><span class="p">,</span> <span class="n">refresh_monitor</span><span class="p">)</span>
+    <span class="n">app</span><span class="o">.</span><span class="n">router</span><span class="o">.</span><span class="n">add_get</span><span class="p">(</span><span class="s2">"/get_properties"</span><span class="p">,</span> <span class="n">get_properties</span><span class="p">)</span>
+    <span class="n">app</span><span class="o">.</span><span class="n">router</span><span class="o">.</span><span class="n">add_get</span><span class="p">(</span><span class="s2">"/properties/</span><span class="si">{property_name}</span><span class="s2">"</span><span class="p">,</span> <span class="n">get_property</span><span class="p">)</span>
+    <span class="n">app</span><span class="o">.</span><span class="n">router</span><span class="o">.</span><span class="n">add_get</span><span class="p">(</span><span class="s2">"/health"</span><span class="p">,</span> <span class="n">health</span><span class="p">)</span>
+    <span class="n">app</span><span class="o">.</span><span class="n">router</span><span class="o">.</span><span class="n">add_get</span><span class="p">(</span><span class="s2">"/logs"</span><span class="p">,</span> <span class="n">logs</span><span class="p">)</span>
+    <span class="n">app</span><span class="o">.</span><span class="n">router</span><span class="o">.</span><span class="n">add_get</span><span class="p">(</span><span class="s2">"/debug_queue"</span><span class="p">,</span> <span class="n">debug_queue</span><span class="p">)</span>
+    <span class="n">app</span><span class="o">.</span><span class="n">router</span><span class="o">.</span><span class="n">add_get</span><span class="p">(</span><span class="s2">"/monitor"</span><span class="p">,</span> <span class="n">monitor</span><span class="p">)</span>
+    <span class="n">app</span><span class="o">.</span><span class="n">router</span><span class="o">.</span><span class="n">add_post</span><span class="p">(</span><span class="s2">"/local_lan/key_exchange.json"</span><span class="p">,</span> <span class="n">key_exchange</span><span class="p">)</span>
+    <span class="n">app</span><span class="o">.</span><span class="n">router</span><span class="o">.</span><span class="n">add_get</span><span class="p">(</span><span class="s2">"/local_lan/commands.json"</span><span class="p">,</span> <span class="n">poll_commands</span><span class="p">)</span>
+    <span class="n">app</span><span class="o">.</span><span class="n">router</span><span class="o">.</span><span class="n">add_post</span><span class="p">(</span><span class="s2">"/local_lan/commands.json"</span><span class="p">,</span> <span class="n">poll_commands</span><span class="p">)</span>
+    <span class="n">app</span><span class="o">.</span><span class="n">router</span><span class="o">.</span><span class="n">add_post</span><span class="p">(</span><span class="s2">"/local_lan/property/datapoint.json"</span><span class="p">,</span> <span class="n">datapoint</span><span class="p">)</span>
+    <span class="n">app</span><span class="o">.</span><span class="n">router</span><span class="o">.</span><span class="n">add_get</span><span class="p">(</span><span class="s2">"/register"</span><span class="p">,</span> <span class="n">register</span><span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">on_startup</span><span class="p">(</span><span class="n">app_</span><span class="p">:</span> <span class="n">web</span><span class="o">.</span><span class="n">Application</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">settings</span><span class="o">.</span><span class="n">enable_nudger_job</span><span class="p">:</span>
+            <span class="n">jobs</span><span class="o">.</span><span class="n">start</span><span class="p">(</span><span class="n">nudger_job</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">adapter</span><span class="p">,</span> <span class="n">settings</span><span class="p">,</span> <span class="n">stop_event</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="s2">"nudger"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">settings</span><span class="o">.</span><span class="n">enable_monitor_job</span><span class="p">:</span>
+            <span class="n">jobs</span><span class="o">.</span><span class="n">start</span><span class="p">(</span><span class="n">monitor_job</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">settings</span><span class="p">,</span> <span class="n">stop_event</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="s2">"monitor"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">settings</span><span class="o">.</span><span class="n">enable_rekey_job</span><span class="p">:</span>
+            <span class="n">jobs</span><span class="o">.</span><span class="n">start</span><span class="p">(</span><span class="n">rekey_job</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">adapter</span><span class="p">,</span> <span class="n">settings</span><span class="p">,</span> <span class="n">stop_event</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="s2">"rekey"</span><span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">on_cleanup</span><span class="p">(</span><span class="n">app_</span><span class="p">:</span> <span class="n">web</span><span class="o">.</span><span class="n">Application</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">stop_event</span><span class="o">.</span><span class="n">set</span><span class="p">()</span>
+        <span class="k">await</span> <span class="n">jobs</span><span class="o">.</span><span class="n">stop</span><span class="p">()</span>
+        <span class="k">await</span> <span class="n">adapter</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+    <span class="n">app</span><span class="o">.</span><span class="n">on_startup</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">on_startup</span><span class="p">)</span>
+    <span class="n">app</span><span class="o">.</span><span class="n">on_cleanup</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">on_cleanup</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">app</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Midian Tekle Elfu.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,7 @@
+cremalink.local\_server\_app.embedded module
+============================================
+
+.. automodule:: cremalink.local_server_app.embedded
+   :members:
+   :show-inheritance:
+   :undoc-members:

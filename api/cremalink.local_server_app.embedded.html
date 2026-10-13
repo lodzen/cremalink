@@ -1,0 +1,273 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>cremalink.local_server_app.embedded module &mdash; cremalink 0.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=7026087e"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="cremalink.local_server_app.jobs module" href="cremalink.local_server_app.jobs.html" />
+    <link rel="prev" title="cremalink.local_server_app.device_adapter module" href="cremalink.local_server_app.device_adapter.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html">
+            
+              <img src="../_static/cremalink.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../index.html">Home</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="cremalink.html">cremalink package</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.Client"><code class="docutils literal notranslate"><span class="pre">Client</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.Device"><code class="docutils literal notranslate"><span class="pre">Device</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.EmbeddedLocalServer"><code class="docutils literal notranslate"><span class="pre">EmbeddedLocalServer</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.LocalServer"><code class="docutils literal notranslate"><span class="pre">LocalServer</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.ServerSettings"><code class="docutils literal notranslate"><span class="pre">ServerSettings</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.authenticate_cloud"><code class="docutils literal notranslate"><span class="pre">authenticate_cloud()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.create_app"><code class="docutils literal notranslate"><span class="pre">create_app()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.create_cloud_device"><code class="docutils literal notranslate"><span class="pre">create_cloud_device()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.create_local_device"><code class="docutils literal notranslate"><span class="pre">create_local_device()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.detect_model_id"><code class="docutils literal notranslate"><span class="pre">detect_model_id()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.device_map"><code class="docutils literal notranslate"><span class="pre">device_map()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.log_event"><code class="docutils literal notranslate"><span class="pre">log_event()</span></code></a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="cremalink.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="cremalink.clients.html">cremalink.clients package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.core.html">cremalink.core package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.crypto.html">cremalink.crypto package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.devices.html">cremalink.devices package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.domain.html">cremalink.domain package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.ecam.html">cremalink.ecam package</a></li>
+<li class="toctree-l3 current"><a class="reference internal" href="cremalink.local_server_app.html">cremalink.local_server_app package</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="cremalink.local_server_app.html#cremalink.local_server_app.EmbeddedLocalServer"><code class="docutils literal notranslate"><span class="pre">EmbeddedLocalServer</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.local_server_app.html#cremalink.local_server_app.ServerSettings"><code class="docutils literal notranslate"><span class="pre">ServerSettings</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.local_server_app.html#cremalink.local_server_app.create_app"><code class="docutils literal notranslate"><span class="pre">create_app()</span></code></a></li>
+<li class="toctree-l4 current"><a class="reference internal" href="cremalink.local_server_app.html#submodules">Submodules</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.parsing.html">cremalink.parsing package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.resources.html">cremalink.resources package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.transports.html">cremalink.transports package</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#submodules">Submodules</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">cremalink</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="cremalink.html">cremalink package</a></li>
+          <li class="breadcrumb-item"><a href="cremalink.local_server_app.html">cremalink.local_server_app package</a></li>
+      <li class="breadcrumb-item active">cremalink.local_server_app.embedded module</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/cremalink.local_server_app.embedded.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-cremalink.local_server_app.embedded">
+<span id="cremalink-local-server-app-embedded-module"></span><h1>cremalink.local_server_app.embedded module<a class="headerlink" href="#module-cremalink.local_server_app.embedded" title="Link to this heading"></a></h1>
+<p>In-process hosting for the cremalink local LAN protocol server.</p>
+<p>Lets a consumer (e.g. <code class="docutils literal notranslate"><span class="pre">cremalink_ha</span></code>) run the exact same aiohttp
+application used by the standalone <code class="docutils literal notranslate"><span class="pre">cremalink-server</span></code> process, in-process
+on its own asyncio event loop – no separate OS process, no Supervisor
+add-on required (spec: 002-embedded-local-server, FR-001/FR-002).</p>
+<p>Nothing about the local LAN protocol itself changes here: <code class="docutils literal notranslate"><span class="pre">create_app()</span></code>
+already builds a fully asyncio-native aiohttp application (state, protocol,
+device adapter, background jobs all reuse existing code unchanged). This
+module only changes <em>how</em> that application is hosted – via
+<code class="docutils literal notranslate"><span class="pre">aiohttp.web.AppRunner</span></code>/<code class="docutils literal notranslate"><span class="pre">SockSite</span></code> bound to a pre-bound socket, rather
+than a separate OS process.</p>
+<p>Migrated from a programmatically driven <code class="docutils literal notranslate"><span class="pre">uvicorn.Server</span></code> (spec 002’s
+original implementation) to <code class="docutils literal notranslate"><span class="pre">aiohttp</span></code> (specs/002-embedded-local-server
+research.md #1 “Revision”): <code class="docutils literal notranslate"><span class="pre">aiohttp</span></code> is already a mandatory Home
+Assistant dependency, whereas <code class="docutils literal notranslate"><span class="pre">fastapi</span></code>/<code class="docutils literal notranslate"><span class="pre">starlette</span></code>/<code class="docutils literal notranslate"><span class="pre">uvicorn</span></code> were
+three extra packages pulled in solely for local mode. Unlike uvicorn’s
+<code class="docutils literal notranslate"><span class="pre">Server.serve()</span></code>, aiohttp’s <code class="docutils literal notranslate"><span class="pre">AppRunner</span></code>/<code class="docutils literal notranslate"><span class="pre">SockSite</span></code> do not run as a
+single cancellable coroutine task we own – connections are accepted
+directly by the asyncio event loop’s own server machinery. There is
+therefore no equivalent “serve task exited unexpectedly” signal to
+monitor; <code class="docutils literal notranslate"><span class="pre">state</span></code> only becomes <code class="docutils literal notranslate"><span class="pre">&quot;failed&quot;</span></code> from a <cite>start()</cite>-time error
+(e.g. the port-fallback range being exhausted), not from a later runtime
+fault in the HTTP layer itself.</p>
+<dl class="py data">
+<dt class="sig sig-object py" id="cremalink.local_server_app.embedded.DEFAULT_PORT">
+<span class="sig-prename descclassname"><span class="pre">cremalink.local_server_app.embedded.</span></span><span class="sig-name descname"><span class="pre">DEFAULT_PORT</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">10280</span></span><a class="headerlink" href="#cremalink.local_server_app.embedded.DEFAULT_PORT" title="Link to this definition"></a></dt>
+<dd><p>Default port, matching the standalone server/add-on’s historical default.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="cremalink.local_server_app.embedded.DEFAULT_PORT_FALLBACK_RANGE">
+<span class="sig-prename descclassname"><span class="pre">cremalink.local_server_app.embedded.</span></span><span class="sig-name descname"><span class="pre">DEFAULT_PORT_FALLBACK_RANGE</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">50</span></span><a class="headerlink" href="#cremalink.local_server_app.embedded.DEFAULT_PORT_FALLBACK_RANGE" title="Link to this definition"></a></dt>
+<dd><p>How many ports past the preferred one to try before giving up (FR-007).</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="cremalink.local_server_app.embedded.EmbeddedLocalServer">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">cremalink.local_server_app.embedded.</span></span><span class="sig-name descname"><span class="pre">EmbeddedLocalServer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dsn</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">device_ip</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">lan_key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">device_map_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">advertised_ip</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">monitor_poll_interval</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.15)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">5.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nudger_poll_interval</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.15)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">event_logger</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/logging.html#logging.Logger" title="(in Python v3.15)"><span class="pre">Logger</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">preferred_port</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">10280</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">port_fallback_range</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">50</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bind_host</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'0.0.0.0'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cremalink/local_server_app/embedded.html#EmbeddedLocalServer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cremalink.local_server_app.embedded.EmbeddedLocalServer" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/builtins/functions.html#object" title="(in Python v3.15)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>In-process host for a single device’s cremalink local LAN server.</p>
+<p>See <code class="docutils literal notranslate"><span class="pre">specs/002-embedded-local-server/contracts/embedded-server-api.md</span></code>
+for the full behavioral contract.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cremalink.local_server_app.embedded.EmbeddedLocalServer.advertised_ip">
+<span class="sig-name descname"><span class="pre">advertised_ip</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span><a class="headerlink" href="#cremalink.local_server_app.embedded.EmbeddedLocalServer.advertised_ip" title="Link to this definition"></a></dt>
+<dd><p>Resolved once start() runs; a supplied value is used as-is.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cremalink.local_server_app.embedded.EmbeddedLocalServer.bound_port">
+<span class="sig-name descname"><span class="pre">bound_port</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span><a class="headerlink" href="#cremalink.local_server_app.embedded.EmbeddedLocalServer.bound_port" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="cremalink.local_server_app.embedded.EmbeddedLocalServer.event_logger">
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">event_logger</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/logging.html#logging.Logger" title="(in Python v3.15)"><span class="pre">Logger</span></a></span><a class="headerlink" href="#cremalink.local_server_app.embedded.EmbeddedLocalServer.event_logger" title="Link to this definition"></a></dt>
+<dd><p>Return this instance’s isolated library event logger.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cremalink.local_server_app.embedded.EmbeddedLocalServer.get_recent_events">
+<span class="sig-name descname"><span class="pre">get_recent_events</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.15)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)"><span class="pre">dict</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/cremalink/local_server_app/embedded.html#EmbeddedLocalServer.get_recent_events"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cremalink.local_server_app.embedded.EmbeddedLocalServer.get_recent_events" title="Link to this definition"></a></dt>
+<dd><p>Return a snapshot of this server’s sanitized event buffer.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cremalink.local_server_app.embedded.EmbeddedLocalServer.log">
+<span class="sig-name descname"><span class="pre">log</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">event</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">details</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)"><span class="pre">dict</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">level</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">20</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/cremalink/local_server_app/embedded.html#EmbeddedLocalServer.log"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cremalink.local_server_app.embedded.EmbeddedLocalServer.log" title="Link to this definition"></a></dt>
+<dd><p>Route an integration-owned event through this server’s log path.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cremalink.local_server_app.embedded.EmbeddedLocalServer.log_telemetry">
+<span class="sig-name descname"><span class="pre">log_telemetry</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">event</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">details</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)"><span class="pre">dict</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/cremalink/local_server_app/embedded.html#EmbeddedLocalServer.log_telemetry"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cremalink.local_server_app.embedded.EmbeddedLocalServer.log_telemetry" title="Link to this definition"></a></dt>
+<dd><p>Forward telemetry through the HA logger without buffering it.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cremalink.local_server_app.embedded.EmbeddedLocalServer.start">
+<span class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">start</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/cremalink/local_server_app/embedded.html#EmbeddedLocalServer.start"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cremalink.local_server_app.embedded.EmbeddedLocalServer.start" title="Link to this definition"></a></dt>
+<dd><p>Resolve advertised IP + a free port, then start serving.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#RuntimeError" title="(in Python v3.15)"><strong>RuntimeError</strong></a> – if already starting/running.</p></li>
+<li><p><a class="reference external" href="https://docs.python.org/3/builtins/exceptions.html#OSError" title="(in Python v3.15)"><strong>OSError</strong></a> – if no port in the fallback range could be bound.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cremalink.local_server_app.embedded.EmbeddedLocalServer.state">
+<span class="sig-name descname"><span class="pre">state</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span><a class="headerlink" href="#cremalink.local_server_app.embedded.EmbeddedLocalServer.state" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cremalink.local_server_app.embedded.EmbeddedLocalServer.stop">
+<span class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">stop</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/cremalink/local_server_app/embedded.html#EmbeddedLocalServer.stop"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cremalink.local_server_app.embedded.EmbeddedLocalServer.stop" title="Link to this definition"></a></dt>
+<dd><p>Stop serving and release the listening socket (FR-005).</p>
+<p>Safe to call multiple times.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="cremalink.local_server_app.embedded.SITE_SHUTDOWN_TIMEOUT">
+<span class="sig-prename descclassname"><span class="pre">cremalink.local_server_app.embedded.</span></span><span class="sig-name descname"><span class="pre">SITE_SHUTDOWN_TIMEOUT</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">5.0</span></span><a class="headerlink" href="#cremalink.local_server_app.embedded.SITE_SHUTDOWN_TIMEOUT" title="Link to this definition"></a></dt>
+<dd><p>Bound on how long stop() can take waiting for in-flight connections to
+close (aiohttp’s own default is 60s) – a stuck device connection must
+never make a config-entry reload/unload/removal hang for that long
+(research.md #7, tasks.md Phase 9).</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cremalink.local_server_app.embedded.detect_advertised_ip">
+<span class="sig-prename descclassname"><span class="pre">cremalink.local_server_app.embedded.</span></span><span class="sig-name descname"><span class="pre">detect_advertised_ip</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">device_ip</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></span><a class="reference internal" href="../_modules/cremalink/local_server_app/embedded.html#detect_advertised_ip"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cremalink.local_server_app.embedded.detect_advertised_ip" title="Link to this definition"></a></dt>
+<dd><p>Return the local IP the OS would route through to reach <code class="docutils literal notranslate"><span class="pre">device_ip</span></code>.</p>
+<p>Uses the “UDP connect” trick: connecting a UDP socket never actually
+sends a packet, it only asks the OS to resolve the outbound route –
+fast and side-effect free (research.md #3, FR-013).</p>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="cremalink.local_server_app.device_adapter.html" class="btn btn-neutral float-left" title="cremalink.local_server_app.device_adapter module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="cremalink.local_server_app.jobs.html" class="btn btn-neutral float-right" title="cremalink.local_server_app.jobs module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Midian Tekle Elfu.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

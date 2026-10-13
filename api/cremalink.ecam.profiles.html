@@ -1,0 +1,246 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>cremalink.ecam.profiles module &mdash; cremalink 0.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=7026087e"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="cremalink.ecam.session module" href="cremalink.ecam.session.html" />
+    <link rel="prev" title="cremalink.ecam.monitor_bits module" href="cremalink.ecam.monitor_bits.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html">
+            
+              <img src="../_static/cremalink.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../index.html">Home</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="cremalink.html">cremalink package</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.Client"><code class="docutils literal notranslate"><span class="pre">Client</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.Device"><code class="docutils literal notranslate"><span class="pre">Device</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.EmbeddedLocalServer"><code class="docutils literal notranslate"><span class="pre">EmbeddedLocalServer</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.LocalServer"><code class="docutils literal notranslate"><span class="pre">LocalServer</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.ServerSettings"><code class="docutils literal notranslate"><span class="pre">ServerSettings</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.authenticate_cloud"><code class="docutils literal notranslate"><span class="pre">authenticate_cloud()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.create_app"><code class="docutils literal notranslate"><span class="pre">create_app()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.create_cloud_device"><code class="docutils literal notranslate"><span class="pre">create_cloud_device()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.create_local_device"><code class="docutils literal notranslate"><span class="pre">create_local_device()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.detect_model_id"><code class="docutils literal notranslate"><span class="pre">detect_model_id()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.device_map"><code class="docutils literal notranslate"><span class="pre">device_map()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.log_event"><code class="docutils literal notranslate"><span class="pre">log_event()</span></code></a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="cremalink.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="cremalink.clients.html">cremalink.clients package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.core.html">cremalink.core package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.crypto.html">cremalink.crypto package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.devices.html">cremalink.devices package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.domain.html">cremalink.domain package</a></li>
+<li class="toctree-l3 current"><a class="reference internal" href="cremalink.ecam.html">cremalink.ecam package</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.Beverage"><code class="docutils literal notranslate"><span class="pre">Beverage</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.BrewAction"><code class="docutils literal notranslate"><span class="pre">BrewAction</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.MachineProfile"><code class="docutils literal notranslate"><span class="pre">MachineProfile</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.PowerCommand"><code class="docutils literal notranslate"><span class="pre">PowerCommand</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.ProfileSlot"><code class="docutils literal notranslate"><span class="pre">ProfileSlot</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.RecipeCatalogue"><code class="docutils literal notranslate"><span class="pre">RecipeCatalogue</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.SessionGate"><code class="docutils literal notranslate"><span class="pre">SessionGate</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.StatisticEntry"><code class="docutils literal notranslate"><span class="pre">StatisticEntry</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.StatisticsReport"><code class="docutils literal notranslate"><span class="pre">StatisticsReport</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.WritableSetting"><code class="docutils literal notranslate"><span class="pre">WritableSetting</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.answer_flag"><code class="docutils literal notranslate"><span class="pre">answer_flag()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.answer_id"><code class="docutils literal notranslate"><span class="pre">answer_id()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.blob_family"><code class="docutils literal notranslate"><span class="pre">blob_family()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.brew_param_included"><code class="docutils literal notranslate"><span class="pre">brew_param_included()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_bean_system"><code class="docutils literal notranslate"><span class="pre">build_bean_system()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_brew"><code class="docutils literal notranslate"><span class="pre">build_brew()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_catalog"><code class="docutils literal notranslate"><span class="pre">build_catalog()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_factory_descriptor"><code class="docutils literal notranslate"><span class="pre">build_factory_descriptor()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_monitor_request"><code class="docutils literal notranslate"><span class="pre">build_monitor_request()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_power"><code class="docutils literal notranslate"><span class="pre">build_power()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_priority_list"><code class="docutils literal notranslate"><span class="pre">build_priority_list()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_profile_names"><code class="docutils literal notranslate"><span class="pre">build_profile_names()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_profile_select"><code class="docutils literal notranslate"><span class="pre">build_profile_select()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_read"><code class="docutils literal notranslate"><span class="pre">build_read()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_read_block"><code class="docutils literal notranslate"><span class="pre">build_read_block()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_read_param"><code class="docutils literal notranslate"><span class="pre">build_read_param()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_read_params"><code class="docutils literal notranslate"><span class="pre">build_read_params()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_recipe_names"><code class="docutils literal notranslate"><span class="pre">build_recipe_names()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_recipe_values"><code class="docutils literal notranslate"><span class="pre">build_recipe_values()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_statistics_page"><code class="docutils literal notranslate"><span class="pre">build_statistics_page()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_striker_handshake"><code class="docutils literal notranslate"><span class="pre">build_striker_handshake()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_write_param"><code class="docutils literal notranslate"><span class="pre">build_write_param()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.catalog_beverage_ids"><code class="docutils literal notranslate"><span class="pre">catalog_beverage_ids()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.counter_breakdown"><code class="docutils literal notranslate"><span class="pre">counter_breakdown()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.decode_a2_page"><code class="docutils literal notranslate"><span class="pre">decode_a2_page()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.decode_blob"><code class="docutils literal notranslate"><span class="pre">decode_blob()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.encode_for_transport"><code class="docutils literal notranslate"><span class="pre">encode_for_transport()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.fingerprint"><code class="docutils literal notranslate"><span class="pre">fingerprint()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.interpret"><code class="docutils literal notranslate"><span class="pre">interpret()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.is_sync_timeout"><code class="docutils literal notranslate"><span class="pre">is_sync_timeout()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.parse_a9_ack"><code class="docutils literal notranslate"><span class="pre">parse_a9_ack()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.parse_counter_value"><code class="docutils literal notranslate"><span class="pre">parse_counter_value()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.parse_profile_names"><code class="docutils literal notranslate"><span class="pre">parse_profile_names()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.parse_settings"><code class="docutils literal notranslate"><span class="pre">parse_settings()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.parse_simple_ack"><code class="docutils literal notranslate"><span class="pre">parse_simple_ack()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.parse_tlv"><code class="docutils literal notranslate"><span class="pre">parse_tlv()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.parse_triples"><code class="docutils literal notranslate"><span class="pre">parse_triples()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.parse_water_volume_liters"><code class="docutils literal notranslate"><span class="pre">parse_water_volume_liters()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.parse_write_ack"><code class="docutils literal notranslate"><span class="pre">parse_write_ack()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.profile_from_map"><code class="docutils literal notranslate"><span class="pre">profile_from_map()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.resolve_cloud_breakdowns"><code class="docutils literal notranslate"><span class="pre">resolve_cloud_breakdowns()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.resolve_cloud_counters"><code class="docutils literal notranslate"><span class="pre">resolve_cloud_counters()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.trim_frame"><code class="docutils literal notranslate"><span class="pre">trim_frame()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.verify_frame"><code class="docutils literal notranslate"><span class="pre">verify_frame()</span></code></a></li>
+<li class="toctree-l4 current"><a class="reference internal" href="cremalink.ecam.html#submodules">Submodules</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.local_server_app.html">cremalink.local_server_app package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.parsing.html">cremalink.parsing package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.resources.html">cremalink.resources package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.transports.html">cremalink.transports package</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#submodules">Submodules</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">cremalink</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="cremalink.html">cremalink package</a></li>
+          <li class="breadcrumb-item"><a href="cremalink.ecam.html">cremalink.ecam package</a></li>
+      <li class="breadcrumb-item active">cremalink.ecam.profiles module</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/cremalink.ecam.profiles.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-cremalink.ecam.profiles">
+<span id="cremalink-ecam-profiles-module"></span><h1>cremalink.ecam.profiles module<a class="headerlink" href="#module-cremalink.ecam.profiles" title="Link to this heading"></a></h1>
+<p>Profile-name (<code class="docutils literal notranslate"><span class="pre">0xA4</span></code>) blob parsing and the <code class="docutils literal notranslate"><span class="pre">0xA9</span></code> select path.</p>
+<p><code class="docutils literal notranslate"><span class="pre">a4f0</span></code> envelope (verified on <code class="docutils literal notranslate"><span class="pre">d034</span></code>/<code class="docutils literal notranslate"><span class="pre">d035</span></code> Soul blobs):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>D0 &lt;len&gt; A4 F0 &lt;first_slot:1B&gt; &lt;last_slot:1B&gt; &lt;entries…&gt; &lt;trailing:1B&gt; &lt;crc&gt;
+</pre></div>
+</div>
+<p>Each entry is 21 bytes on non-striker machines (<code class="docutils literal notranslate"><span class="pre">&lt;name:20B</span> <span class="pre">UTF-16BE&gt;</span>
+<span class="pre">&lt;icon:1B&gt;</span></code>) and 22 on striker (trailing mug byte). Empty/all-padding
+slots are excluded from the option list; factory names remain occupied
+(FR-018). Icon values &gt;11 exist on Soul — they pass through unmapped,
+never through the Eletta ÷3-color/%3-figure scheme.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="cremalink.ecam.profiles.ProfileSlot">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">cremalink.ecam.profiles.</span></span><span class="sig-name descname"><span class="pre">ProfileSlot</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">index</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">icon</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">mug</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cremalink/ecam/profiles.html#ProfileSlot"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cremalink.ecam.profiles.ProfileSlot" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/builtins/functions.html#object" title="(in Python v3.15)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>One occupied machine profile slot.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cremalink.ecam.profiles.ProfileSlot.icon">
+<span class="sig-name descname"><span class="pre">icon</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span><a class="headerlink" href="#cremalink.ecam.profiles.ProfileSlot.icon" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cremalink.ecam.profiles.ProfileSlot.index">
+<span class="sig-name descname"><span class="pre">index</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span><a class="headerlink" href="#cremalink.ecam.profiles.ProfileSlot.index" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cremalink.ecam.profiles.ProfileSlot.mug">
+<span class="sig-name descname"><span class="pre">mug</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></span><a class="headerlink" href="#cremalink.ecam.profiles.ProfileSlot.mug" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cremalink.ecam.profiles.ProfileSlot.name">
+<span class="sig-name descname"><span class="pre">name</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span><a class="headerlink" href="#cremalink.ecam.profiles.ProfileSlot.name" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cremalink.ecam.profiles.parse_profile_names">
+<span class="sig-prename descclassname"><span class="pre">cremalink.ecam.profiles.</span></span><span class="sig-name descname"><span class="pre">parse_profile_names</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">blob</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#bytes" title="(in Python v3.15)"><span class="pre">bytes</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#bytearray" title="(in Python v3.15)"><span class="pre">bytearray</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">profile</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="cremalink.ecam.machine_profiles.html#cremalink.ecam.machine_profiles.MachineProfile" title="cremalink.ecam.machine_profiles.MachineProfile"><span class="pre">MachineProfile</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.15)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#cremalink.ecam.profiles.ProfileSlot" title="cremalink.ecam.profiles.ProfileSlot"><span class="pre">ProfileSlot</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/cremalink/ecam/profiles.html#parse_profile_names"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cremalink.ecam.profiles.parse_profile_names" title="Link to this definition"></a></dt>
+<dd><p>Parse one <code class="docutils literal notranslate"><span class="pre">a4f0</span></code> envelope into occupied <a class="reference internal" href="#cremalink.ecam.profiles.ProfileSlot" title="cremalink.ecam.profiles.ProfileSlot"><code class="xref py py-class docutils literal notranslate"><span class="pre">ProfileSlot</span></code></a>s.</p>
+<p>Never raises on malformed input — unparseable content yields <code class="docutils literal notranslate"><span class="pre">[]</span></code>
+(callers treat a missing page as “no slots”, never a crash).</p>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="cremalink.ecam.monitor_bits.html" class="btn btn-neutral float-left" title="cremalink.ecam.monitor_bits module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="cremalink.ecam.session.html" class="btn btn-neutral float-right" title="cremalink.ecam.session module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Midian Tekle Elfu.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
