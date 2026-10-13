@@ -1,0 +1,11 @@
+{
+  "seq_no": 258,
+  "data": {
+    "name": "d720_tot_id23_coffee_pot",
+    "base_type": "integer",
+    "value": 0
+  },
+  "_decoded": {
+    "counter_value": 0
+  }
+}

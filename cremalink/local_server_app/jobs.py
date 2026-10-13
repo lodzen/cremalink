@@ -3,19 +3,20 @@ This module defines and manages the background jobs for the local server.
 These jobs run periodically in asyncio tasks to handle keep-alive, status
 monitoring, and re-keying operations.
 """
-import asyncio
-from typing import List
 
+import asyncio
+import time
+
+from cremalink.local_server_app.config import ServerSettings
 from cremalink.local_server_app.device_adapter import DeviceAdapter
 from cremalink.local_server_app.state import LocalServerState
-from cremalink.local_server_app.config import ServerSettings
 
 
 class JobManager:
     """A simple manager for starting and stopping asyncio background tasks."""
 
     def __init__(self):
-        self.tasks: List[asyncio.Task] = []
+        self.tasks: list[asyncio.Task] = []
 
     def start(self, coro, name: str):
         """Creates an asyncio task from a coroutine and adds it to the manager."""
@@ -31,7 +32,12 @@ class JobManager:
         self.tasks.clear()
 
 
-async def nudger_job(st: LocalServerState, adapter: DeviceAdapter, settings: ServerSettings, stop_event: asyncio.Event):
+async def nudger_job(
+    st: LocalServerState,
+    adapter: DeviceAdapter,
+    settings: ServerSettings,
+    stop_event: asyncio.Event,
+):
     """
     Periodically "nudges" the device by sending a registration request.
 
@@ -51,7 +57,7 @@ async def nudger_job(st: LocalServerState, adapter: DeviceAdapter, settings: Ser
             st.log("local_reg_nudge_failed", {"error": str(exc)})
             # If nudging fails, it might be a key issue, so trigger a rekey.
             await st.rekey()
-        
+
         try:
             # Wait for the specified interval or until the stop event is set.
             await asyncio.wait_for(stop_event.wait(), timeout=interval)
@@ -59,28 +65,43 @@ async def nudger_job(st: LocalServerState, adapter: DeviceAdapter, settings: Ser
             continue
 
 
-async def monitor_job(st: LocalServerState, settings: ServerSettings, stop_event: asyncio.Event):
+async def monitor_job(
+    st: LocalServerState, settings: ServerSettings, stop_event: asyncio.Event
+):
     """
     Periodically queues a request to fetch the device's monitoring status.
     """
     interval = settings.monitor_poll_interval
     while not stop_event.is_set():
+        delay = interval
         try:
             # Only queue a request if the server is configured and another request isn't already pending.
             async with st.lock:
                 ready = st.is_configured() and not st._monitor_request_pending
+                last_sent_at = st.last_monitor_command_sent_at
             if ready:
-                await st.queue_monitor()
+                if last_sent_at is None:
+                    await st.queue_monitor()
+                else:
+                    delay = interval - (time.monotonic() - last_sent_at)
+                    if delay <= 0:
+                        await st.queue_monitor()
+                        delay = interval
         except Exception as exc:
             st.log("monitor_poll_failed", {"error": str(exc)})
-        
+
         try:
-            await asyncio.wait_for(stop_event.wait(), timeout=interval)
+            await asyncio.wait_for(stop_event.wait(), timeout=max(delay, 0.001))
         except asyncio.TimeoutError:
             continue
 
 
-async def rekey_job(state: LocalServerState, adapter: DeviceAdapter, settings: ServerSettings, stop_event: asyncio.Event):
+async def rekey_job(
+    state: LocalServerState,
+    adapter: DeviceAdapter,
+    settings: ServerSettings,
+    stop_event: asyncio.Event,
+):
     """
     Periodically triggers a full cryptographic re-keying process.
 

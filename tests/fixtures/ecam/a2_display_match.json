@@ -1,0 +1,118 @@
+{
+  "_protocol": "ECAM 0xA2 native stats over LAN: 0D 08 A2 0F <id2B> <count> +crc -> data_request; D0-framed pages on data_response",
+  "_verification": "live A2 read on YOUR machine, ~30s after the brew during the listener",
+  "display_match": {
+    "nur_Kaffees_576": {
+      "a2": "ID3000 total_black_beverages",
+      "value": 577,
+      "status": "EXACT+live \u2014 was 576 on photo, A2 shows 577 (the brew during the listener session is already counted)"
+    },
+    "mit_Milch_234": {
+      "a2": "ID3001+ID3003 (milk_coffee + milk_only)",
+      "value": 234,
+      "status": "EXACT \u2014 143+91=234 (per-drink sum was the wrong formula; the aggregate pair is the display's source)"
+    },
+    "Tee_0": {
+      "a2": "ID3019 tea",
+      "value": 0,
+      "status": "EXACT"
+    },
+    "Wasser_206l": {
+      "a2": "ID106 total_water raw/2000",
+      "raw": 414413,
+      "litres": 207.21,
+      "status": "EXACT \u2014 207.2L now vs 206 on photo (rinses since)"
+    },
+    "Entkalkungen_1": {
+      "a2": "ID105 descale_count",
+      "value": 1,
+      "status": "EXACT"
+    },
+    "Behaelter_100": {
+      "a2": "ID115 grounds_container_clean_count",
+      "value": 100,
+      "status": "EXACT"
+    },
+    "total_check": {
+      "a2": "ID43010 total_beverages",
+      "value": 813,
+      "computed": 813,
+      "status": "EXACT \u2014 813 == 577+143+2+91"
+    }
+  },
+  "known_ids": {
+    "105": "descale_count",
+    "106": "total_water_l(/2000)",
+    "108": "filter_replacements",
+    "115": "grounds_container_clean_count",
+    "3000": "total_black",
+    "3001": "total_milk_coffee",
+    "3002": "total_other",
+    "3003": "total_milk_only",
+    "3004": "total_espressos",
+    "3005": "espresso",
+    "3006": "coffee",
+    "3007": "long_coffee",
+    "3008": "doppio",
+    "3009": "americano",
+    "3010": "cappuccino",
+    "3011": "latte_macchiato",
+    "3012": "caffe_latte",
+    "3013": "flat_white",
+    "3014": "espresso_macchiato",
+    "3015": "hot_milk",
+    "3016": "cappuccino_doppio",
+    "3017": "cappuccino_mix",
+    "3018": "hot_water",
+    "3019": "tea",
+    "3020": "coffee_pot",
+    "43010": "total_beverages"
+  },
+  "cloud_staleness_proof": {
+    "coffee": {
+      "cloud_d706": 544,
+      "live_a2_3006": 552,
+      "delta": 8
+    },
+    "water": {
+      "cloud_d550_ml": 2427590,
+      "live_a2_106_L": 207.21
+    },
+    "note": "cloud d5xx/d7xx cache lags behind the native A2 table \u2014 confirms upstream PR#225 finding"
+  },
+  "unknown_ids": {
+    "100": 2483940,
+    "101": 823,
+    "3021": 0,
+    "3024": 0,
+    "3025": 0,
+    "3032": 2,
+    "3037": 9,
+    "3038": 0,
+    "3039": 0,
+    "3040": 0,
+    "3041": 0,
+    "3042": 0,
+    "3043": 0,
+    "3044": 1,
+    "3045": 0,
+    "3046": 6,
+    "23000": 3,
+    "23001": 2559,
+    "23002": 27,
+    "23003": 2004,
+    "23004": 223932,
+    "23005": 24266,
+    "23006": 34891,
+    "23007": 1009,
+    "23008": 1009,
+    "23009": 218294,
+    "43000": 0,
+    "43005": 1,
+    "43011": 0,
+    "43012": 1,
+    "43014": 713,
+    "43015": 74,
+    "43016": 0
+  }
+}

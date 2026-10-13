@@ -1,0 +1,11 @@
+{
+  "seq_no": 278,
+  "data": {
+    "name": "d736_bw_coff_water_qty",
+    "base_type": "integer",
+    "value": 0
+  },
+  "_decoded": {
+    "counter_value": 0
+  }
+}

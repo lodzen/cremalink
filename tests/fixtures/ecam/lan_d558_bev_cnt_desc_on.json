@@ -1,0 +1,11 @@
+{
+  "seq_no": 229,
+  "data": {
+    "name": "d558_bev_cnt_desc_on",
+    "base_type": "integer",
+    "value": 0
+  },
+  "_decoded": {
+    "counter_value": 0
+  }
+}

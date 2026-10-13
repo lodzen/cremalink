@@ -1,0 +1,25 @@
+{
+  "seq_no": 158,
+  "data": {
+    "name": "d046_1_rec_latte_macchiato",
+    "base_type": "string",
+    "value": "0Bem8AEIHAIZAQEAtBsEAgMJASIEAMi2"
+  },
+  "_decoded": {
+    "blob_family": "profile_recipe",
+    "crc_valid": true,
+    "truncated": false,
+    "hex": "d0 17 a6 f0 01 08 1c 02 19 01 01 00 b4 1b 04 02 03 09 01 22 04 00 c8 b6",
+    "recipe_params": {
+      "tag_0x1c": 2,
+      "tag_0x19": 1,
+      "coffee_ml": 180,
+      "temperature": 4,
+      "intensity": 3,
+      "milk": 290,
+      "tag_0x04": 0
+    },
+    "profile": 1,
+    "beverage_id": "0x08"
+  }
+}

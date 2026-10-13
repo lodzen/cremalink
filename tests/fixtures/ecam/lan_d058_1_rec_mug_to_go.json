@@ -1,0 +1,27 @@
+{
+  "seq_no": 173,
+  "data": {
+    "name": "d058_1_rec_mug_to_go",
+    "base_type": "string",
+    "value": "0Bym8AEaAQAAAgMJAAAEAAwAHAAZAg8AABv/N5s="
+  },
+  "_decoded": {
+    "blob_family": "profile_recipe",
+    "crc_valid": true,
+    "truncated": false,
+    "hex": "d0 1c a6 f0 01 1a 01 00 00 02 03 09 00 00 04 00 0c 00 1c 00 19 02 0f 00 00 1b ff 37 9b",
+    "recipe_params": {
+      "coffee_ml": 0,
+      "intensity": 3,
+      "milk": 0,
+      "tag_0x04": 0,
+      "tag_0x0c": 0,
+      "tag_0x1c": 0,
+      "tag_0x19": 2,
+      "water_ml": 0,
+      "temperature": 255
+    },
+    "profile": 1,
+    "beverage_id": "0x1a"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "seq_no": 296,
+  "data": {
+    "name": "d821_water_steamCalcRelQty",
+    "base_type": "integer",
+    "value": 0
+  },
+  "_decoded": {
+    "counter_value": 0
+  }
+}

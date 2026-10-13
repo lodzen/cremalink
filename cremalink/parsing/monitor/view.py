@@ -2,11 +2,13 @@
 This module provides the `MonitorView` class, which offers a high-level,
 user-friendly interface for accessing data from a `MonitorSnapshot`.
 """
+
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Any
 
 from cremalink.core.binary import get_bit
+from cremalink.ecam.monitor_bits import ALARM_BITS, SWITCH_BITS, decode_bits
 from cremalink.parsing.monitor.frame import MonitorFrame
 from cremalink.parsing.monitor.model import MonitorSnapshot
 from cremalink.parsing.monitor.profile import MonitorProfile, PredicateDefinition
@@ -25,7 +27,11 @@ class MonitorView:
     `view.has_descaling_alarm`.
     """
 
-    def __init__(self, snapshot: MonitorSnapshot, profile: MonitorProfile | dict[str, Any] | None = None) -> None:
+    def __init__(
+        self,
+        snapshot: MonitorSnapshot,
+        profile: MonitorProfile | dict[str, Any] | None = None,
+    ) -> None:
         """
         Initializes the MonitorView.
 
@@ -36,14 +42,18 @@ class MonitorView:
         """
         self.snapshot = snapshot
         # Ensure profile is always a MonitorProfile instance.
-        self.profile = profile if isinstance(profile, MonitorProfile) else MonitorProfile.from_dict(profile or {})
-        
+        self.profile = (
+            profile
+            if isinstance(profile, MonitorProfile)
+            else MonitorProfile.from_dict(profile or {})
+        )
+
         # Attempt to get or parse the low-level MonitorFrame.
-        self._frame: Optional[MonitorFrame] = snapshot.frame
+        self._frame: MonitorFrame | None = snapshot.frame
         if self._frame is None and snapshot.raw_b64:
             try:
                 self._frame = MonitorFrame.from_b64(snapshot.raw_b64)
-            except Exception:
+            except ValueError:
                 self._frame = None
 
     # --- raw accessors ---
@@ -69,27 +79,40 @@ class MonitorView:
 
     # --- standard fields ---
     @property
-    def status_code(self) -> Optional[int]:
+    def status_code(self) -> int | None:
         """The raw integer code for the device's main status."""
         return self._frame.status if self._frame else None
 
     @property
-    def action_code(self) -> Optional[int]:
+    def action_code(self) -> int | None:
         """The raw integer code for the device's current action."""
         return self._frame.action if self._frame else None
 
     @property
-    def progress_percent(self) -> Optional[int]:
+    def progress_percent(self) -> int | None:
         """The progress percentage (0-100) of the current action."""
         return self._frame.progress if self._frame else None
 
     @property
-    def accessory_code(self) -> Optional[int]:
+    def accessory_code(self) -> int | None:
         """The raw integer code for the currently detected accessory."""
         return self._frame.accessory if self._frame else None
 
+    # --- documented switch / alarm bits ---
+    def switch_states(self) -> dict[str, bool | None]:
+        """Every documented switch bit by key (motor position, clean knob, …)."""
+        if not self._frame:
+            return {}
+        return decode_bits(self._frame.switches, SWITCH_BITS)
+
+    def alarm_states(self) -> dict[str, bool | None]:
+        """Every documented alarm bit by key."""
+        if not self._frame:
+            return {}
+        return decode_bits(self._frame.alarms, ALARM_BITS)
+
     # --- enum mapping ---
-    def _enum_lookup(self, enum_name: str, code: Optional[int]) -> Optional[str]:
+    def _enum_lookup(self, enum_name: str, code: int | None) -> str | None:
         """Looks up an enum name from a code using the profile."""
         if code is None:
             return None
@@ -98,33 +121,35 @@ class MonitorView:
         return mapping.get(int(code), str(code))
 
     @property
-    def status_name(self) -> Optional[str]:
+    def status_name(self) -> str | None:
         """The human-readable name of the device's status (e.g., 'Standby')."""
         return self._enum_lookup("status", self.status_code)
 
     @property
-    def action_name(self) -> Optional[str]:
+    def action_name(self) -> str | None:
         """The human-readable name of the device's action (e.g., 'Brewing')."""
         return self._enum_lookup("action", self.action_code)
 
     @property
-    def accessory_name(self) -> Optional[str]:
+    def accessory_name(self) -> str | None:
         """The human-readable name of the accessory (e.g., 'Milk Carafe')."""
         return self._enum_lookup("accessory", self.accessory_code)
 
     # --- flag/predicate helpers ---
-    def _resolve_flag(self, flag_name: str) -> Optional[bool]:
+    def _resolve_flag(self, flag_name: str) -> bool | None:
         """Resolves a named boolean flag using its definition in the profile."""
         if not self._frame:
             return None
         flag_def = self.profile.flags.get(flag_name)
         if not flag_def:
             return None
-        
-        data_bytes = self._frame.alarms if flag_def.source == "alarms" else self._frame.switches
+
+        data_bytes = (
+            self._frame.alarms if flag_def.source == "alarms" else self._frame.switches
+        )
         if flag_def.byte >= len(data_bytes):
             return None
-        
+
         byte_val = data_bytes[flag_def.byte]
         value = get_bit(byte_val, flag_def.bit)
         return not value if flag_def.invert else value
@@ -142,7 +167,7 @@ class MonitorView:
             "accessory": self._frame.accessory,
         }.get(source)
 
-    def _evaluate_predicate(self, definition: PredicateDefinition) -> Optional[bool]:
+    def _evaluate_predicate(self, definition: PredicateDefinition) -> bool | None:
         """Evaluates a named predicate using its definition in the profile."""
         try:
             if definition.uses_flag():
@@ -154,13 +179,23 @@ class MonitorView:
             if definition.uses_bit_address():
                 if not self._frame or not definition.source:
                     return None
-                source_bytes = self._frame.alarms if definition.source == "alarms" else self._frame.switches
-                if definition.byte is None or definition.byte >= len(source_bytes) or definition.bit is None:
+                source_bytes = (
+                    self._frame.alarms
+                    if definition.source == "alarms"
+                    else self._frame.switches
+                )
+                if (
+                    definition.byte is None
+                    or definition.byte >= len(source_bytes)
+                    or definition.bit is None
+                ):
                     return None
                 bit_value = get_bit(source_bytes[definition.byte], definition.bit)
                 return bit_value if definition.kind == "bit_set" else not bit_value
 
-            source_val = self._source_value(definition.source) if definition.source else None
+            source_val = (
+                self._source_value(definition.source) if definition.source else None
+            )
             if definition.kind == "equals":
                 return source_val == definition.value
             if definition.kind == "not_equals":
@@ -169,7 +204,7 @@ class MonitorView:
                 return source_val in set(definition.values or [])
             if definition.kind == "not_in_set":
                 return source_val not in set(definition.values or [])
-        except Exception:
+        except (TypeError, ValueError, IndexError):
             return None
         return None
 

@@ -12,17 +12,17 @@ file for device credentials and can be configured with a specific IP and port.
 Example:
 `cremalink-server --settings_path /path/to/your/conf.json --ip 0.0.0.0 --port 10280`
 """
+
 import argparse
 import sys
-from logging import Logger
 
-import uvicorn
+from aiohttp import web
 
-from cremalink.local_server_app import create_app, ServerSettings
+from cremalink.local_server_app import ServerSettings, create_app
 
 
 class LocalServer:
-    """A wrapper class that encapsulates the Uvicorn server and the web application."""
+    """A wrapper class that encapsulates the aiohttp application runner."""
 
     def __init__(self, settings: ServerSettings) -> None:
         """
@@ -37,12 +37,11 @@ class LocalServer:
         self.app = create_app(settings=self.settings)
 
     def start(self) -> None:
-        """Starts the Uvicorn server to serve the application."""
-        uvicorn.run(
+        """Starts the aiohttp server to serve the application (blocking)."""
+        web.run_app(
             self.app,
             host=self.settings.server_ip,
             port=self.settings.server_port,
-            log_level="info"
         )
 
 
@@ -50,30 +49,29 @@ def main():
     """
     Parses command-line arguments and starts the local server.
     """
-    parser = argparse.ArgumentParser(description="Start the cremalink local proxy server.")
+    parser = argparse.ArgumentParser(
+        description="Start the cremalink local proxy server."
+    )
     parser.add_argument(
         "--ip",
         type=str,
         default="0.0.0.0",
-        help="IP address to bind the local server to."
+        help="IP address to bind the local server to.",
     )
     parser.add_argument(
-        "--port",
-        type=int,
-        default=10280,
-        help="Port to run the local server on."
+        "--port", type=int, default=10280, help="Port to run the local server on."
     )
     parser.add_argument(
         "--advertised_ip",
         type=str,
         default=None,
-        help="IP address to advertise to the coffee machine. If not set, the server's IP is used."
+        help="IP address to advertise to the coffee machine. If not set, the server's IP is used.",
     )
     parser.add_argument(
         "--settings_path",
         type=str,
         default="",
-        help="Path to the JSON configuration file containing device credentials (DSN, LAN key, etc.)."
+        help="Path to the JSON configuration file containing device credentials (DSN, LAN key, etc.).",
     )
 
     # Manually handle --help to avoid argument parsing errors with unknown args.
@@ -82,7 +80,12 @@ def main():
         sys.exit(0)
 
     args = parser.parse_args()
-    settings = ServerSettings(server_settings_path=args.settings_path, server_ip=args.ip, server_port=args.port, advertised_ip=args.advertised_ip)
+    settings = ServerSettings(
+        server_settings_path=args.settings_path,
+        server_ip=args.ip,
+        server_port=args.port,
+        advertised_ip=args.advertised_ip,
+    )
     server = LocalServer(settings)
     server.start()
 

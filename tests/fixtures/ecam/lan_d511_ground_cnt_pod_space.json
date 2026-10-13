@@ -1,0 +1,11 @@
+{
+  "seq_no": 214,
+  "data": {
+    "name": "d511_ground_cnt_pod_space",
+    "base_type": "integer",
+    "value": 0
+  },
+  "_decoded": {
+    "counter_value": 0
+  }
+}

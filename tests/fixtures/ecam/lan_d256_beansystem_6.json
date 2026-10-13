@@ -1,0 +1,15 @@
+{
+  "seq_no": 193,
+  "data": {
+    "name": "d256_beansystem_6",
+    "base_type": "string",
+    "value": "0DS68AYAQgBvAGgAbgBlAG4AIAA2AAAAAABEAGkAZQAgAEMAbwBmAGYAZQBlAAAAAAAAaGo="
+  },
+  "_decoded": {
+    "blob_family": "bean_names",
+    "crc_valid": true,
+    "truncated": false,
+    "hex": "d0 34 ba f0 06 00 42 00 6f 00 68 00 6e 00 65 00 6e 00 20 00 36 00 00 00 00 00 44 00 69 00 65 00 20 00 43 00 6f 00 66 00 66 00 65 00 65 00 00 00 00 00 00 68 6a",
+    "text_redacted": true
+  }
+}

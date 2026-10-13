@@ -1,6 +1,7 @@
 """
 This module defines the abstract base protocol for device communication transports.
 """
+
 from __future__ import annotations
 
 from typing import Any, Protocol
@@ -23,7 +24,9 @@ class DeviceTransport(Protocol):
         """
         ...
 
-    def send_command(self, command: str, alternative_property: str = None) -> Any:
+    def send_command(
+        self, command: str, alternative_property: str | None = None
+    ) -> Any:
         """
         Sends a command to the device.
 
@@ -37,7 +40,9 @@ class DeviceTransport(Protocol):
         """
         ...
 
-    def set_mappings(self, command_map: dict[str, Any], property_map: dict[str, Any]) -> None:
+    def set_mappings(
+        self, command_map: dict[str, Any], property_map: dict[str, Any]
+    ) -> None:
         """
         (Optional) Provides the transport with device-specific command and property maps.
 
@@ -82,6 +87,32 @@ class DeviceTransport(Protocol):
 
         Returns:
             The value of the requested property.
+        """
+        ...
+
+    def write_property(self, name: str, value: Any) -> Any:
+        """
+        Writes a single named device property (e.g. `device_connected`
+        session announcements). Optional: transports that cannot write
+        arbitrary properties may omit this member; callers must use
+        `getattr`/`hasattr` before invoking.
+        """
+        ...
+
+    def request_property(self, name: str) -> Any:
+        """
+        Asks the device to (re)publish a single named property. Optional
+        member — see `write_property`. The refreshed value is later read
+        via `get_property(name)` or `pop_response()`.
+        """
+        ...
+
+    def pop_response(self) -> bytes | None:
+        """
+        Returns the most recent frame pushed on the response property
+        (`data_response` / `app_data_response`), or None. Optional member —
+        see `write_property`. Semantics are last-write-wins: callers must
+        correlate by echoed request id via `cremalink.ecam.answers`.
         """
         ...
 

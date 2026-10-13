@@ -1,0 +1,14 @@
+{
+  "seq_no": 206,
+  "data": {
+    "name": "d282_mchn_sett_aoff",
+    "base_type": "string",
+    "value": "0AuVDwA+AAAAAmOc"
+  },
+  "_decoded": {
+    "blob_family": "95 0f",
+    "crc_valid": true,
+    "truncated": false,
+    "hex": "d0 0b 95 0f 00 3e 00 00 00 02 63 9c"
+  }
+}

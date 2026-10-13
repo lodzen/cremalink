@@ -5,9 +5,10 @@ These factories simplify the process of instantiating a `Device` by handling
 the setup of the appropriate communication transport (`LocalTransport` or
 `CloudTransport`) and the subsequent creation of the `Device` object itself.
 """
+
 from __future__ import annotations
 
-from typing import Optional
+import logging
 
 from cremalink.domain.device import Device
 from cremalink.transports.cloud.transport import CloudTransport
@@ -17,12 +18,13 @@ from cremalink.transports.local.transport import LocalTransport
 def create_local_device(
     dsn: str,
     lan_key: str,
-    device_ip: Optional[str],
+    device_ip: str | None,
     server_host: str,
     server_port: int = 10280,
     device_scheme: str = "http",
     auto_configure: bool = True,
-    device_map_path: Optional[str] = None,
+    device_map_path: str | None = None,
+    event_logger: logging.Logger | None = None,
 ) -> Device:
     """
     Creates a `Device` instance configured for local network communication.
@@ -62,13 +64,15 @@ def create_local_device(
         ip=device_ip,
         lan_key=lan_key,
         scheme=device_scheme,
+        event_logger=event_logger,
     )
 
 
 def create_cloud_device(
     dsn: str,
     access_token: str,
-    device_map_path: Optional[str] = None,
+    device_map_path: str | None = None,
+    event_logger: logging.Logger | None = None,
 ) -> Device:
     """
     Creates a `Device` instance configured for cloud-based communication.
@@ -84,7 +88,9 @@ def create_cloud_device(
     Returns:
         A `Device` instance configured with a `CloudTransport`.
     """
-    transport = CloudTransport(dsn=dsn, access_token=access_token, device_map_path=device_map_path)
+    transport = CloudTransport(
+        dsn=dsn, access_token=access_token, device_map_path=device_map_path
+    )
     # After transport initialization, some device attributes might be populated.
     # We pass these to the Device constructor.
     return Device.from_map(
@@ -95,4 +101,5 @@ def create_cloud_device(
         ip=getattr(transport, "ip", None),
         lan_key=getattr(transport, "lan_key", None),
         is_online=getattr(transport, "is_online", None),
+        event_logger=event_logger,
     )

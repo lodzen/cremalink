@@ -1,0 +1,56 @@
+{
+  "seq_no": 138,
+  "data": {
+    "name": "d029_rec_custom_2",
+    "base_type": "string",
+    "value": "0Cyw8OcYAAEBAQAUAAAAtAIA/wUJADIAAAQ4BAAAAAwAAAEcAAAEGQAAAR84"
+  },
+  "_decoded": {
+    "blob_family": "factory_descriptor",
+    "crc_valid": true,
+    "truncated": false,
+    "hex": "d0 2c b0 f0 e7 18 00 01 01 01 00 14 00 00 00 b4 02 00 ff 05 09 00 32 00 00 04 38 04 00 00 00 0c 00 00 01 1c 00 00 04 19 00 00 01 1f 38",
+    "descriptor_ranges": {
+      "tag_0x18": [
+        0,
+        1,
+        1
+      ],
+      "coffee_ml": [
+        20,
+        0,
+        180
+      ],
+      "intensity": [
+        0,
+        255,
+        5
+      ],
+      "milk": [
+        50,
+        0,
+        1080
+      ],
+      "tag_0x04": [
+        0,
+        0,
+        0
+      ],
+      "tag_0x0c": [
+        0,
+        0,
+        1
+      ],
+      "tag_0x1c": [
+        0,
+        0,
+        4
+      ],
+      "tag_0x19": [
+        0,
+        0,
+        1
+      ]
+    }
+  }
+}

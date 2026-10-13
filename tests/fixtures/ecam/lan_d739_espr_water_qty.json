@@ -1,0 +1,11 @@
+{
+  "seq_no": 282,
+  "data": {
+    "name": "d739_espr_water_qty",
+    "base_type": "integer",
+    "value": 0
+  },
+  "_decoded": {
+    "counter_value": 0
+  }
+}

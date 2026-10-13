@@ -1,0 +1,46 @@
+{
+  "seq_no": 111,
+  "data": {
+    "name": "d003_rec_long_coffee",
+    "base_type": "string",
+    "value": "0CGw8AMYAAEBGQABAQEAcwCgAPobAAEEAgADBQQAAAB65A=="
+  },
+  "_decoded": {
+    "blob_family": "factory_descriptor",
+    "crc_valid": true,
+    "truncated": false,
+    "hex": "d0 21 b0 f0 03 18 00 01 01 19 00 01 01 01 00 73 00 a0 00 fa 1b 00 01 04 02 00 03 05 04 00 00 00 7a e4",
+    "descriptor_ranges": {
+      "tag_0x18": [
+        0,
+        1,
+        1
+      ],
+      "tag_0x19": [
+        0,
+        1,
+        1
+      ],
+      "coffee_ml": [
+        115,
+        160,
+        250
+      ],
+      "temperature": [
+        0,
+        1,
+        4
+      ],
+      "intensity": [
+        0,
+        3,
+        5
+      ],
+      "tag_0x04": [
+        0,
+        0,
+        0
+      ]
+    }
+  }
+}

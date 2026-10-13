@@ -1,0 +1,15 @@
+{
+  "seq_no": 147,
+  "data": {
+    "name": "d036_recipe_custom_name_1_3",
+    "base_type": "string",
+    "value": "0Eaq8AEDAEMAdQBzAHQAbwBtACAAMQAAAAAAAEMAdQBzAHQAbwBtACAAMgAAAAAAAEMAdQBzAHQAbwBtACAAMwAAAAAAhW4="
+  },
+  "_decoded": {
+    "blob_family": "custom_names",
+    "crc_valid": true,
+    "truncated": false,
+    "hex": "d0 46 aa f0 01 03 00 43 00 75 00 73 00 74 00 6f 00 6d 00 20 00 31 00 00 00 00 00 00 43 00 75 00 73 00 74 00 6f 00 6d 00 20 00 32 00 00 00 00 00 00 43 00 75 00 73 00 74 00 6f 00 6d 00 20 00 33 00 00 00 00 00 85 6e",
+    "text_redacted": true
+  }
+}

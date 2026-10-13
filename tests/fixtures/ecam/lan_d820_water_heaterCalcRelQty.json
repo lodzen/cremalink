@@ -1,0 +1,11 @@
+{
+  "seq_no": 294,
+  "data": {
+    "name": "d820_water_heaterCalcRelQty",
+    "base_type": "integer",
+    "value": 0
+  },
+  "_decoded": {
+    "counter_value": 0
+  }
+}

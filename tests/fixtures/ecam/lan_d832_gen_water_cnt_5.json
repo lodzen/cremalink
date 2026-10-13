@@ -1,0 +1,11 @@
+{
+  "seq_no": 309,
+  "data": {
+    "name": "d832_gen_water_cnt_5",
+    "base_type": "integer",
+    "value": 0
+  },
+  "_decoded": {
+    "counter_value": 0
+  }
+}

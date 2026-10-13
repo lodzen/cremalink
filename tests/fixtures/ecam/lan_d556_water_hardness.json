@@ -1,0 +1,11 @@
+{
+  "seq_no": 227,
+  "data": {
+    "name": "d556_water_hardness",
+    "base_type": "integer",
+    "value": 0
+  },
+  "_decoded": {
+    "counter_value": 0
+  }
+}

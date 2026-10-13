@@ -21,11 +21,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@v6
       with:
         persist-credentials: false
     - name: Set up Python
-      uses: actions/setup-python@v7
+      uses: actions/setup-python@v6
       with:
         python-version: "3"
     - name: Install graphviz
@@ -50,7 +50,7 @@ jobs:
         sphinx-build -b html ./docs/source ./docs/build
 
     - name: Deploy to GitHub Pages
-      if: github.ref == 'refs/heads/main'
+      if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/development'
       uses: peaceiris/actions-gh-pages@v4
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}

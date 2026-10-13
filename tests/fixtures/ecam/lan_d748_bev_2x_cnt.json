@@ -1,0 +1,11 @@
+{
+  "seq_no": 293,
+  "data": {
+    "name": "d748_bev_2x_cnt",
+    "base_type": "integer",
+    "value": 0
+  },
+  "_decoded": {
+    "counter_value": 0
+  }
+}

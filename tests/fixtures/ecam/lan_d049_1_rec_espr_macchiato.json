@@ -1,0 +1,25 @@
+{
+  "seq_no": 162,
+  "data": {
+    "name": "d049_1_rec_espr_macchiato",
+    "base_type": "string",
+    "value": "0Bem8AELHAIZAQEAHhsBAgMJACgEAEmj"
+  },
+  "_decoded": {
+    "blob_family": "profile_recipe",
+    "crc_valid": true,
+    "truncated": false,
+    "hex": "d0 17 a6 f0 01 0b 1c 02 19 01 01 00 1e 1b 01 02 03 09 00 28 04 00 49 a3",
+    "recipe_params": {
+      "tag_0x1c": 2,
+      "tag_0x19": 1,
+      "coffee_ml": 30,
+      "temperature": 1,
+      "intensity": 3,
+      "milk": 40,
+      "tag_0x04": 0
+    },
+    "profile": 1,
+    "beverage_id": "0x0b"
+  }
+}

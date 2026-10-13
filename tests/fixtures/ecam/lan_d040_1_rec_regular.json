@@ -1,0 +1,23 @@
+{
+  "seq_no": 150,
+  "data": {
+    "name": "d040_1_rec_regular",
+    "base_type": "string",
+    "value": "0BKm8AECGQEbAgEA2AIFBADivA=="
+  },
+  "_decoded": {
+    "blob_family": "profile_recipe",
+    "crc_valid": true,
+    "truncated": false,
+    "hex": "d0 12 a6 f0 01 02 19 01 1b 02 01 00 d8 02 05 04 00 e2 bc",
+    "recipe_params": {
+      "tag_0x19": 1,
+      "temperature": 2,
+      "coffee_ml": 216,
+      "intensity": 5,
+      "tag_0x04": 0
+    },
+    "profile": 1,
+    "beverage_id": "0x02"
+  }
+}

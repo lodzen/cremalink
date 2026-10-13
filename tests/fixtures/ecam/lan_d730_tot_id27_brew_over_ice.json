@@ -1,0 +1,11 @@
+{
+  "seq_no": 271,
+  "data": {
+    "name": "d730_tot_id27_brew_over_ice",
+    "base_type": "integer",
+    "value": 0
+  },
+  "_decoded": {
+    "counter_value": 0
+  }
+}

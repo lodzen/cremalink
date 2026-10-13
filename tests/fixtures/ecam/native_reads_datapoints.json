@@ -1,0 +1,389 @@
+[
+  {
+    "seq_no": 0,
+    "data": {
+      "name": "d283_mchn_sett_water",
+      "value": "0AuVDwAyAAAAAdjU"
+    }
+  },
+  {
+    "seq_no": 1,
+    "data": {
+      "name": "data_response",
+      "base_type": "string",
+      "value": ""
+    }
+  },
+  {
+    "seq_no": 2,
+    "data": {
+      "name": "data_response",
+      "base_type": "string",
+      "value": ""
+    }
+  },
+  {
+    "seq_no": 3,
+    "data": {
+      "name": "d282_mchn_sett_aoff",
+      "value": "0F+V8AA+AAAAAgAAAB0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA6wAAALEAAAAAAAAAAIAAAAAAAAAAMl+"
+    }
+  },
+  {
+    "seq_no": 4,
+    "data": {
+      "name": "data_response",
+      "base_type": "string",
+      "value": ""
+    }
+  },
+  {
+    "seq_no": 5,
+    "data": {
+      "name": "data_response",
+      "base_type": "string",
+      "value": ""
+    }
+  },
+  {
+    "seq_no": 6,
+    "data": {
+      "name": "d281_mchn_sett_temp",
+      "value": "0AeV8AA9jCg="
+    }
+  },
+  {
+    "seq_no": 7,
+    "data": {
+      "name": "data_response",
+      "base_type": "string",
+      "value": ""
+    }
+  },
+  {
+    "seq_no": 8,
+    "data": {
+      "name": "data_response",
+      "base_type": "string",
+      "value": ""
+    }
+  },
+  {
+    "seq_no": 9,
+    "data": {
+      "name": "d285_mchn_sett_radio_conf",
+      "value": "0AeV8AAtnhk="
+    }
+  },
+  {
+    "seq_no": 10,
+    "data": {
+      "name": "data_response",
+      "base_type": "string",
+      "value": ""
+    }
+  },
+  {
+    "seq_no": 11,
+    "data": {
+      "name": "data_response",
+      "base_type": "string",
+      "value": ""
+    }
+  },
+  {
+    "seq_no": 12,
+    "data": {
+      "name": "data_response",
+      "value": "0CuV8ABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA9Atqw4Za"
+    }
+  },
+  {
+    "seq_no": 13,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwAGAAAABwYAAAAAAAB8uGrDhlk="
+    }
+  },
+  {
+    "seq_no": 14,
+    "data": {
+      "name": "data_response",
+      "base_type": "string",
+      "value": "0CuV8ABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA9Atqw4Za"
+    }
+  },
+  {
+    "seq_no": 15,
+    "data": {
+      "name": "data_response",
+      "base_type": "string",
+      "value": "0CuV8ABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA9Atqw4Za"
+    }
+  },
+  {
+    "seq_no": 16,
+    "data": {
+      "name": "data_response",
+      "base_type": "string",
+      "value": "0CuV8ABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA9Atqw4Za"
+    }
+  },
+  {
+    "seq_no": 17,
+    "data": {
+      "name": "data_response",
+      "base_type": "string",
+      "value": "0CuV8ABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA9Atqw4Za"
+    }
+  },
+  {
+    "seq_no": 18,
+    "data": {
+      "name": "data_response",
+      "base_type": "string",
+      "value": "0CuV8ABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA9Atqw4Za"
+    }
+  },
+  {
+    "seq_no": 19,
+    "data": {
+      "name": "data_response",
+      "base_type": "string",
+      "value": "0CuV8ABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA9Atqw4Za"
+    }
+  },
+  {
+    "seq_no": 20,
+    "data": {
+      "name": "data_response",
+      "base_type": "string",
+      "value": "0CuV8ABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA9Atqw4Za"
+    }
+  },
+  {
+    "seq_no": 21,
+    "data": {
+      "name": "data_response",
+      "base_type": "string",
+      "value": "0CuV8ABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA9Atqw4Za"
+    }
+  },
+  {
+    "seq_no": 22,
+    "data": {
+      "name": "data_response",
+      "base_type": "string",
+      "value": "0CuV8ABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA9Atqw4Za"
+    }
+  },
+  {
+    "seq_no": 23,
+    "data": {
+      "name": "data_response",
+      "base_type": "string",
+      "value": "0CuV8ABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA9Atqw4Za"
+    }
+  },
+  {
+    "seq_no": 24,
+    "data": {
+      "name": "data_response",
+      "base_type": "string",
+      "value": "0CuV8ABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA9Atqw4Za"
+    }
+  },
+  {
+    "seq_no": 25,
+    "data": {
+      "name": "data_response",
+      "base_type": "string",
+      "value": "0CuV8ABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA9Atqw4Za"
+    }
+  },
+  {
+    "seq_no": 26,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwBGAAEABws4AAAAAAAGeWrDhno="
+    }
+  },
+  {
+    "seq_no": 27,
+    "data": {
+      "name": "data_response",
+      "base_type": "string",
+      "value": "0CuV8ABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA9Atqw4Za"
+    }
+  },
+  {
+    "seq_no": 28,
+    "data": {
+      "name": "data_response",
+      "base_type": "string",
+      "value": "0CuV8ABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA9Atqw4Za"
+    }
+  },
+  {
+    "seq_no": 29,
+    "data": {
+      "name": "data_response",
+      "base_type": "string",
+      "value": "0CuV8ABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA9Atqw4Za"
+    }
+  },
+  {
+    "seq_no": 30,
+    "data": {
+      "name": "data_response",
+      "base_type": "string",
+      "value": "0CuV8ABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA9Atqw4Za"
+    }
+  },
+  {
+    "seq_no": 31,
+    "data": {
+      "name": "data_response",
+      "base_type": "string",
+      "value": "0CuV8ABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA9Atqw4Za"
+    }
+  },
+  {
+    "seq_no": 32,
+    "data": {
+      "name": "data_response",
+      "base_type": "string",
+      "value": "0CuV8ABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA9Atqw4Za"
+    }
+  },
+  {
+    "seq_no": 33,
+    "data": {
+      "name": "data_response",
+      "base_type": "string",
+      "value": "0CuV8ABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA9Atqw4Za"
+    }
+  },
+  {
+    "seq_no": 34,
+    "data": {
+      "name": "data_response",
+      "base_type": "string",
+      "value": "0CuV8ABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA9Atqw4Za"
+    }
+  },
+  {
+    "seq_no": 35,
+    "data": {
+      "name": "d283_mchn_sett_water",
+      "base_type": "string",
+      "value": "0AuVDwAyAAAAAdjU"
+    }
+  },
+  {
+    "seq_no": 36,
+    "data": {
+      "name": "d282_mchn_sett_aoff",
+      "base_type": "string",
+      "value": "0F+V8AA+AAAAAgAAAB0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA6wAAALEAAAAAAAAAAIAAAAAAAAAAMl+"
+    }
+  },
+  {
+    "seq_no": 37,
+    "data": {
+      "name": "d281_mchn_sett_temp",
+      "base_type": "string",
+      "value": "0AeV8AA9jCg="
+    }
+  },
+  {
+    "seq_no": 38,
+    "data": {
+      "name": "d284_mchn_sett_user_conf",
+      "base_type": "string",
+      "value": "0AuVDwA/AAAAHSoT"
+    }
+  },
+  {
+    "seq_no": 39,
+    "data": {
+      "name": "d285_mchn_sett_radio_conf",
+      "base_type": "string",
+      "value": "0AeV8AAtnhk="
+    }
+  },
+  {
+    "seq_no": 40,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwBAAAEABwAAAAABAABTlmrDhpA="
+    }
+  },
+  {
+    "seq_no": 41,
+    "data": {
+      "name": "d034_profiles_1_3",
+      "base_type": "string",
+      "value": "0Eek8AEDAEEAbABpAGMAZQAAAAAAAAAAAAAQAEIAbwBiAAAAAAAAAAAAAAAAAAAFAFAAcgBvAGYAaQBsACAAMwAAAAAJAKhz"
+    }
+  },
+  {
+    "seq_no": 42,
+    "data": {
+      "name": "d035_profiles_4_5",
+      "base_type": "string",
+      "value": "0DKk8AQFAFAAcgBvAGYAaQBsACAANAAAAAAKAFAAcgBvAGYAaQBsACAANQAAAAAOAPXz"
+    }
+  },
+  {
+    "seq_no": 43,
+    "data": {
+      "name": "d250_beansystem_0",
+      "base_type": "string",
+      "value": "0DS68AAAQgBlAGEAbgAgAEEAZABhAHAAdAAgACgATwBOAC8ATwBGAEYAKQAAAwEAAAEAcZA="
+    }
+  },
+  {
+    "seq_no": 44,
+    "data": {
+      "name": "d251_beansystem_1",
+      "base_type": "string",
+      "value": "0DS68AEAQwByAGUAbQBhAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAEDAAEBqho="
+    }
+  },
+  {
+    "seq_no": 45,
+    "data": {
+      "name": "d252_beansystem_2",
+      "base_type": "string",
+      "value": "0DS68AIAQgBvAGgAbgBlAG4AIAAyAAAAAABCAG8AaABuAGUAbgAgADMAAAAAAAAAAAAAhC8="
+    }
+  },
+  {
+    "seq_no": 46,
+    "data": {
+      "name": "d260_beansystem_sync_par",
+      "base_type": "string",
+      "value": "0C+hDwH0AAAALAAAF3AAAL0KAAAuGAAAAAEAAAGeAAAAAAAAAAAAAAAAAAAAAFbD"
+    }
+  },
+  {
+    "seq_no": 47,
+    "data": {
+      "name": "d270_serialnumber",
+      "base_type": "string",
+      "value": "0BuhDwDNMjE3MDU1WloyNTA3MDEzMDEzNAD9pg=="
+    }
+  },
+  {
+    "seq_no": 48,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwBAAAEABwAAAAAAAABkpmrDhp4="
+    }
+  }
+]

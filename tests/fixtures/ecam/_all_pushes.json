@@ -1,0 +1,4578 @@
+[
+  {
+    "seq_no": 108,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 109,
+    "data": {
+      "name": "d001_rec_espresso",
+      "base_type": "string",
+      "value": "0CWw8AEIAAABGAABAQEAFAAoALQbAAEEAgAEBQQAAAAZAAEBuZY="
+    },
+    "_decoded": {
+      "blob_family": "factory_descriptor",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 25 b0 f0 01 08 00 00 01 18 00 01 01 01 00 14 00 28 00 b4 1b 00 01 04 02 00 04 05 04 00 00 00 19 00 01 01 b9 96",
+      "descriptor_ranges": {
+        "tag_0x08": [
+          0,
+          0,
+          1
+        ],
+        "tag_0x18": [
+          0,
+          1,
+          1
+        ],
+        "coffee_ml": [
+          20,
+          40,
+          180
+        ],
+        "temperature": [
+          0,
+          1,
+          4
+        ],
+        "intensity": [
+          0,
+          4,
+          5
+        ],
+        "tag_0x04": [
+          0,
+          0,
+          0
+        ],
+        "tag_0x19": [
+          0,
+          1,
+          1
+        ]
+      }
+    }
+  },
+  {
+    "seq_no": 110,
+    "data": {
+      "name": "d002_rec_regular",
+      "base_type": "string",
+      "value": "0CGw8AIYAAEBGQABARsAAQQBAGQAtADwAgADBQQAAAAAzA=="
+    },
+    "_decoded": {
+      "blob_family": "factory_descriptor",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 21 b0 f0 02 18 00 01 01 19 00 01 01 1b 00 01 04 01 00 64 00 b4 00 f0 02 00 03 05 04 00 00 00 00 cc",
+      "descriptor_ranges": {
+        "tag_0x18": [
+          0,
+          1,
+          1
+        ],
+        "tag_0x19": [
+          0,
+          1,
+          1
+        ],
+        "temperature": [
+          0,
+          1,
+          4
+        ],
+        "coffee_ml": [
+          100,
+          180,
+          240
+        ],
+        "intensity": [
+          0,
+          3,
+          5
+        ],
+        "tag_0x04": [
+          0,
+          0,
+          0
+        ]
+      }
+    }
+  },
+  {
+    "seq_no": 111,
+    "data": {
+      "name": "d003_rec_long_coffee",
+      "base_type": "string",
+      "value": "0CGw8AMYAAEBGQABAQEAcwCgAPobAAEEAgADBQQAAAB65A=="
+    },
+    "_decoded": {
+      "blob_family": "factory_descriptor",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 21 b0 f0 03 18 00 01 01 19 00 01 01 01 00 73 00 a0 00 fa 1b 00 01 04 02 00 03 05 04 00 00 00 7a e4",
+      "descriptor_ranges": {
+        "tag_0x18": [
+          0,
+          1,
+          1
+        ],
+        "tag_0x19": [
+          0,
+          1,
+          1
+        ],
+        "coffee_ml": [
+          115,
+          160,
+          250
+        ],
+        "temperature": [
+          0,
+          1,
+          4
+        ],
+        "intensity": [
+          0,
+          3,
+          5
+        ],
+        "tag_0x04": [
+          0,
+          0,
+          0
+        ]
+      }
+    }
+  },
+  {
+    "seq_no": 112,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 113,
+    "data": {
+      "name": "d004_rec_2x_espresso",
+      "base_type": "string",
+      "value": "0CWw8AQIAQEBGAAAAAEAKABQAWgbAAEEAgAEBQQAAAAZAAEBlhU="
+    },
+    "_decoded": {
+      "blob_family": "factory_descriptor",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 25 b0 f0 04 08 01 01 01 18 00 00 00 01 00 28 00 50 01 68 1b 00 01 04 02 00 04 05 04 00 00 00 19 00 01 01 96 15",
+      "descriptor_ranges": {
+        "tag_0x08": [
+          1,
+          1,
+          1
+        ],
+        "tag_0x18": [
+          0,
+          0,
+          0
+        ],
+        "coffee_ml": [
+          40,
+          80,
+          360
+        ],
+        "temperature": [
+          0,
+          1,
+          4
+        ],
+        "intensity": [
+          0,
+          4,
+          5
+        ],
+        "tag_0x04": [
+          0,
+          0,
+          0
+        ],
+        "tag_0x19": [
+          0,
+          1,
+          1
+        ]
+      }
+    }
+  },
+  {
+    "seq_no": 114,
+    "data": {
+      "name": "d005_rec_doppio",
+      "base_type": "string",
+      "value": "0B2w8AUYAAEBGQABAQEAUAB4ALQbAAEEBAAAADiZ"
+    },
+    "_decoded": {
+      "blob_family": "factory_descriptor",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 1d b0 f0 05 18 00 01 01 19 00 01 01 01 00 50 00 78 00 b4 1b 00 01 04 04 00 00 00 38 99",
+      "descriptor_ranges": {
+        "tag_0x18": [
+          0,
+          1,
+          1
+        ],
+        "tag_0x19": [
+          0,
+          1,
+          1
+        ],
+        "coffee_ml": [
+          80,
+          120,
+          180
+        ],
+        "temperature": [
+          0,
+          1,
+          4
+        ],
+        "tag_0x04": [
+          0,
+          0,
+          0
+        ]
+      }
+    }
+  },
+  {
+    "seq_no": 115,
+    "data": {
+      "name": "d006_rec_americano",
+      "base_type": "string",
+      "value": "0Ciw8AYYAAEBGQABAQEAFAAoALQPADIAbgEsGwABBAIAAwUEAAAAtpc="
+    },
+    "_decoded": {
+      "blob_family": "factory_descriptor",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 28 b0 f0 06 18 00 01 01 19 00 01 01 01 00 14 00 28 00 b4 0f 00 32 00 6e 01 2c 1b 00 01 04 02 00 03 05 04 00 00 00 b6 97",
+      "descriptor_ranges": {
+        "tag_0x18": [
+          0,
+          1,
+          1
+        ],
+        "tag_0x19": [
+          0,
+          1,
+          1
+        ],
+        "coffee_ml": [
+          20,
+          40,
+          180
+        ],
+        "water_ml": [
+          50,
+          110,
+          300
+        ],
+        "temperature": [
+          0,
+          1,
+          4
+        ],
+        "intensity": [
+          0,
+          3,
+          5
+        ],
+        "tag_0x04": [
+          0,
+          0,
+          0
+        ]
+      }
+    }
+  },
+  {
+    "seq_no": 116,
+    "data": {
+      "name": "d007_rec_cappuccino",
+      "base_type": "string",
+      "value": "0Cyw8AccAgICGAABARkAAQEBABQAQQC0GwABBAIAAwUJADIAqgQ4BAAAAKQ2"
+    },
+    "_decoded": {
+      "blob_family": "factory_descriptor",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 2c b0 f0 07 1c 02 02 02 18 00 01 01 19 00 01 01 01 00 14 00 41 00 b4 1b 00 01 04 02 00 03 05 09 00 32 00 aa 04 38 04 00 00 00 a4 36",
+      "descriptor_ranges": {
+        "tag_0x1c": [
+          2,
+          2,
+          2
+        ],
+        "tag_0x18": [
+          0,
+          1,
+          1
+        ],
+        "tag_0x19": [
+          0,
+          1,
+          1
+        ],
+        "coffee_ml": [
+          20,
+          65,
+          180
+        ],
+        "temperature": [
+          0,
+          1,
+          4
+        ],
+        "intensity": [
+          0,
+          3,
+          5
+        ],
+        "milk": [
+          50,
+          170,
+          1080
+        ],
+        "tag_0x04": [
+          0,
+          0,
+          0
+        ]
+      }
+    }
+  },
+  {
+    "seq_no": 117,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 118,
+    "data": {
+      "name": "d008_rec_latte_macchiato",
+      "base_type": "string",
+      "value": "0Cyw8AgcAgICGAABARkAAQEBABQAPAC0GwABBAIAAwUJADIBIgQ4BAAAAJkd"
+    },
+    "_decoded": {
+      "blob_family": "factory_descriptor",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 2c b0 f0 08 1c 02 02 02 18 00 01 01 19 00 01 01 01 00 14 00 3c 00 b4 1b 00 01 04 02 00 03 05 09 00 32 01 22 04 38 04 00 00 00 99 1d",
+      "descriptor_ranges": {
+        "tag_0x1c": [
+          2,
+          2,
+          2
+        ],
+        "tag_0x18": [
+          0,
+          1,
+          1
+        ],
+        "tag_0x19": [
+          0,
+          1,
+          1
+        ],
+        "coffee_ml": [
+          20,
+          60,
+          180
+        ],
+        "temperature": [
+          0,
+          1,
+          4
+        ],
+        "intensity": [
+          0,
+          3,
+          5
+        ],
+        "milk": [
+          50,
+          290,
+          1080
+        ],
+        "tag_0x04": [
+          0,
+          0,
+          0
+        ]
+      }
+    }
+  },
+  {
+    "seq_no": 119,
+    "data": {
+      "name": "d009_rec_caffelatte",
+      "base_type": "string",
+      "value": "0Cyw8AkcAgICGAABARkAAQEBABQAPAC0GwABBAIAAwUJADIBfAQGBAAAAKTu"
+    },
+    "_decoded": {
+      "blob_family": "factory_descriptor",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 2c b0 f0 09 1c 02 02 02 18 00 01 01 19 00 01 01 01 00 14 00 3c 00 b4 1b 00 01 04 02 00 03 05 09 00 32 01 7c 04 06 04 00 00 00 a4 ee",
+      "descriptor_ranges": {
+        "tag_0x1c": [
+          2,
+          2,
+          2
+        ],
+        "tag_0x18": [
+          0,
+          1,
+          1
+        ],
+        "tag_0x19": [
+          0,
+          1,
+          1
+        ],
+        "coffee_ml": [
+          20,
+          60,
+          180
+        ],
+        "temperature": [
+          0,
+          1,
+          4
+        ],
+        "intensity": [
+          0,
+          3,
+          5
+        ],
+        "milk": [
+          50,
+          380,
+          1030
+        ],
+        "tag_0x04": [
+          0,
+          0,
+          0
+        ]
+      }
+    }
+  },
+  {
+    "seq_no": 120,
+    "data": {
+      "name": "d010_rec_flat_white",
+      "base_type": "string",
+      "value": "0DCw8AoMAQEBHAICAhgAAQEZAAEBAQAUADwAtBsAAQQCAAMFCQAyANwEOAQAAABjDg=="
+    },
+    "_decoded": {
+      "blob_family": "factory_descriptor",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 30 b0 f0 0a 0c 01 01 01 1c 02 02 02 18 00 01 01 19 00 01 01 01 00 14 00 3c 00 b4 1b 00 01 04 02 00 03 05 09 00 32 00 dc 04 38 04 00 00 00 63 0e",
+      "descriptor_ranges": {
+        "tag_0x0c": [
+          1,
+          1,
+          1
+        ],
+        "tag_0x1c": [
+          2,
+          2,
+          2
+        ],
+        "tag_0x18": [
+          0,
+          1,
+          1
+        ],
+        "tag_0x19": [
+          0,
+          1,
+          1
+        ],
+        "coffee_ml": [
+          20,
+          60,
+          180
+        ],
+        "temperature": [
+          0,
+          1,
+          4
+        ],
+        "intensity": [
+          0,
+          3,
+          5
+        ],
+        "milk": [
+          50,
+          220,
+          1080
+        ],
+        "tag_0x04": [
+          0,
+          0,
+          0
+        ]
+      }
+    }
+  },
+  {
+    "seq_no": 121,
+    "data": {
+      "name": "d011_rec_espr_macchiato",
+      "base_type": "string",
+      "value": "0Cyw8AscAgICGAABARkAAQEBABQAHgC0GwABBAIAAwUJAB4AKAQ4BAAAAOWP"
+    },
+    "_decoded": {
+      "blob_family": "factory_descriptor",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 2c b0 f0 0b 1c 02 02 02 18 00 01 01 19 00 01 01 01 00 14 00 1e 00 b4 1b 00 01 04 02 00 03 05 09 00 1e 00 28 04 38 04 00 00 00 e5 8f",
+      "descriptor_ranges": {
+        "tag_0x1c": [
+          2,
+          2,
+          2
+        ],
+        "tag_0x18": [
+          0,
+          1,
+          1
+        ],
+        "tag_0x19": [
+          0,
+          1,
+          1
+        ],
+        "coffee_ml": [
+          20,
+          30,
+          180
+        ],
+        "temperature": [
+          0,
+          1,
+          4
+        ],
+        "intensity": [
+          0,
+          3,
+          5
+        ],
+        "milk": [
+          30,
+          40,
+          1080
+        ],
+        "tag_0x04": [
+          0,
+          0,
+          0
+        ]
+      }
+    }
+  },
+  {
+    "seq_no": 122,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 123,
+    "data": {
+      "name": "d012_rec_hot_milk",
+      "base_type": "string",
+      "value": "0B2w8AwcAgICGAABARkAAQEJADIBaAQ4GwABBAf0"
+    },
+    "_decoded": {
+      "blob_family": "factory_descriptor",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 1d b0 f0 0c 1c 02 02 02 18 00 01 01 19 00 01 01 09 00 32 01 68 04 38 1b 00 01 04 07 f4",
+      "descriptor_ranges": {
+        "tag_0x1c": [
+          2,
+          2,
+          2
+        ],
+        "tag_0x18": [
+          0,
+          1,
+          1
+        ],
+        "tag_0x19": [
+          0,
+          1,
+          1
+        ],
+        "milk": [
+          50,
+          360,
+          1080
+        ],
+        "temperature": [
+          0,
+          1,
+          4
+        ]
+      }
+    }
+  },
+  {
+    "seq_no": 124,
+    "data": {
+      "name": "d013_rec_capp_doppio",
+      "base_type": "string",
+      "value": "0Ciw8A0cAgICGAABARkAAQEBAFAAZAC0GwABBAkAMgCWBDgEAAAAmt4="
+    },
+    "_decoded": {
+      "blob_family": "factory_descriptor",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 28 b0 f0 0d 1c 02 02 02 18 00 01 01 19 00 01 01 01 00 50 00 64 00 b4 1b 00 01 04 09 00 32 00 96 04 38 04 00 00 00 9a de",
+      "descriptor_ranges": {
+        "tag_0x1c": [
+          2,
+          2,
+          2
+        ],
+        "tag_0x18": [
+          0,
+          1,
+          1
+        ],
+        "tag_0x19": [
+          0,
+          1,
+          1
+        ],
+        "coffee_ml": [
+          80,
+          100,
+          180
+        ],
+        "temperature": [
+          0,
+          1,
+          4
+        ],
+        "milk": [
+          50,
+          150,
+          1080
+        ],
+        "tag_0x04": [
+          0,
+          0,
+          0
+        ]
+      }
+    }
+  },
+  {
+    "seq_no": 125,
+    "data": {
+      "name": "d014_rec_capp_reverse",
+      "base_type": "string",
+      "value": "0DCw8A8MAQEBHAICAhgAAQEZAAEBAQAUAEEAtBsAAQQCAAMFCQAyAKoEOAQAAAAAQg=="
+    },
+    "_decoded": {
+      "blob_family": "factory_descriptor",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 30 b0 f0 0f 0c 01 01 01 1c 02 02 02 18 00 01 01 19 00 01 01 01 00 14 00 41 00 b4 1b 00 01 04 02 00 03 05 09 00 32 00 aa 04 38 04 00 00 00 00 42",
+      "descriptor_ranges": {
+        "tag_0x0c": [
+          1,
+          1,
+          1
+        ],
+        "tag_0x1c": [
+          2,
+          2,
+          2
+        ],
+        "tag_0x18": [
+          0,
+          1,
+          1
+        ],
+        "tag_0x19": [
+          0,
+          1,
+          1
+        ],
+        "coffee_ml": [
+          20,
+          65,
+          180
+        ],
+        "temperature": [
+          0,
+          1,
+          4
+        ],
+        "intensity": [
+          0,
+          3,
+          5
+        ],
+        "milk": [
+          50,
+          170,
+          1080
+        ],
+        "tag_0x04": [
+          0,
+          0,
+          0
+        ]
+      }
+    }
+  },
+  {
+    "seq_no": 126,
+    "data": {
+      "name": "d015_rec_hot_water",
+      "base_type": "string",
+      "value": "0Bmw8BAYAAEBGQABAQ8AFAD6AaQbAAEEN5Y="
+    },
+    "_decoded": {
+      "blob_family": "factory_descriptor",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 19 b0 f0 10 18 00 01 01 19 00 01 01 0f 00 14 00 fa 01 a4 1b 00 01 04 37 96",
+      "descriptor_ranges": {
+        "tag_0x18": [
+          0,
+          1,
+          1
+        ],
+        "tag_0x19": [
+          0,
+          1,
+          1
+        ],
+        "water_ml": [
+          20,
+          250,
+          420
+        ],
+        "temperature": [
+          0,
+          1,
+          4
+        ]
+      }
+    }
+  },
+  {
+    "seq_no": 127,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 128,
+    "data": {
+      "name": "d016_rec_tea",
+      "base_type": "string",
+      "value": "0B2w8BYYAAEBGQACAg8AFACWAaQbAAEEDQABA64W"
+    },
+    "_decoded": {
+      "blob_family": "factory_descriptor",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 1d b0 f0 16 18 00 01 01 19 00 02 02 0f 00 14 00 96 01 a4 1b 00 01 04 0d 00 01 03 ae 16",
+      "descriptor_ranges": {
+        "tag_0x18": [
+          0,
+          1,
+          1
+        ],
+        "tag_0x19": [
+          0,
+          2,
+          2
+        ],
+        "water_ml": [
+          20,
+          150,
+          420
+        ],
+        "temperature": [
+          0,
+          1,
+          4
+        ],
+        "tag_0x0d": [
+          0,
+          1,
+          3
+        ]
+      }
+    }
+  },
+  {
+    "seq_no": 129,
+    "data": {
+      "name": "d017_rec_coffee_pot",
+      "base_type": "string",
+      "value": "0CGw8BcZAAICAQB9AJYA+hsAAQMEAAAAHgAABQIFBQV1uA=="
+    },
+    "_decoded": {
+      "blob_family": "factory_descriptor",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 21 b0 f0 17 19 00 02 02 01 00 7d 00 96 00 fa 1b 00 01 03 04 00 00 00 1e 00 00 05 02 05 05 05 75 b8",
+      "descriptor_ranges": {
+        "tag_0x19": [
+          0,
+          2,
+          2
+        ],
+        "coffee_ml": [
+          125,
+          150,
+          250
+        ],
+        "temperature": [
+          0,
+          1,
+          3
+        ],
+        "tag_0x04": [
+          0,
+          0,
+          0
+        ],
+        "cup_count": [
+          0,
+          0,
+          5
+        ],
+        "intensity": [
+          5,
+          5,
+          5
+        ]
+      }
+    }
+  },
+  {
+    "seq_no": 130,
+    "data": {
+      "name": "d018_rec_cortado",
+      "base_type": "string",
+      "value": "0DCw8BgMAQEBHAICAhgAAQEZAAEBAQAUACgAtBsAAQQCAAMFCQAeACgEOAQAAACYyQ=="
+    },
+    "_decoded": {
+      "blob_family": "factory_descriptor",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 30 b0 f0 18 0c 01 01 01 1c 02 02 02 18 00 01 01 19 00 01 01 01 00 14 00 28 00 b4 1b 00 01 04 02 00 03 05 09 00 1e 00 28 04 38 04 00 00 00 98 c9",
+      "descriptor_ranges": {
+        "tag_0x0c": [
+          1,
+          1,
+          1
+        ],
+        "tag_0x1c": [
+          2,
+          2,
+          2
+        ],
+        "tag_0x18": [
+          0,
+          1,
+          1
+        ],
+        "tag_0x19": [
+          0,
+          1,
+          1
+        ],
+        "coffee_ml": [
+          20,
+          40,
+          180
+        ],
+        "temperature": [
+          0,
+          1,
+          4
+        ],
+        "intensity": [
+          0,
+          3,
+          5
+        ],
+        "milk": [
+          30,
+          40,
+          1080
+        ],
+        "tag_0x04": [
+          0,
+          0,
+          0
+        ]
+      }
+    }
+  },
+  {
+    "seq_no": 131,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 132,
+    "data": {
+      "name": "d019_rec_long_black",
+      "base_type": "string",
+      "value": "0Cyw8BkMAQEBGAABARkAAQEBACgAUAFoDwAyAHgBLBsAAQQCAAMFBAAAACNG"
+    },
+    "_decoded": {
+      "blob_family": "factory_descriptor",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 2c b0 f0 19 0c 01 01 01 18 00 01 01 19 00 01 01 01 00 28 00 50 01 68 0f 00 32 00 78 01 2c 1b 00 01 04 02 00 03 05 04 00 00 00 23 46",
+      "descriptor_ranges": {
+        "tag_0x0c": [
+          1,
+          1,
+          1
+        ],
+        "tag_0x18": [
+          0,
+          1,
+          1
+        ],
+        "tag_0x19": [
+          0,
+          1,
+          1
+        ],
+        "coffee_ml": [
+          40,
+          80,
+          360
+        ],
+        "water_ml": [
+          50,
+          120,
+          300
+        ],
+        "temperature": [
+          0,
+          1,
+          4
+        ],
+        "intensity": [
+          0,
+          3,
+          5
+        ],
+        "tag_0x04": [
+          0,
+          0,
+          0
+        ]
+      }
+    }
+  },
+  {
+    "seq_no": 133,
+    "data": {
+      "name": "d020_rec_mug_to_go",
+      "base_type": "string",
+      "value": "0Dew8BoYAAEBAQAoAAAA8AIBAwUJADwAAAHMBAAAAAwAAAEcAAAEGQACAg8AMgAAAQQbAP8EmiU="
+    },
+    "_decoded": {
+      "blob_family": "factory_descriptor",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 37 b0 f0 1a 18 00 01 01 01 00 28 00 00 00 f0 02 01 03 05 09 00 3c 00 00 01 cc 04 00 00 00 0c 00 00 01 1c 00 00 04 19 00 02 02 0f 00 32 00 00 01 04 1b 00 ff 04 9a 25",
+      "descriptor_ranges": {
+        "tag_0x18": [
+          0,
+          1,
+          1
+        ],
+        "coffee_ml": [
+          40,
+          0,
+          240
+        ],
+        "intensity": [
+          1,
+          3,
+          5
+        ],
+        "milk": [
+          60,
+          0,
+          460
+        ],
+        "tag_0x04": [
+          0,
+          0,
+          0
+        ],
+        "tag_0x0c": [
+          0,
+          0,
+          1
+        ],
+        "tag_0x1c": [
+          0,
+          0,
+          4
+        ],
+        "tag_0x19": [
+          0,
+          2,
+          2
+        ],
+        "water_ml": [
+          50,
+          0,
+          260
+        ],
+        "temperature": [
+          0,
+          255,
+          4
+        ]
+      }
+    }
+  },
+  {
+    "seq_no": 134,
+    "data": {
+      "name": "d021_rec_brew_over_ice",
+      "base_type": "string",
+      "value": "0B2w8BsZAAICGAABAQEAKABkAPAbAAEEAgEABaab"
+    },
+    "_decoded": {
+      "blob_family": "factory_descriptor",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 1d b0 f0 1b 19 00 02 02 18 00 01 01 01 00 28 00 64 00 f0 1b 00 01 04 02 01 00 05 a6 9b",
+      "descriptor_ranges": {
+        "tag_0x19": [
+          0,
+          2,
+          2
+        ],
+        "tag_0x18": [
+          0,
+          1,
+          1
+        ],
+        "coffee_ml": [
+          40,
+          100,
+          240
+        ],
+        "temperature": [
+          0,
+          1,
+          4
+        ],
+        "intensity": [
+          1,
+          0,
+          5
+        ]
+      }
+    }
+  },
+  {
+    "seq_no": 135,
+    "data": {
+      "name": "d022_beansystem_1",
+      "base_type": "string",
+      "value": "0B2w8MgYAAEBAQAeACgAPBsAAQQCAQQFGQACAoMB"
+    },
+    "_decoded": {
+      "blob_family": "factory_descriptor",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 1d b0 f0 c8 18 00 01 01 01 00 1e 00 28 00 3c 1b 00 01 04 02 01 04 05 19 00 02 02 83 01",
+      "descriptor_ranges": {
+        "tag_0x18": [
+          0,
+          1,
+          1
+        ],
+        "coffee_ml": [
+          30,
+          40,
+          60
+        ],
+        "temperature": [
+          0,
+          1,
+          4
+        ],
+        "intensity": [
+          1,
+          4,
+          5
+        ],
+        "tag_0x19": [
+          0,
+          2,
+          2
+        ]
+      }
+    }
+  },
+  {
+    "seq_no": 136,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 137,
+    "data": {
+      "name": "d028_rec_custom_1",
+      "base_type": "string",
+      "value": "0Cyw8OYYAAEBAQAUAAAAtAIA/wUJADIAAAQ4BAAAAAwAAAEcAAAEGQAAATmS"
+    },
+    "_decoded": {
+      "blob_family": "factory_descriptor",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 2c b0 f0 e6 18 00 01 01 01 00 14 00 00 00 b4 02 00 ff 05 09 00 32 00 00 04 38 04 00 00 00 0c 00 00 01 1c 00 00 04 19 00 00 01 39 92",
+      "descriptor_ranges": {
+        "tag_0x18": [
+          0,
+          1,
+          1
+        ],
+        "coffee_ml": [
+          20,
+          0,
+          180
+        ],
+        "intensity": [
+          0,
+          255,
+          5
+        ],
+        "milk": [
+          50,
+          0,
+          1080
+        ],
+        "tag_0x04": [
+          0,
+          0,
+          0
+        ],
+        "tag_0x0c": [
+          0,
+          0,
+          1
+        ],
+        "tag_0x1c": [
+          0,
+          0,
+          4
+        ],
+        "tag_0x19": [
+          0,
+          0,
+          1
+        ]
+      }
+    }
+  },
+  {
+    "seq_no": 138,
+    "data": {
+      "name": "d029_rec_custom_2",
+      "base_type": "string",
+      "value": "0Cyw8OcYAAEBAQAUAAAAtAIA/wUJADIAAAQ4BAAAAAwAAAEcAAAEGQAAAR84"
+    },
+    "_decoded": {
+      "blob_family": "factory_descriptor",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 2c b0 f0 e7 18 00 01 01 01 00 14 00 00 00 b4 02 00 ff 05 09 00 32 00 00 04 38 04 00 00 00 0c 00 00 01 1c 00 00 04 19 00 00 01 1f 38",
+      "descriptor_ranges": {
+        "tag_0x18": [
+          0,
+          1,
+          1
+        ],
+        "coffee_ml": [
+          20,
+          0,
+          180
+        ],
+        "intensity": [
+          0,
+          255,
+          5
+        ],
+        "milk": [
+          50,
+          0,
+          1080
+        ],
+        "tag_0x04": [
+          0,
+          0,
+          0
+        ],
+        "tag_0x0c": [
+          0,
+          0,
+          1
+        ],
+        "tag_0x1c": [
+          0,
+          0,
+          4
+        ],
+        "tag_0x19": [
+          0,
+          0,
+          1
+        ]
+      }
+    }
+  },
+  {
+    "seq_no": 139,
+    "data": {
+      "name": "d030_rec_custom_3",
+      "base_type": "string",
+      "value": "0Cyw8OgYAAEBAQAUAAAAtAIA/wUJADIAAAQ4BAAAAAwAAAEcAAAEGQAAAcsf"
+    },
+    "_decoded": {
+      "blob_family": "factory_descriptor",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 2c b0 f0 e8 18 00 01 01 01 00 14 00 00 00 b4 02 00 ff 05 09 00 32 00 00 04 38 04 00 00 00 0c 00 00 01 1c 00 00 04 19 00 00 01 cb 1f",
+      "descriptor_ranges": {
+        "tag_0x18": [
+          0,
+          1,
+          1
+        ],
+        "coffee_ml": [
+          20,
+          0,
+          180
+        ],
+        "intensity": [
+          0,
+          255,
+          5
+        ],
+        "milk": [
+          50,
+          0,
+          1080
+        ],
+        "tag_0x04": [
+          0,
+          0,
+          0
+        ],
+        "tag_0x0c": [
+          0,
+          0,
+          1
+        ],
+        "tag_0x1c": [
+          0,
+          0,
+          4
+        ],
+        "tag_0x19": [
+          0,
+          0,
+          1
+        ]
+      }
+    }
+  },
+  {
+    "seq_no": 140,
+    "data": {
+      "name": "d031_rec_custom_4",
+      "base_type": "string",
+      "value": "0Cyw8OkYAAEBAQAUAAAAtAIA/wUJADIAAAQ4BAAAAAwAAAEcAAAEGQAAAe21"
+    },
+    "_decoded": {
+      "blob_family": "factory_descriptor",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 2c b0 f0 e9 18 00 01 01 01 00 14 00 00 00 b4 02 00 ff 05 09 00 32 00 00 04 38 04 00 00 00 0c 00 00 01 1c 00 00 04 19 00 00 01 ed b5",
+      "descriptor_ranges": {
+        "tag_0x18": [
+          0,
+          1,
+          1
+        ],
+        "coffee_ml": [
+          20,
+          0,
+          180
+        ],
+        "intensity": [
+          0,
+          255,
+          5
+        ],
+        "milk": [
+          50,
+          0,
+          1080
+        ],
+        "tag_0x04": [
+          0,
+          0,
+          0
+        ],
+        "tag_0x0c": [
+          0,
+          0,
+          1
+        ],
+        "tag_0x1c": [
+          0,
+          0,
+          4
+        ],
+        "tag_0x19": [
+          0,
+          0,
+          1
+        ]
+      }
+    }
+  },
+  {
+    "seq_no": 141,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 142,
+    "data": {
+      "name": "d032_rec_custom_5",
+      "base_type": "string",
+      "value": "0Cyw8OoYAAEBAQAUAAAAtAIA/wUJADIAAAQ4BAAAAAwAAAEcAAAEGQAAAYZL"
+    },
+    "_decoded": {
+      "blob_family": "factory_descriptor",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 2c b0 f0 ea 18 00 01 01 01 00 14 00 00 00 b4 02 00 ff 05 09 00 32 00 00 04 38 04 00 00 00 0c 00 00 01 1c 00 00 04 19 00 00 01 86 4b",
+      "descriptor_ranges": {
+        "tag_0x18": [
+          0,
+          1,
+          1
+        ],
+        "coffee_ml": [
+          20,
+          0,
+          180
+        ],
+        "intensity": [
+          0,
+          255,
+          5
+        ],
+        "milk": [
+          50,
+          0,
+          1080
+        ],
+        "tag_0x04": [
+          0,
+          0,
+          0
+        ],
+        "tag_0x0c": [
+          0,
+          0,
+          1
+        ],
+        "tag_0x1c": [
+          0,
+          0,
+          4
+        ],
+        "tag_0x19": [
+          0,
+          0,
+          1
+        ]
+      }
+    }
+  },
+  {
+    "seq_no": 143,
+    "data": {
+      "name": "d033_rec_custom_6",
+      "base_type": "string",
+      "value": "0Cyw8OsYAAEBAQAUAAAAtAIA/wUJADIAAAQ4BAAAAAwAAAEcAAAEGQAAAaDh"
+    },
+    "_decoded": {
+      "blob_family": "factory_descriptor",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 2c b0 f0 eb 18 00 01 01 01 00 14 00 00 00 b4 02 00 ff 05 09 00 32 00 00 04 38 04 00 00 00 0c 00 00 01 1c 00 00 04 19 00 00 01 a0 e1",
+      "descriptor_ranges": {
+        "tag_0x18": [
+          0,
+          1,
+          1
+        ],
+        "coffee_ml": [
+          20,
+          0,
+          180
+        ],
+        "intensity": [
+          0,
+          255,
+          5
+        ],
+        "milk": [
+          50,
+          0,
+          1080
+        ],
+        "tag_0x04": [
+          0,
+          0,
+          0
+        ],
+        "tag_0x0c": [
+          0,
+          0,
+          1
+        ],
+        "tag_0x1c": [
+          0,
+          0,
+          4
+        ],
+        "tag_0x19": [
+          0,
+          0,
+          1
+        ]
+      }
+    }
+  },
+  {
+    "seq_no": 144,
+    "data": {
+      "name": "d034_profiles_1_3",
+      "base_type": "string",
+      "value": "0Eek8AEDAEEAbABpAGMAZQAAAAAAAAAAAAAQAFAAcgBvAGYAaQBsACAAMgAAAAAFAFAAcgBvAGYAaQBsACAAMwAAAAAJwGR+"
+    },
+    "_decoded": {
+      "blob_family": "profile_names",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 47 a4 f0 01 03 00 41 00 6c 00 69 00 63 00 65 00 00 00 00 00 00 00 00 00 00 10 00 50 00 72 00 6f 00 66 00 69 00 6c 00 20 00 32 00 00 00 00 05 00 50 00 72 00 6f 00 66 00 69 00 6c 00 20 00 33 00 00 00 00 09 c0 64 7e",
+      "text_redacted": true
+    }
+  },
+  {
+    "seq_no": 145,
+    "data": {
+      "name": "d035_profiles_4_5",
+      "base_type": "string",
+      "value": "0DKk8AQFAFAAcgBvAGYAaQBsACAANAAAAAAKAFAAcgBvAGYAaQBsACAANQAAAAAOAPXz"
+    },
+    "_decoded": {
+      "blob_family": "profile_names",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 32 a4 f0 04 05 00 50 00 72 00 6f 00 66 00 69 00 6c 00 20 00 34 00 00 00 00 0a 00 50 00 72 00 6f 00 66 00 69 00 6c 00 20 00 35 00 00 00 00 0e 00 f5 f3",
+      "text_redacted": true
+    }
+  },
+  {
+    "seq_no": 146,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 147,
+    "data": {
+      "name": "d036_recipe_custom_name_1_3",
+      "base_type": "string",
+      "value": "0Eaq8AEDAEMAdQBzAHQAbwBtACAAMQAAAAAAAEMAdQBzAHQAbwBtACAAMgAAAAAAAEMAdQBzAHQAbwBtACAAMwAAAAAAhW4="
+    },
+    "_decoded": {
+      "blob_family": "custom_names",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 46 aa f0 01 03 00 43 00 75 00 73 00 74 00 6f 00 6d 00 20 00 31 00 00 00 00 00 00 43 00 75 00 73 00 74 00 6f 00 6d 00 20 00 32 00 00 00 00 00 00 43 00 75 00 73 00 74 00 6f 00 6d 00 20 00 33 00 00 00 00 00 85 6e",
+      "text_redacted": true
+    }
+  },
+  {
+    "seq_no": 148,
+    "data": {
+      "name": "d037_recipe_custom_name_4_5",
+      "base_type": "string",
+      "value": "0Eaq8AQGAEMAdQBzAHQAbwBtACAANAAAAAAAAEMAdQBzAHQAbwBtACAANQAAAAAAAEMAdQBzAHQAbwBtACAANgAAAAAAwHw="
+    },
+    "_decoded": {
+      "blob_family": "custom_names",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 46 aa f0 04 06 00 43 00 75 00 73 00 74 00 6f 00 6d 00 20 00 34 00 00 00 00 00 00 43 00 75 00 73 00 74 00 6f 00 6d 00 20 00 35 00 00 00 00 00 00 43 00 75 00 73 00 74 00 6f 00 6d 00 20 00 36 00 00 00 00 00 c0 7c",
+      "text_redacted": true
+    }
+  },
+  {
+    "seq_no": 149,
+    "data": {
+      "name": "d039_1_rec_espresso",
+      "base_type": "string",
+      "value": "0BSm8AEBCAABACgbAQIEBAAZAaPq"
+    },
+    "_decoded": {
+      "blob_family": "profile_recipe",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 14 a6 f0 01 01 08 00 01 00 28 1b 01 02 04 04 00 19 01 a3 ea",
+      "recipe_params": {
+        "tag_0x08": 0,
+        "coffee_ml": 40,
+        "temperature": 1,
+        "intensity": 4,
+        "tag_0x04": 0,
+        "tag_0x19": 1
+      },
+      "profile": 1,
+      "beverage_id": "0x01"
+    }
+  },
+  {
+    "seq_no": 150,
+    "data": {
+      "name": "d040_1_rec_regular",
+      "base_type": "string",
+      "value": "0BKm8AECGQEbAgEA2AIFBADivA=="
+    },
+    "_decoded": {
+      "blob_family": "profile_recipe",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 a6 f0 01 02 19 01 1b 02 01 00 d8 02 05 04 00 e2 bc",
+      "recipe_params": {
+        "tag_0x19": 1,
+        "temperature": 2,
+        "coffee_ml": 216,
+        "intensity": 5,
+        "tag_0x04": 0
+      },
+      "profile": 1,
+      "beverage_id": "0x02"
+    }
+  },
+  {
+    "seq_no": 151,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 152,
+    "data": {
+      "name": "d041_1_rec_long_coffee",
+      "base_type": "string",
+      "value": "0BKm8AEDGQEBAKAbAQIDBABbfw=="
+    },
+    "_decoded": {
+      "blob_family": "profile_recipe",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 a6 f0 01 03 19 01 01 00 a0 1b 01 02 03 04 00 5b 7f",
+      "recipe_params": {
+        "tag_0x19": 1,
+        "coffee_ml": 160,
+        "temperature": 1,
+        "intensity": 3,
+        "tag_0x04": 0
+      },
+      "profile": 1,
+      "beverage_id": "0x03"
+    }
+  },
+  {
+    "seq_no": 153,
+    "data": {
+      "name": "d042_1_rec_2x_espresso",
+      "base_type": "string",
+      "value": "0BSm8AEECAEBAFAbAQIEBAAZAaR/"
+    },
+    "_decoded": {
+      "blob_family": "profile_recipe",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 14 a6 f0 01 04 08 01 01 00 50 1b 01 02 04 04 00 19 01 a4 7f",
+      "recipe_params": {
+        "tag_0x08": 1,
+        "coffee_ml": 80,
+        "temperature": 1,
+        "intensity": 4,
+        "tag_0x04": 0,
+        "tag_0x19": 1
+      },
+      "profile": 1,
+      "beverage_id": "0x04"
+    }
+  },
+  {
+    "seq_no": 154,
+    "data": {
+      "name": "d043_1_rec_doppio",
+      "base_type": "string",
+      "value": "0BCm8AEFGQEBAHgbAQQAnXY="
+    },
+    "_decoded": {
+      "blob_family": "profile_recipe",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 10 a6 f0 01 05 19 01 01 00 78 1b 01 04 00 9d 76",
+      "recipe_params": {
+        "tag_0x19": 1,
+        "coffee_ml": 120,
+        "temperature": 1,
+        "tag_0x04": 0
+      },
+      "profile": 1,
+      "beverage_id": "0x05"
+    }
+  },
+  {
+    "seq_no": 155,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 156,
+    "data": {
+      "name": "d044_1_rec_americano",
+      "base_type": "string",
+      "value": "0BWm8AEGGQEBACgPAG4bAQIDBAAyqA=="
+    },
+    "_decoded": {
+      "blob_family": "profile_recipe",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 15 a6 f0 01 06 19 01 01 00 28 0f 00 6e 1b 01 02 03 04 00 32 a8",
+      "recipe_params": {
+        "tag_0x19": 1,
+        "coffee_ml": 40,
+        "water_ml": 110,
+        "temperature": 1,
+        "intensity": 3,
+        "tag_0x04": 0
+      },
+      "profile": 1,
+      "beverage_id": "0x06"
+    }
+  },
+  {
+    "seq_no": 157,
+    "data": {
+      "name": "d045_1_rec_cappuccino",
+      "base_type": "string",
+      "value": "0Bem8AEHHAIZAQEAYRsDAgQJAP8EAKPo"
+    },
+    "_decoded": {
+      "blob_family": "profile_recipe",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 17 a6 f0 01 07 1c 02 19 01 01 00 61 1b 03 02 04 09 00 ff 04 00 a3 e8",
+      "recipe_params": {
+        "tag_0x1c": 2,
+        "tag_0x19": 1,
+        "coffee_ml": 97,
+        "temperature": 3,
+        "intensity": 4,
+        "milk": 255,
+        "tag_0x04": 0
+      },
+      "profile": 1,
+      "beverage_id": "0x07"
+    }
+  },
+  {
+    "seq_no": 158,
+    "data": {
+      "name": "d046_1_rec_latte_macchiato",
+      "base_type": "string",
+      "value": "0Bem8AEIHAIZAQEAtBsEAgMJASIEAMi2"
+    },
+    "_decoded": {
+      "blob_family": "profile_recipe",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 17 a6 f0 01 08 1c 02 19 01 01 00 b4 1b 04 02 03 09 01 22 04 00 c8 b6",
+      "recipe_params": {
+        "tag_0x1c": 2,
+        "tag_0x19": 1,
+        "coffee_ml": 180,
+        "temperature": 4,
+        "intensity": 3,
+        "milk": 290,
+        "tag_0x04": 0
+      },
+      "profile": 1,
+      "beverage_id": "0x08"
+    }
+  },
+  {
+    "seq_no": 159,
+    "data": {
+      "name": "d047_1_rec_caffelatte",
+      "base_type": "string",
+      "value": "0Bem8AEJHAIZAQEASBsCAgMJAcgEAOOk"
+    },
+    "_decoded": {
+      "blob_family": "profile_recipe",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 17 a6 f0 01 09 1c 02 19 01 01 00 48 1b 02 02 03 09 01 c8 04 00 e3 a4",
+      "recipe_params": {
+        "tag_0x1c": 2,
+        "tag_0x19": 1,
+        "coffee_ml": 72,
+        "temperature": 2,
+        "intensity": 3,
+        "milk": 456,
+        "tag_0x04": 0
+      },
+      "profile": 1,
+      "beverage_id": "0x09"
+    }
+  },
+  {
+    "seq_no": 160,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 161,
+    "data": {
+      "name": "d048_1_rec_flat_white",
+      "base_type": "string",
+      "value": "0Bmm8AEKDAEcAhkBAQBIGwICAwkBCAQADgI="
+    },
+    "_decoded": {
+      "blob_family": "profile_recipe",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 19 a6 f0 01 0a 0c 01 1c 02 19 01 01 00 48 1b 02 02 03 09 01 08 04 00 0e 02",
+      "recipe_params": {
+        "tag_0x0c": 1,
+        "tag_0x1c": 2,
+        "tag_0x19": 1,
+        "coffee_ml": 72,
+        "temperature": 2,
+        "intensity": 3,
+        "milk": 264,
+        "tag_0x04": 0
+      },
+      "profile": 1,
+      "beverage_id": "0x0a"
+    }
+  },
+  {
+    "seq_no": 162,
+    "data": {
+      "name": "d049_1_rec_espr_macchiato",
+      "base_type": "string",
+      "value": "0Bem8AELHAIZAQEAHhsBAgMJACgEAEmj"
+    },
+    "_decoded": {
+      "blob_family": "profile_recipe",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 17 a6 f0 01 0b 1c 02 19 01 01 00 1e 1b 01 02 03 09 00 28 04 00 49 a3",
+      "recipe_params": {
+        "tag_0x1c": 2,
+        "tag_0x19": 1,
+        "coffee_ml": 30,
+        "temperature": 1,
+        "intensity": 3,
+        "milk": 40,
+        "tag_0x04": 0
+      },
+      "profile": 1,
+      "beverage_id": "0x0b"
+    }
+  },
+  {
+    "seq_no": 163,
+    "data": {
+      "name": "d050_1_rec_hot_milk",
+      "base_type": "string",
+      "value": "0BCm8AEMHAIZAQkBaBsBJPo="
+    },
+    "_decoded": {
+      "blob_family": "profile_recipe",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 10 a6 f0 01 0c 1c 02 19 01 09 01 68 1b 01 24 fa",
+      "recipe_params": {
+        "tag_0x1c": 2,
+        "tag_0x19": 1,
+        "milk": 360,
+        "temperature": 1
+      },
+      "profile": 1,
+      "beverage_id": "0x0c"
+    }
+  },
+  {
+    "seq_no": 164,
+    "data": {
+      "name": "d051_1_rec_capp_doppio",
+      "base_type": "string",
+      "value": "0BWm8AENHAIZAQEAZBsBCQCWBABQVg=="
+    },
+    "_decoded": {
+      "blob_family": "profile_recipe",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 15 a6 f0 01 0d 1c 02 19 01 01 00 64 1b 01 09 00 96 04 00 50 56",
+      "recipe_params": {
+        "tag_0x1c": 2,
+        "tag_0x19": 1,
+        "coffee_ml": 100,
+        "temperature": 1,
+        "milk": 150,
+        "tag_0x04": 0
+      },
+      "profile": 1,
+      "beverage_id": "0x0d"
+    }
+  },
+  {
+    "seq_no": 165,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 166,
+    "data": {
+      "name": "d052_1_rec_capp_reverse",
+      "base_type": "string",
+      "value": "0Bmm8AEPDAEcAhkBAQBBGwECAwkAqgQA0DE="
+    },
+    "_decoded": {
+      "blob_family": "profile_recipe",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 19 a6 f0 01 0f 0c 01 1c 02 19 01 01 00 41 1b 01 02 03 09 00 aa 04 00 d0 31",
+      "recipe_params": {
+        "tag_0x0c": 1,
+        "tag_0x1c": 2,
+        "tag_0x19": 1,
+        "coffee_ml": 65,
+        "temperature": 1,
+        "intensity": 3,
+        "milk": 170,
+        "tag_0x04": 0
+      },
+      "profile": 1,
+      "beverage_id": "0x0f"
+    }
+  },
+  {
+    "seq_no": 167,
+    "data": {
+      "name": "d053_1_rec_hot_water",
+      "base_type": "string",
+      "value": "0A6m8AEQGQEPAPobAU9C"
+    },
+    "_decoded": {
+      "blob_family": "profile_recipe",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 0e a6 f0 01 10 19 01 0f 00 fa 1b 01 4f 42",
+      "recipe_params": {
+        "tag_0x19": 1,
+        "water_ml": 250,
+        "temperature": 1
+      },
+      "profile": 1,
+      "beverage_id": "0x10"
+    }
+  },
+  {
+    "seq_no": 168,
+    "data": {
+      "name": "d054_1_rec_tea",
+      "base_type": "string",
+      "value": "0BCm8AEWGQIPAJYbAQ0BHM8="
+    },
+    "_decoded": {
+      "blob_family": "profile_recipe",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 10 a6 f0 01 16 19 02 0f 00 96 1b 01 0d 01 1c cf",
+      "recipe_params": {
+        "tag_0x19": 2,
+        "water_ml": 150,
+        "temperature": 1,
+        "tag_0x0d": 1
+      },
+      "profile": 1,
+      "beverage_id": "0x16"
+    }
+  },
+  {
+    "seq_no": 169,
+    "data": {
+      "name": "d055_1_rec_coffee_pot",
+      "base_type": "string",
+      "value": "0BKm8AEXGQIBAJYbAQQAAgWsVg=="
+    },
+    "_decoded": {
+      "blob_family": "profile_recipe",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 a6 f0 01 17 19 02 01 00 96 1b 01 04 00 02 05 ac 56",
+      "recipe_params": {
+        "tag_0x19": 2,
+        "coffee_ml": 150,
+        "temperature": 1,
+        "tag_0x04": 0,
+        "intensity": 5
+      },
+      "profile": 1,
+      "beverage_id": "0x17"
+    }
+  },
+  {
+    "seq_no": 170,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 171,
+    "data": {
+      "name": "d056_1_rec_cortado",
+      "base_type": "string",
+      "value": "0Bmm8AEYDAEcAhkBAQAoGwECAwkAKAQA4VA="
+    },
+    "_decoded": {
+      "blob_family": "profile_recipe",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 19 a6 f0 01 18 0c 01 1c 02 19 01 01 00 28 1b 01 02 03 09 00 28 04 00 e1 50",
+      "recipe_params": {
+        "tag_0x0c": 1,
+        "tag_0x1c": 2,
+        "tag_0x19": 1,
+        "coffee_ml": 40,
+        "temperature": 1,
+        "intensity": 3,
+        "milk": 40,
+        "tag_0x04": 0
+      },
+      "profile": 1,
+      "beverage_id": "0x18"
+    }
+  },
+  {
+    "seq_no": 172,
+    "data": {
+      "name": "d057_1_rec_long_black",
+      "base_type": "string",
+      "value": "0Bem8AEZDAEZAQEBaA8AeBsEAgEEAP5Q"
+    },
+    "_decoded": {
+      "blob_family": "profile_recipe",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 17 a6 f0 01 19 0c 01 19 01 01 01 68 0f 00 78 1b 04 02 01 04 00 fe 50",
+      "recipe_params": {
+        "tag_0x0c": 1,
+        "tag_0x19": 1,
+        "coffee_ml": 360,
+        "water_ml": 120,
+        "temperature": 4,
+        "intensity": 1,
+        "tag_0x04": 0
+      },
+      "profile": 1,
+      "beverage_id": "0x19"
+    }
+  },
+  {
+    "seq_no": 173,
+    "data": {
+      "name": "d058_1_rec_mug_to_go",
+      "base_type": "string",
+      "value": "0Bym8AEaAQAAAgMJAAAEAAwAHAAZAg8AABv/N5s="
+    },
+    "_decoded": {
+      "blob_family": "profile_recipe",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 1c a6 f0 01 1a 01 00 00 02 03 09 00 00 04 00 0c 00 1c 00 19 02 0f 00 00 1b ff 37 9b",
+      "recipe_params": {
+        "coffee_ml": 0,
+        "intensity": 3,
+        "milk": 0,
+        "tag_0x04": 0,
+        "tag_0x0c": 0,
+        "tag_0x1c": 0,
+        "tag_0x19": 2,
+        "water_ml": 0,
+        "temperature": 255
+      },
+      "profile": 1,
+      "beverage_id": "0x1a"
+    }
+  },
+  {
+    "seq_no": 174,
+    "data": {
+      "name": "d059_1_rec_brew_over_ice",
+      "base_type": "string",
+      "value": "0BCm8AEbGQIBAJYbAwIEiIc="
+    },
+    "_decoded": {
+      "blob_family": "profile_recipe",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 10 a6 f0 01 1b 19 02 01 00 96 1b 03 02 04 88 87",
+      "recipe_params": {
+        "tag_0x19": 2,
+        "coffee_ml": 150,
+        "temperature": 3,
+        "intensity": 4
+      },
+      "profile": 1,
+      "beverage_id": "0x1b"
+    }
+  },
+  {
+    "seq_no": 175,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 176,
+    "data": {
+      "name": "d060_2_rec_espresso",
+      "base_type": "string",
+      "value": "0BSm8AIBCAABACgbAQIEBAAZAUDP"
+    },
+    "_decoded": {
+      "blob_family": "profile_recipe",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 14 a6 f0 02 01 08 00 01 00 28 1b 01 02 04 04 00 19 01 40 cf",
+      "recipe_params": {
+        "tag_0x08": 0,
+        "coffee_ml": 40,
+        "temperature": 1,
+        "intensity": 4,
+        "tag_0x04": 0,
+        "tag_0x19": 1
+      },
+      "profile": 2,
+      "beverage_id": "0x01"
+    }
+  },
+  {
+    "seq_no": 177,
+    "data": {
+      "name": "d081_3_rec_espresso",
+      "base_type": "string",
+      "value": "0BSm8AMBCAABACgbAQIEBAAZAe4z"
+    },
+    "_decoded": {
+      "blob_family": "profile_recipe",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 14 a6 f0 03 01 08 00 01 00 28 1b 01 02 04 04 00 19 01 ee 33",
+      "recipe_params": {
+        "tag_0x08": 0,
+        "coffee_ml": 40,
+        "temperature": 1,
+        "intensity": 4,
+        "tag_0x04": 0,
+        "tag_0x19": 1
+      },
+      "profile": 3,
+      "beverage_id": "0x01"
+    }
+  },
+  {
+    "seq_no": 178,
+    "data": {
+      "name": "d102_4_rec_espresso",
+      "base_type": "string",
+      "value": "0BSm8AQBCAABACgbAQIEBAAZAZak"
+    },
+    "_decoded": {
+      "blob_family": "profile_recipe",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 14 a6 f0 04 01 08 00 01 00 28 1b 01 02 04 04 00 19 01 96 a4",
+      "recipe_params": {
+        "tag_0x08": 0,
+        "coffee_ml": 40,
+        "temperature": 1,
+        "intensity": 4,
+        "tag_0x04": 0,
+        "tag_0x19": 1
+      },
+      "profile": 4,
+      "beverage_id": "0x01"
+    }
+  },
+  {
+    "seq_no": 179,
+    "data": {
+      "name": "d123_5_rec_espresso",
+      "base_type": "string",
+      "value": "0BSm8AUBCAABACgbAQIEBAAZAThY"
+    },
+    "_decoded": {
+      "blob_family": "profile_recipe",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 14 a6 f0 05 01 08 00 01 00 28 1b 01 02 04 04 00 19 01 38 58",
+      "recipe_params": {
+        "tag_0x08": 0,
+        "coffee_ml": 40,
+        "temperature": 1,
+        "intensity": 4,
+        "tag_0x04": 0,
+        "tag_0x19": 1
+      },
+      "profile": 5,
+      "beverage_id": "0x01"
+    }
+  },
+  {
+    "seq_no": 180,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 181,
+    "data": {
+      "name": "d160_1_bs_recipe_01",
+      "base_type": "string",
+      "value": "0BCm8AHIAQAwGwICAxkBPu0="
+    },
+    "_decoded": {
+      "blob_family": "profile_recipe",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 10 a6 f0 01 c8 01 00 30 1b 02 02 03 19 01 3e ed",
+      "recipe_params": {
+        "coffee_ml": 48,
+        "temperature": 2,
+        "intensity": 3,
+        "tag_0x19": 1
+      },
+      "profile": 1,
+      "beverage_id": "0xc8"
+    }
+  },
+  {
+    "seq_no": 182,
+    "data": {
+      "name": "d200_1_cstm_recipe_01",
+      "base_type": "string",
+      "value": "0Bem8AHmAQAAAv8JAAAEAAwAHAAZABK3"
+    },
+    "_decoded": {
+      "blob_family": "profile_recipe",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 17 a6 f0 01 e6 01 00 00 02 ff 09 00 00 04 00 0c 00 1c 00 19 00 12 b7",
+      "recipe_params": {
+        "coffee_ml": 0,
+        "intensity": 255,
+        "milk": 0,
+        "tag_0x04": 0,
+        "tag_0x0c": 0,
+        "tag_0x1c": 0,
+        "tag_0x19": 0
+      },
+      "profile": 1,
+      "beverage_id": "0xe6"
+    }
+  },
+  {
+    "seq_no": 183,
+    "data": {
+      "name": "d201_1_cstm_recipe_02",
+      "base_type": "string",
+      "value": "0Bem8AHnAQAAAv8JAAAEAAwAHAAZAAJV"
+    },
+    "_decoded": {
+      "blob_family": "profile_recipe",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 17 a6 f0 01 e7 01 00 00 02 ff 09 00 00 04 00 0c 00 1c 00 19 00 02 55",
+      "recipe_params": {
+        "coffee_ml": 0,
+        "intensity": 255,
+        "milk": 0,
+        "tag_0x04": 0,
+        "tag_0x0c": 0,
+        "tag_0x1c": 0,
+        "tag_0x19": 0
+      },
+      "profile": 1,
+      "beverage_id": "0xe7"
+    }
+  },
+  {
+    "seq_no": 184,
+    "data": {
+      "name": "d202_1_cstm_recipe_03",
+      "base_type": "string",
+      "value": "0Bem8AHoAQAAAv8JAAAEAAwAHAAZAPfr"
+    },
+    "_decoded": {
+      "blob_family": "profile_recipe",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 17 a6 f0 01 e8 01 00 00 02 ff 09 00 00 04 00 0c 00 1c 00 19 00 f7 eb",
+      "recipe_params": {
+        "coffee_ml": 0,
+        "intensity": 255,
+        "milk": 0,
+        "tag_0x04": 0,
+        "tag_0x0c": 0,
+        "tag_0x1c": 0,
+        "tag_0x19": 0
+      },
+      "profile": 1,
+      "beverage_id": "0xe8"
+    }
+  },
+  {
+    "seq_no": 185,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 186,
+    "data": {
+      "name": "d250_beansystem_0",
+      "base_type": "string",
+      "value": "0DS68AAAQgBlAGEAbgAgAEEAZABhAHAAdAAgACgATwBOAC8ATwBGAEYAKQAAAwEAAAEAcZA="
+    },
+    "_decoded": {
+      "blob_family": "bean_names",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 34 ba f0 00 00 42 00 65 00 61 00 6e 00 20 00 41 00 64 00 61 00 70 00 74 00 20 00 28 00 4f 00 4e 00 2f 00 4f 00 46 00 46 00 29 00 00 03 01 00 00 01 00 71 90",
+      "text_redacted": true
+    }
+  },
+  {
+    "seq_no": 187,
+    "data": {
+      "name": "d251_beansystem_1",
+      "base_type": "string",
+      "value": "0DS68AEAQwByAGUAbQBhAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAEDAAEBqho="
+    },
+    "_decoded": {
+      "blob_family": "bean_names",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 34 ba f0 01 00 43 00 72 00 65 00 6d 00 61 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 04 01 03 00 01 01 aa 1a",
+      "text_redacted": true
+    }
+  },
+  {
+    "seq_no": 188,
+    "data": {
+      "name": "d252_beansystem_2",
+      "base_type": "string",
+      "value": "0DS68AIAQgBvAGgAbgBlAG4AIAAyAAAAAABCAG8AaABuAGUAbgAgADMAAAAAAAAAAAAAhC8="
+    },
+    "_decoded": {
+      "blob_family": "bean_names",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 34 ba f0 02 00 42 00 6f 00 68 00 6e 00 65 00 6e 00 20 00 32 00 00 00 00 00 42 00 6f 00 68 00 6e 00 65 00 6e 00 20 00 33 00 00 00 00 00 00 00 00 00 00 84 2f",
+      "text_redacted": true
+    }
+  },
+  {
+    "seq_no": 189,
+    "data": {
+      "name": "d253_beansystem_3",
+      "base_type": "string",
+      "value": "0DS68AMAQgBvAGgAbgBlAG4AIAAzAAAAAABCAG8AaABuAGUAbgAgADQAAAAAAAAAAAAA7lk="
+    },
+    "_decoded": {
+      "blob_family": "bean_names",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 34 ba f0 03 00 42 00 6f 00 68 00 6e 00 65 00 6e 00 20 00 33 00 00 00 00 00 42 00 6f 00 68 00 6e 00 65 00 6e 00 20 00 34 00 00 00 00 00 00 00 00 00 00 ee 59",
+      "text_redacted": true
+    }
+  },
+  {
+    "seq_no": 190,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 191,
+    "data": {
+      "name": "d254_beansystem_4",
+      "base_type": "string",
+      "value": "0DS68AQAQgBvAGgAbgBlAG4AIAA0AAAAAABCAG8AaABuAGUAbgAgADUAAAAAAAAAAAAA7UA="
+    },
+    "_decoded": {
+      "blob_family": "bean_names",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 34 ba f0 04 00 42 00 6f 00 68 00 6e 00 65 00 6e 00 20 00 34 00 00 00 00 00 42 00 6f 00 68 00 6e 00 65 00 6e 00 20 00 35 00 00 00 00 00 00 00 00 00 00 ed 40",
+      "text_redacted": true
+    }
+  },
+  {
+    "seq_no": 192,
+    "data": {
+      "name": "d255_beansystem_5",
+      "base_type": "string",
+      "value": "0DS68AUAQgBvAGgAbgBlAG4AIAA1AAAAAABCAG8AaABuAGUAbgAgADYAAAAAAAAAAAAA1nE="
+    },
+    "_decoded": {
+      "blob_family": "bean_names",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 34 ba f0 05 00 42 00 6f 00 68 00 6e 00 65 00 6e 00 20 00 35 00 00 00 00 00 42 00 6f 00 68 00 6e 00 65 00 6e 00 20 00 36 00 00 00 00 00 00 00 00 00 00 d6 71",
+      "text_redacted": true
+    }
+  },
+  {
+    "seq_no": 193,
+    "data": {
+      "name": "d256_beansystem_6",
+      "base_type": "string",
+      "value": "0DS68AYAQgBvAGgAbgBlAG4AIAA2AAAAAABEAGkAZQAgAEMAbwBmAGYAZQBlAAAAAAAAaGo="
+    },
+    "_decoded": {
+      "blob_family": "bean_names",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 34 ba f0 06 00 42 00 6f 00 68 00 6e 00 65 00 6e 00 20 00 36 00 00 00 00 00 44 00 69 00 65 00 20 00 43 00 6f 00 66 00 66 00 65 00 65 00 00 00 00 00 00 68 6a",
+      "text_redacted": true
+    }
+  },
+  {
+    "seq_no": 194,
+    "data": {
+      "name": "d260_beansystem_sync_par",
+      "base_type": "string",
+      "value": "0C+hDwH0AAAALAAAF2sAAL11AAAuGAAAAAEAAAGXAAAAAAAAAAAAAAAAAAAAAO4Q"
+    },
+    "_decoded": {
+      "blob_family": "a1 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 2f a1 0f 01 f4 00 00 00 2c 00 00 17 6b 00 00 bd 75 00 00 2e 18 00 00 00 01 00 00 01 97 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 ee 10"
+    }
+  },
+  {
+    "seq_no": 195,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 196,
+    "data": {
+      "name": "d261_1_rec_priority",
+      "base_type": "string",
+      "value": "0Byo8AECyAcMCQgbBg8BFxkKBQQaDRgQAxYLFj4="
+    },
+    "_decoded": {
+      "blob_family": "priority_list",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 1c a8 f0 01 02 c8 07 0c 09 08 1b 06 0f 01 17 19 0a 05 04 1a 0d 18 10 03 16 0b 16 3e",
+      "profile": 1,
+      "ordered_ids": [
+        "0x02",
+        "0xc8",
+        "0x07",
+        "0x0c",
+        "0x09",
+        "0x08",
+        "0x1b",
+        "0x06",
+        "0x0f",
+        "0x01",
+        "0x17",
+        "0x19",
+        "0x0a",
+        "0x05",
+        "0x04",
+        "0x1a",
+        "0x0d",
+        "0x18",
+        "0x10",
+        "0x03",
+        "0x16",
+        "0x0b"
+      ]
+    }
+  },
+  {
+    "seq_no": 197,
+    "data": {
+      "name": "d262_2_rec_priority",
+      "base_type": "string",
+      "value": "0Byo8ALIAQcCCAQJFwoZGxoNDwYFGBADDBYLZH8="
+    },
+    "_decoded": {
+      "blob_family": "priority_list",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 1c a8 f0 02 c8 01 07 02 08 04 09 17 0a 19 1b 1a 0d 0f 06 05 18 10 03 0c 16 0b 64 7f",
+      "profile": 2,
+      "ordered_ids": [
+        "0xc8",
+        "0x01",
+        "0x07",
+        "0x02",
+        "0x08",
+        "0x04",
+        "0x09",
+        "0x17",
+        "0x0a",
+        "0x19",
+        "0x1b",
+        "0x1a",
+        "0x0d",
+        "0x0f",
+        "0x06",
+        "0x05",
+        "0x18",
+        "0x10",
+        "0x03",
+        "0x0c",
+        "0x16",
+        "0x0b"
+      ]
+    }
+  },
+  {
+    "seq_no": 198,
+    "data": {
+      "name": "d263_3_rec_priority",
+      "base_type": "string",
+      "value": "0Byo8APIAQcCCAQJFwoZGxoNDwYFGBADDBYLAXQ="
+    },
+    "_decoded": {
+      "blob_family": "priority_list",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 1c a8 f0 03 c8 01 07 02 08 04 09 17 0a 19 1b 1a 0d 0f 06 05 18 10 03 0c 16 0b 01 74",
+      "profile": 3,
+      "ordered_ids": [
+        "0xc8",
+        "0x01",
+        "0x07",
+        "0x02",
+        "0x08",
+        "0x04",
+        "0x09",
+        "0x17",
+        "0x0a",
+        "0x19",
+        "0x1b",
+        "0x1a",
+        "0x0d",
+        "0x0f",
+        "0x06",
+        "0x05",
+        "0x18",
+        "0x10",
+        "0x03",
+        "0x0c",
+        "0x16",
+        "0x0b"
+      ]
+    }
+  },
+  {
+    "seq_no": 199,
+    "data": {
+      "name": "d264_4_rec_priority",
+      "base_type": "string",
+      "value": "0Byo8ATIAQcCCAQJFwoZGxoNDwYFGBADDBYLKmQ="
+    },
+    "_decoded": {
+      "blob_family": "priority_list",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 1c a8 f0 04 c8 01 07 02 08 04 09 17 0a 19 1b 1a 0d 0f 06 05 18 10 03 0c 16 0b 2a 64",
+      "profile": 4,
+      "ordered_ids": [
+        "0xc8",
+        "0x01",
+        "0x07",
+        "0x02",
+        "0x08",
+        "0x04",
+        "0x09",
+        "0x17",
+        "0x0a",
+        "0x19",
+        "0x1b",
+        "0x1a",
+        "0x0d",
+        "0x0f",
+        "0x06",
+        "0x05",
+        "0x18",
+        "0x10",
+        "0x03",
+        "0x0c",
+        "0x16",
+        "0x0b"
+      ]
+    }
+  },
+  {
+    "seq_no": 200,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 201,
+    "data": {
+      "name": "d265_5_rec_priority",
+      "base_type": "string",
+      "value": "0Byo8AXIAQcCCAQJFwoZGxoNDwYFGBADDBYLT28="
+    },
+    "_decoded": {
+      "blob_family": "priority_list",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 1c a8 f0 05 c8 01 07 02 08 04 09 17 0a 19 1b 1a 0d 0f 06 05 18 10 03 0c 16 0b 4f 6f",
+      "profile": 5,
+      "ordered_ids": [
+        "0xc8",
+        "0x01",
+        "0x07",
+        "0x02",
+        "0x08",
+        "0x04",
+        "0x09",
+        "0x17",
+        "0x0a",
+        "0x19",
+        "0x1b",
+        "0x1a",
+        "0x0d",
+        "0x0f",
+        "0x06",
+        "0x05",
+        "0x18",
+        "0x10",
+        "0x03",
+        "0x0c",
+        "0x16",
+        "0x0b"
+      ]
+    }
+  },
+  {
+    "seq_no": 202,
+    "data": {
+      "name": "d270_serialnumber",
+      "base_type": "string",
+      "value": "0BuhDwDNMjE3MDU1WloyNTA3MDEzMDEzNAD9pg=="
+    },
+    "_decoded": {
+      "blob_family": "a1 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 1b a1 0f 00 cd 32 31 37 30 35 35 5a 5a 32 35 30 37 30 31 33 30 31 33 34 00 fd a6",
+      "ascii_hint": "..217055ZZ25070130134."
+    }
+  },
+  {
+    "seq_no": 203,
+    "data": {
+      "name": "d280_mchn_sett_pin",
+      "base_type": "string",
+      "value": "0AuVDwDSAAAQaB0k"
+    },
+    "_decoded": {
+      "blob_family": "95 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 0b 95 0f 00 d2 00 00 10 68 1d 24"
+    }
+  },
+  {
+    "seq_no": 204,
+    "data": {
+      "name": "d281_mchn_sett_temp",
+      "base_type": "string",
+      "value": "0AuVDwA9AAAAAb0t"
+    },
+    "_decoded": {
+      "blob_family": "95 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 0b 95 0f 00 3d 00 00 00 01 bd 2d"
+    }
+  },
+  {
+    "seq_no": 205,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 206,
+    "data": {
+      "name": "d282_mchn_sett_aoff",
+      "base_type": "string",
+      "value": "0AuVDwA+AAAAAmOc"
+    },
+    "_decoded": {
+      "blob_family": "95 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 0b 95 0f 00 3e 00 00 00 02 63 9c"
+    }
+  },
+  {
+    "seq_no": 207,
+    "data": {
+      "name": "d283_mchn_sett_water",
+      "base_type": "string",
+      "value": "0AuVDwAyAAAAAdjU"
+    },
+    "_decoded": {
+      "blob_family": "95 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 0b 95 0f 00 32 00 00 00 01 d8 d4"
+    }
+  },
+  {
+    "seq_no": 208,
+    "data": {
+      "name": "d284_mchn_sett_user_conf",
+      "base_type": "string",
+      "value": "0AuVDwA/AAAAHSoT"
+    },
+    "_decoded": {
+      "blob_family": "95 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 0b 95 0f 00 3f 00 00 00 1d 2a 13"
+    }
+  },
+  {
+    "seq_no": 209,
+    "data": {
+      "name": "d285_mchn_sett_radio_conf",
+      "base_type": "string",
+      "value": "0AuVDwAtAAAAA5k1"
+    },
+    "_decoded": {
+      "blob_family": "95 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 0b 95 0f 00 2d 00 00 00 03 99 35"
+    }
+  },
+  {
+    "seq_no": 210,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 211,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 212,
+    "data": {
+      "name": "d303_monitor_extended",
+      "base_type": "string",
+      "value": ""
+    }
+  },
+  {
+    "seq_no": 213,
+    "data": {
+      "name": "d510_ground_cnt_percentage",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 214,
+    "data": {
+      "name": "d511_ground_cnt_pod_space",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 215,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 216,
+    "data": {
+      "name": "d512_percentage_to_deca",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 217,
+    "data": {
+      "name": "d513_percentage_usage_fltr",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 218,
+    "data": {
+      "name": "d514_nbr_cups",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 219,
+    "data": {
+      "name": "d550_water_calc_qty",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 220,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 221,
+    "data": {
+      "name": "d551_cnt_coffee_fondi",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 222,
+    "data": {
+      "name": "d552_cnt_calc_tot",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 223,
+    "data": {
+      "name": "d553_water_tot_qty",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 224,
+    "data": {
+      "name": "d554_cnt_filter_tot",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 225,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 226,
+    "data": {
+      "name": "d555_water_filter_qty",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 227,
+    "data": {
+      "name": "d556_water_hardness",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 228,
+    "data": {
+      "name": "d557_milk_cln_cnt",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 229,
+    "data": {
+      "name": "d558_bev_cnt_desc_on",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 230,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 231,
+    "data": {
+      "name": "d560_versione_sw",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 232,
+    "data": {
+      "name": "d561_machine_model",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 233,
+    "data": {
+      "name": "d700_tot_bev_b",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 234,
+    "data": {
+      "name": "d701_tot_bev_bw",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 235,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 236,
+    "data": {
+      "name": "d702_tot_bev_other",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 237,
+    "data": {
+      "name": "d703_tot_bev_w",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 238,
+    "data": {
+      "name": "d704_tot_bev_espressi",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 239,
+    "data": {
+      "name": "d705_tot_id1_espr",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 240,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 241,
+    "data": {
+      "name": "d706_tot_id2_coffee",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 242,
+    "data": {
+      "name": "d707_tot_id3_long",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 243,
+    "data": {
+      "name": "d708_tot_id5_doppio_p",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 244,
+    "data": {
+      "name": "d709_id6_americano",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 245,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 246,
+    "data": {
+      "name": "d710_tot_id7_capp",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 247,
+    "data": {
+      "name": "d711_id8_lattmacc",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 248,
+    "data": {
+      "name": "d712_id9_cafflatt",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 249,
+    "data": {
+      "name": "d713_id10_flatwhite",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 250,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 251,
+    "data": {
+      "name": "d714_id11_esprmacc",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 252,
+    "data": {
+      "name": "d715_id12_hotmilk",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 253,
+    "data": {
+      "name": "d716_id13_cappdoppio_p",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 254,
+    "data": {
+      "name": "d717_id15_caprev",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 255,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 256,
+    "data": {
+      "name": "d718_id16_hotwater",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 257,
+    "data": {
+      "name": "d719_id22_tea",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 258,
+    "data": {
+      "name": "d720_tot_id23_coffee_pot",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 259,
+    "data": {
+      "name": "d721_id200_bs_1",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 260,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 261,
+    "data": {
+      "name": "d722_id201_bs_2",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 262,
+    "data": {
+      "name": "d723_id202_bs_3",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 263,
+    "data": {
+      "name": "d724_id203_bs_4",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 264,
+    "data": {
+      "name": "d725_id204_bs_5",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 265,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 266,
+    "data": {
+      "name": "d726_id205_bs_6",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 267,
+    "data": {
+      "name": "d727_id24_cortado",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 268,
+    "data": {
+      "name": "d728_id25_long_black",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 269,
+    "data": {
+      "name": "d729_id26_travel_mug",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 270,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 271,
+    "data": {
+      "name": "d730_tot_id27_brew_over_ice",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 272,
+    "data": {
+      "name": "d731_pregr_coff_cnt",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 273,
+    "data": {
+      "name": "d732_taste_b_bw",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 274,
+    "data": {
+      "name": "d733_taste_espressi",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 275,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 276,
+    "data": {
+      "name": "d734_taste_coffee",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 277,
+    "data": {
+      "name": "d735_b_water_qty",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 278,
+    "data": {
+      "name": "d736_bw_coff_water_qty",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 279,
+    "data": {
+      "name": "d737_bw_milk_time_qty",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 280,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 281,
+    "data": {
+      "name": "d738_espressi_water_qty",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 282,
+    "data": {
+      "name": "d739_espr_water_qty",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 283,
+    "data": {
+      "name": "d740_id2_coffee_water_qty",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 284,
+    "data": {
+      "name": "d741_tot_custom_b_bw",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 285,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 286,
+    "data": {
+      "name": "d742_tot_bev_no_original",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 287,
+    "data": {
+      "name": "d743_tot_bev_profile_std_p1",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 288,
+    "data": {
+      "name": "d744_tot_bev_profile_other",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 289,
+    "data": {
+      "name": "d745_profile_set",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 290,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 291,
+    "data": {
+      "name": "d746_tot_bev_bBwNoMySize",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 292,
+    "data": {
+      "name": "d747_bev_abort_cnt",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 293,
+    "data": {
+      "name": "d748_bev_2x_cnt",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 294,
+    "data": {
+      "name": "d820_water_heaterCalcRelQty",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 295,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 296,
+    "data": {
+      "name": "d821_water_steamCalcRelQty",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 297,
+    "data": {
+      "name": "d822_water_heaterCalcAbsQty",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 298,
+    "data": {
+      "name": "d823_water_steamCalcAbsQty",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 299,
+    "data": {
+      "name": "d824_water_misuseCalcAbsQty",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 300,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 301,
+    "data": {
+      "name": "d825_descale_status",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 302,
+    "data": {
+      "name": "d826_last_4_water_calc_qty",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 303,
+    "data": {
+      "name": "d827_last_4_calc_thrshld",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 304,
+    "data": {
+      "name": "d828_gen_water_cnt_1",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 305,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 306,
+    "data": {
+      "name": "d829_gen_water_cnt_2",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 307,
+    "data": {
+      "name": "d830_gen_water_cnt_3",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 308,
+    "data": {
+      "name": "d831_gen_water_cnt_4",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 309,
+    "data": {
+      "name": "d832_gen_water_cnt_5",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 310,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 311,
+    "data": {
+      "name": "d833_gen_water_cnt_6",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 312,
+    "data": {
+      "name": "d834_gen_water_cnt_7",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 313,
+    "data": {
+      "name": "d835_gen_water_cnt_8",
+      "base_type": "integer",
+      "value": 0
+    },
+    "_decoded": {
+      "counter_value": 0
+    }
+  },
+  {
+    "seq_no": 315,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  },
+  {
+    "seq_no": 316,
+    "data": {
+      "name": "data_response",
+      "base_type": "string",
+      "value": ""
+    }
+  },
+  {
+    "seq_no": 317,
+    "data": {
+      "name": "device_connected",
+      "base_type": "string",
+      "value": ""
+    }
+  },
+  {
+    "seq_no": 318,
+    "data": {
+      "name": "software_version",
+      "base_type": "string",
+      "value": "Millcore_demo 2.0.0 Jun 18 2020 15:41:06"
+    }
+  },
+  {
+    "seq_no": 319,
+    "data": {
+      "name": "d302_monitor",
+      "base_type": "string",
+      "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mq/U+0="
+    },
+    "_decoded": {
+      "blob_family": "75 0f",
+      "crc_valid": true,
+      "truncated": false,
+      "hex": "d0 12 75 0f 04 40 02 01 00 00 02 64 00 00 00 00 00 3f fa 6a bf 53 ed",
+      "monitor": {
+        "status": 0,
+        "status_name": "standby",
+        "progress": 100,
+        "action": 2,
+        "accessory": 4,
+        "switches": 576,
+        "alarms": 1
+      }
+    }
+  }
+]

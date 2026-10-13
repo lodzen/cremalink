@@ -1,0 +1,22 @@
+{
+  "seq_no": 154,
+  "data": {
+    "name": "d043_1_rec_doppio",
+    "base_type": "string",
+    "value": "0BCm8AEFGQEBAHgbAQQAnXY="
+  },
+  "_decoded": {
+    "blob_family": "profile_recipe",
+    "crc_valid": true,
+    "truncated": false,
+    "hex": "d0 10 a6 f0 01 05 19 01 01 00 78 1b 01 04 00 9d 76",
+    "recipe_params": {
+      "tag_0x19": 1,
+      "coffee_ml": 120,
+      "temperature": 1,
+      "tag_0x04": 0
+    },
+    "profile": 1,
+    "beverage_id": "0x05"
+  }
+}

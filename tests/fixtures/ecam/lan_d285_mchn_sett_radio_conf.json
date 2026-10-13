@@ -1,0 +1,14 @@
+{
+  "seq_no": 209,
+  "data": {
+    "name": "d285_mchn_sett_radio_conf",
+    "base_type": "string",
+    "value": "0AuVDwAtAAAAA5k1"
+  },
+  "_decoded": {
+    "blob_family": "95 0f",
+    "crc_valid": true,
+    "truncated": false,
+    "hex": "d0 0b 95 0f 00 2d 00 00 00 03 99 35"
+  }
+}

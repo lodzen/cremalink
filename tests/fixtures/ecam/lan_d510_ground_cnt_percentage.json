@@ -1,0 +1,11 @@
+{
+  "seq_no": 213,
+  "data": {
+    "name": "d510_ground_cnt_percentage",
+    "base_type": "integer",
+    "value": 0
+  },
+  "_decoded": {
+    "counter_value": 0
+  }
+}

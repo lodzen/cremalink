@@ -1,91 +1,183 @@
 {
+  "capabilities": {
+    "auto_off_settings": true,
+    "auto_start_settings": false,
+    "buzzer_settings": true,
+    "cup_light_settings": false,
+    "cup_warmer_settings": false,
+    "energy_saving_settings": true,
+    "filter_settings": true,
+    "globalTemperature": true,
+    "pin_settings": false,
+    "time_settings": false,
+    "water_hardness_settings": true
+  },
+  "catalog_datapoints": [],
   "command_map": {
     "americano": {
-      "command": "0d1483f006010100280f006e1b010203040006ecfe",
-      "name": "Americano"
+      "accessory": 2,
+      "action": 1,
+      "beverage_id": 6,
+      "name": "Americano",
+      "profile_slot": 1,
+      "recipe": "0100280f006e1b0102030400"
     },
     "caffe_latte": {
-      "command": "0d1683f009011c0201003c1b01020309017c040006649e",
-      "name": "Caffé Latte"
+      "accessory": 2,
+      "action": 1,
+      "beverage_id": 9,
+      "name": "Caff\u00e9 Latte",
+      "profile_slot": 1,
+      "recipe": "1c0201003c1b01020309017c0400"
     },
     "cappuccino": {
-      "command": "0d1683f007011c0201004e1b0202040900cc040006f563",
-      "name": "Cappuccino"
+      "accessory": 2,
+      "action": 1,
+      "beverage_id": 7,
+      "name": "Cappuccino",
+      "profile_slot": 1,
+      "recipe": "1c0201004e1b0202040900cc0400"
     },
     "cappuccino_mix": {
-      "command": "0d1883f00f010c011c020100321b0402030900f704000ad9f8",
-      "name": "Cappuccino Mix"
+      "accessory": 2,
+      "action": 1,
+      "beverage_id": 15,
+      "name": "Cappuccino Mix",
+      "profile_slot": 2,
+      "recipe": "0c011c020100321b0402030900f70400"
     },
     "cappuccino_plus": {
-      "command": "0d1483f00d011c020100781b020900b40400067a44",
-      "name": "Cappuccino+"
+      "accessory": 2,
+      "action": 1,
+      "beverage_id": 13,
+      "name": "Cappuccino+",
+      "profile_slot": 1,
+      "recipe": "1c020100781b020900b40400"
     },
     "coffee": {
-      "command": "0d1183f002011b040100f002030400060ab7",
-      "name": "Coffee"
+      "accessory": 2,
+      "action": 1,
+      "beverage_id": 2,
+      "name": "Coffee",
+      "profile_slot": 1,
+      "recipe": "1b040100f002030400"
     },
     "cortado": {
-      "command": "0d1883f018010c011c020100301b0202030900300400060a84",
-      "name": "Cortado"
+      "accessory": 2,
+      "action": 1,
+      "beverage_id": 24,
+      "name": "Cortado",
+      "profile_slot": 1,
+      "recipe": "0c011c020100301b0202030900300400"
     },
     "doppio_plus": {
-      "command": "0d0f83f005020100601b00040006138e",
-      "name": "Doppio Plus"
+      "accessory": 2,
+      "action": 2,
+      "beverage_id": 5,
+      "name": "Doppio Plus",
+      "profile_slot": 1,
+      "recipe": "0100601b000400"
     },
     "double_espresso": {
-      "command": "0d0883f00401062342",
-      "name": "Double Espresso"
+      "accessory": 2,
+      "action": 1,
+      "beverage_id": 4,
+      "name": "Double Espresso",
+      "profile_slot": 1,
+      "recipe": ""
     },
     "espresso": {
-      "command": "0d1183f0010101007e1b030202040006afe2",
-      "name": "Espresso"
+      "accessory": 2,
+      "action": 1,
+      "beverage_id": 1,
+      "name": "Espresso",
+      "profile_slot": 1,
+      "recipe": "01007e1b0302020400"
     },
     "espresso_macchiato": {
-      "command": "0d1683f00b011c0201001e1b0102030900280400065a08",
-      "name": "Espresso Macchiato"
+      "accessory": 2,
+      "action": 1,
+      "beverage_id": 11,
+      "name": "Espresso Macchiato",
+      "profile_slot": 1,
+      "recipe": "1c0201001e1b0102030900280400"
     },
     "espresso_soul": {
-      "command": "0d0d83f0c80101003c1b04064270",
-      "name": "Espresso Soul"
+      "accessory": 2,
+      "action": 1,
+      "beverage_id": 200,
+      "name": "Espresso Soul",
+      "profile_slot": 1,
+      "recipe": "01003c1b04"
     },
     "flat_white": {
-      "command": "0d1883f00a010c011c0201003c1b0102030900dc0400068393",
-      "name": "Flat White"
+      "accessory": 2,
+      "action": 1,
+      "beverage_id": 10,
+      "name": "Flat White",
+      "profile_slot": 1,
+      "recipe": "0c011c0201003c1b0102030900dc0400"
     },
     "hot_milk": {
-      "command": "0d0f83f00c011c020901201b00061de5",
-      "name": "Hot Milk"
+      "accessory": 2,
+      "action": 1,
+      "beverage_id": 12,
+      "name": "Hot Milk",
+      "profile_slot": 1,
+      "recipe": "1c020901201b00"
     },
     "hot_water": {
-      "command": "0d0d83f010010f00fa1b01068124",
-      "name": "Hot Water"
+      "accessory": 2,
+      "action": 1,
+      "beverage_id": 16,
+      "name": "Hot Water",
+      "profile_slot": 1,
+      "recipe": "0f00fa1b01"
     },
     "latte_macchiato": {
-      "command": "0d1683f008011c020100481b02020209015c0400063cc2",
-      "name": "Latte Macchiato"
+      "accessory": 2,
+      "action": 1,
+      "beverage_id": 8,
+      "name": "Latte Macchiato",
+      "profile_slot": 1,
+      "recipe": "1c020100481b02020209015c0400"
     },
     "long_coffee": {
-      "command": "0d1183f003010100a01b010203040006fc08",
-      "name": "Long Coffee"
+      "accessory": 2,
+      "action": 1,
+      "beverage_id": 3,
+      "name": "Long Coffee",
+      "profile_slot": 1,
+      "recipe": "0100a01b0102030400"
     },
     "refresh": {
       "command": "0d07840f03025640",
       "name": "Refresh App ID"
     },
     "standby": {
-      "command": "0d07840f01010041",
-      "name": "Turn Off"
+      "name": "Turn Off",
+      "power": "standby"
     },
     "stop": {
-      "command": "0d0d83f010020f00fa1b010659a6",
-      "name": "Stop"
+      "accessory": 2,
+      "action": 2,
+      "beverage_id": 16,
+      "name": "Stop",
+      "profile_slot": 1
     },
     "wakeup": {
-      "command": "0d07840f02015512",
-      "name": "Turn On"
+      "name": "Turn On",
+      "power": "wake"
     }
   },
   "device_type": "ECAM452",
+  "machine_profile": "striker",
+  "model_ref": {
+    "appModelId": "STRIKER_GOOD",
+    "product_code": "0132217071",
+    "recipe_declaration": "STRIKER_BEST",
+    "type": "ECAM452.57.G"
+  },
   "monitor_profile": {
     "enums": {
       "accessory": {
@@ -155,12 +247,62 @@
       }
     }
   },
+  "n_profiles": 4,
   "property_map": {
     "app_id": "app_id",
     "data_request": "app_data_request",
+    "data_response": "app_data_response",
     "device_connected": "app_device_connected",
     "monitor": "d302_monitor_machine"
   },
+  "settings_datapoints": [
+    "d280_mchn_sett_pin",
+    "d281_mchn_sett_temp",
+    "d282_mchn_sett_aoff",
+    "d283_mchn_sett_water",
+    "d284_mchn_sett_user_conf",
+    "d285_mchn_sett_radio_conf"
+  ],
+  "statistics_datapoints": [
+    "d551_cnt_coffee_fondi",
+    "d552_cnt_calc_tot",
+    "d553_water_tot_qty",
+    "d554_cnt_filter_tot",
+    "d555_water_filter_qty",
+    "d556_water_hardness",
+    "d701_tot_bev_b",
+    "d702_tot_bev_other",
+    "d703_tot_bev_w",
+    "d704_tot_bev_espressi",
+    "d705_tot_id1_espr",
+    "d706_tot_id2_coffee",
+    "d707_tot_id3_long",
+    "d708_tot_id5_doppio_p",
+    "d709_id6_americano",
+    "d710_tot_id7_capp",
+    "d711_id8_lattmacc",
+    "d712_id9_cafflatt",
+    "d713_id10_flatwhite",
+    "d714_id11_esprmacc",
+    "d715_id12_hotmilk",
+    "d716_id13_cappdoppio_p",
+    "d717_id15_caprev",
+    "d718_id16_hotwater",
+    "d719_id22_tea",
+    "d720_tot_id23_coffee_pot",
+    "d727_id24_cortado",
+    "d728_id25_long_black",
+    "d729_id26_travel_mug",
+    "d730_tot_id27_brew_over_ice",
+    "d731_tot_mug_hot",
+    "d732_tot_mug_cold",
+    "d735_iced_bev",
+    "d736_mug_bev",
+    "d737_mug_iced_bev",
+    "d738_cold_brew_bev",
+    "d825_descale_status"
+  ],
+  "statistics_source": "cloud_counters",
   "support": {
     "cloud": true,
     "local": false

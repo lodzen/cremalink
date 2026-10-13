@@ -1,0 +1,11 @@
+{
+  "seq_no": 277,
+  "data": {
+    "name": "d735_b_water_qty",
+    "base_type": "integer",
+    "value": 0
+  },
+  "_decoded": {
+    "counter_value": 0
+  }
+}

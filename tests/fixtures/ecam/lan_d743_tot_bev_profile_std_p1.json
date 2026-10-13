@@ -1,0 +1,11 @@
+{
+  "seq_no": 287,
+  "data": {
+    "name": "d743_tot_bev_profile_std_p1",
+    "base_type": "integer",
+    "value": 0
+  },
+  "_decoded": {
+    "counter_value": 0
+  }
+}

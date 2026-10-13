@@ -1,0 +1,11 @@
+{
+  "seq_no": 236,
+  "data": {
+    "name": "d702_tot_bev_other",
+    "base_type": "integer",
+    "value": 0
+  },
+  "_decoded": {
+    "counter_value": 0
+  }
+}

@@ -9,6 +9,7 @@ import time
 import requests
 
 from cremalink.domain import create_cloud_device
+from cremalink.local_server_app.logging import log_event
 from cremalink.resources import load_api_config
 
 _LOGGER = logging.getLogger(__name__)
@@ -55,13 +56,24 @@ def _retry(func):
                         raise
                 last_err = err
                 if attempt < RETRY_COUNT:
-                    _LOGGER.debug(
-                        "Attempt %d/%d failed for %s: %s — retrying in %ds",
-                        attempt,
-                        RETRY_COUNT,
-                        func.__name__,
-                        err,
-                        RETRY_DELAY,
+                    owner = args[0]
+                    log_event(
+                        getattr(owner, "logger", _LOGGER),
+                        "cloud_retry",
+                        {
+                            "attempt": attempt,
+                            "attempt_limit": RETRY_COUNT,
+                            "function": func.__name__,
+                            "error": str(err),
+                            "retry_delay_seconds": RETRY_DELAY,
+                        },
+                        diagnostic_sensitive_values=(
+                            getattr(owner, "access_token", None),
+                        ),
+                        operational_sensitive_values=(
+                            getattr(owner, "access_token", None),
+                        ),
+                        level=logging.DEBUG,
                     )
                     time.sleep(RETRY_DELAY)
         raise last_err
@@ -75,7 +87,8 @@ class Client:
     Manages authentication (access and refresh tokens) and device discovery.
     """
 
-    def __init__(self, token_path: str):
+    def __init__(self, token_path: str, *, logger: logging.Logger | None = None):
+        self.logger = logger or _LOGGER
         # Ensure the token_path points to a JSON file.
         if not token_path.endswith(".json"):
             raise ValueError("token_path must point to a .json file")
@@ -127,7 +140,10 @@ class Client:
         for device_dsn in self.get_devices():
             if device_dsn == dsn:
                 return create_cloud_device(
-                    device_dsn, self.access_token, device_map_path
+                    device_dsn,
+                    self.access_token,
+                    device_map_path,
+                    event_logger=self.logger,
                 )
         return None
 

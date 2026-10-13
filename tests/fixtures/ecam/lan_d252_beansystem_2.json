@@ -1,0 +1,15 @@
+{
+  "seq_no": 188,
+  "data": {
+    "name": "d252_beansystem_2",
+    "base_type": "string",
+    "value": "0DS68AIAQgBvAGgAbgBlAG4AIAAyAAAAAABCAG8AaABuAGUAbgAgADMAAAAAAAAAAAAAhC8="
+  },
+  "_decoded": {
+    "blob_family": "bean_names",
+    "crc_valid": true,
+    "truncated": false,
+    "hex": "d0 34 ba f0 02 00 42 00 6f 00 68 00 6e 00 65 00 6e 00 20 00 32 00 00 00 00 00 42 00 6f 00 68 00 6e 00 65 00 6e 00 20 00 33 00 00 00 00 00 00 00 00 00 00 84 2f",
+    "text_redacted": true
+  }
+}

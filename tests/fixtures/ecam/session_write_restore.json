@@ -1,0 +1,48 @@
+{
+  "session_ts": 1791207609,
+  "write_frame": "0d 0b 90 0f 00 3e 00 00 00 02 a1 a1",
+  "read_frame": "0d 07 95 f0 00 3e 56 bc",
+  "d282_after": {
+    "name": "d282_mchn_sett_aoff",
+    "base_type": "string",
+    "value": "0F+V8AA+AAAAAgAAAB0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA6wAAALEAAAAAAAAAAIAAAAAAAAAAMl+"
+  },
+  "datapoints": [
+    {
+      "seq_no": 20,
+      "data": {
+        "name": "d302_monitor",
+        "value": "0BJ1DwAAAAAABwAAAAAAAADWo2rDqLo="
+      }
+    },
+    {
+      "seq_no": 21,
+      "data": {
+        "name": "data_response",
+        "value": "0AiQDwA+AICgasOovw=="
+      }
+    },
+    {
+      "seq_no": 22,
+      "data": {
+        "name": "d282_mchn_sett_aoff",
+        "value": "0AuVDwA+AAAAAmOc"
+      }
+    },
+    {
+      "seq_no": 23,
+      "data": {
+        "name": "d282_mchn_sett_aoff",
+        "value": "0F+V8AA+AAAAAgAAAB0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA6wAAALEAAAAAAAAAAIAAAAAAAAAAMl+"
+      }
+    },
+    {
+      "seq_no": 24,
+      "data": {
+        "name": "d282_mchn_sett_aoff",
+        "base_type": "string",
+        "value": "0F+V8AA+AAAAAgAAAB0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA6wAAALEAAAAAAAAAAIAAAAAAAAAAMl+"
+      }
+    }
+  ]
+}

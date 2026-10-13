@@ -1,0 +1,22 @@
+{
+  "seq_no": 181,
+  "data": {
+    "name": "d160_1_bs_recipe_01",
+    "base_type": "string",
+    "value": "0BCm8AHIAQAwGwICAxkBPu0="
+  },
+  "_decoded": {
+    "blob_family": "profile_recipe",
+    "crc_valid": true,
+    "truncated": false,
+    "hex": "d0 10 a6 f0 01 c8 01 00 30 1b 02 02 03 19 01 3e ed",
+    "recipe_params": {
+      "coffee_ml": 48,
+      "temperature": 2,
+      "intensity": 3,
+      "tag_0x19": 1
+    },
+    "profile": 1,
+    "beverage_id": "0xc8"
+  }
+}

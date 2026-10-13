@@ -1,0 +1,39 @@
+{
+  "seq_no": 201,
+  "data": {
+    "name": "d265_5_rec_priority",
+    "base_type": "string",
+    "value": "0Byo8AXIAQcCCAQJFwoZGxoNDwYFGBADDBYLT28="
+  },
+  "_decoded": {
+    "blob_family": "priority_list",
+    "crc_valid": true,
+    "truncated": false,
+    "hex": "d0 1c a8 f0 05 c8 01 07 02 08 04 09 17 0a 19 1b 1a 0d 0f 06 05 18 10 03 0c 16 0b 4f 6f",
+    "profile": 5,
+    "ordered_ids": [
+      "0xc8",
+      "0x01",
+      "0x07",
+      "0x02",
+      "0x08",
+      "0x04",
+      "0x09",
+      "0x17",
+      "0x0a",
+      "0x19",
+      "0x1b",
+      "0x1a",
+      "0x0d",
+      "0x0f",
+      "0x06",
+      "0x05",
+      "0x18",
+      "0x10",
+      "0x03",
+      "0x0c",
+      "0x16",
+      "0x0b"
+    ]
+  }
+}

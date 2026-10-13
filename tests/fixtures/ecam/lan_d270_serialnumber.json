@@ -1,0 +1,15 @@
+{
+  "seq_no": 202,
+  "data": {
+    "name": "d270_serialnumber",
+    "base_type": "string",
+    "value": "0BuhDwDNMjE3MDU1WloyNTA3MDEzMDEzNAD9pg=="
+  },
+  "_decoded": {
+    "blob_family": "a1 0f",
+    "crc_valid": true,
+    "truncated": false,
+    "hex": "d0 1b a1 0f 00 cd 32 31 37 30 35 35 5a 5a 32 35 30 37 30 31 33 30 31 33 34 00 fd a6",
+    "ascii_hint": "..217055ZZ25070130134."
+  }
+}

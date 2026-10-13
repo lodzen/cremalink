@@ -1,0 +1,21 @@
+{
+  "seq_no": 167,
+  "data": {
+    "name": "d053_1_rec_hot_water",
+    "base_type": "string",
+    "value": "0A6m8AEQGQEPAPobAU9C"
+  },
+  "_decoded": {
+    "blob_family": "profile_recipe",
+    "crc_valid": true,
+    "truncated": false,
+    "hex": "d0 0e a6 f0 01 10 19 01 0f 00 fa 1b 01 4f 42",
+    "recipe_params": {
+      "tag_0x19": 1,
+      "water_ml": 250,
+      "temperature": 1
+    },
+    "profile": 1,
+    "beverage_id": "0x10"
+  }
+}

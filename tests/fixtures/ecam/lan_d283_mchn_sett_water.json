@@ -1,0 +1,14 @@
+{
+  "seq_no": 207,
+  "data": {
+    "name": "d283_mchn_sett_water",
+    "base_type": "string",
+    "value": "0AuVDwAyAAAAAdjU"
+  },
+  "_decoded": {
+    "blob_family": "95 0f",
+    "crc_valid": true,
+    "truncated": false,
+    "hex": "d0 0b 95 0f 00 32 00 00 00 01 d8 d4"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "seq_no": 171,
+  "data": {
+    "name": "d056_1_rec_cortado",
+    "base_type": "string",
+    "value": "0Bmm8AEYDAEcAhkBAQAoGwECAwkAKAQA4VA="
+  },
+  "_decoded": {
+    "blob_family": "profile_recipe",
+    "crc_valid": true,
+    "truncated": false,
+    "hex": "d0 19 a6 f0 01 18 0c 01 1c 02 19 01 01 00 28 1b 01 02 03 09 00 28 04 00 e1 50",
+    "recipe_params": {
+      "tag_0x0c": 1,
+      "tag_0x1c": 2,
+      "tag_0x19": 1,
+      "coffee_ml": 40,
+      "temperature": 1,
+      "intensity": 3,
+      "milk": 40,
+      "tag_0x04": 0
+    },
+    "profile": 1,
+    "beverage_id": "0x18"
+  }
+}

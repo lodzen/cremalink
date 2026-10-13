@@ -1,0 +1,25 @@
+{
+  "seq_no": 182,
+  "data": {
+    "name": "d200_1_cstm_recipe_01",
+    "base_type": "string",
+    "value": "0Bem8AHmAQAAAv8JAAAEAAwAHAAZABK3"
+  },
+  "_decoded": {
+    "blob_family": "profile_recipe",
+    "crc_valid": true,
+    "truncated": false,
+    "hex": "d0 17 a6 f0 01 e6 01 00 00 02 ff 09 00 00 04 00 0c 00 1c 00 19 00 12 b7",
+    "recipe_params": {
+      "coffee_ml": 0,
+      "intensity": 255,
+      "milk": 0,
+      "tag_0x04": 0,
+      "tag_0x0c": 0,
+      "tag_0x1c": 0,
+      "tag_0x19": 0
+    },
+    "profile": 1,
+    "beverage_id": "0xe6"
+  }
+}

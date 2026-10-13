@@ -1,0 +1,51 @@
+{
+  "seq_no": 115,
+  "data": {
+    "name": "d006_rec_americano",
+    "base_type": "string",
+    "value": "0Ciw8AYYAAEBGQABAQEAFAAoALQPADIAbgEsGwABBAIAAwUEAAAAtpc="
+  },
+  "_decoded": {
+    "blob_family": "factory_descriptor",
+    "crc_valid": true,
+    "truncated": false,
+    "hex": "d0 28 b0 f0 06 18 00 01 01 19 00 01 01 01 00 14 00 28 00 b4 0f 00 32 00 6e 01 2c 1b 00 01 04 02 00 03 05 04 00 00 00 b6 97",
+    "descriptor_ranges": {
+      "tag_0x18": [
+        0,
+        1,
+        1
+      ],
+      "tag_0x19": [
+        0,
+        1,
+        1
+      ],
+      "coffee_ml": [
+        20,
+        40,
+        180
+      ],
+      "water_ml": [
+        50,
+        110,
+        300
+      ],
+      "temperature": [
+        0,
+        1,
+        4
+      ],
+      "intensity": [
+        0,
+        3,
+        5
+      ],
+      "tag_0x04": [
+        0,
+        0,
+        0
+      ]
+    }
+  }
+}

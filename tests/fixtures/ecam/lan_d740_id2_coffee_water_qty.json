@@ -1,0 +1,11 @@
+{
+  "seq_no": 283,
+  "data": {
+    "name": "d740_id2_coffee_water_qty",
+    "base_type": "integer",
+    "value": 0
+  },
+  "_decoded": {
+    "counter_value": 0
+  }
+}

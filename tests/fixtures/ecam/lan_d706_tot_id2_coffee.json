@@ -1,0 +1,11 @@
+{
+  "seq_no": 241,
+  "data": {
+    "name": "d706_tot_id2_coffee",
+    "base_type": "integer",
+    "value": 0
+  },
+  "_decoded": {
+    "counter_value": 0
+  }
+}

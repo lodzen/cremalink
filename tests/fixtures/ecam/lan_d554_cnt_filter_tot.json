@@ -1,0 +1,11 @@
+{
+  "seq_no": 224,
+  "data": {
+    "name": "d554_cnt_filter_tot",
+    "base_type": "integer",
+    "value": 0
+  },
+  "_decoded": {
+    "counter_value": 0
+  }
+}

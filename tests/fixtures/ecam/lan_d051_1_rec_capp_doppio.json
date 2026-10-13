@@ -1,0 +1,24 @@
+{
+  "seq_no": 164,
+  "data": {
+    "name": "d051_1_rec_capp_doppio",
+    "base_type": "string",
+    "value": "0BWm8AENHAIZAQEAZBsBCQCWBABQVg=="
+  },
+  "_decoded": {
+    "blob_family": "profile_recipe",
+    "crc_valid": true,
+    "truncated": false,
+    "hex": "d0 15 a6 f0 01 0d 1c 02 19 01 01 00 64 1b 01 09 00 96 04 00 50 56",
+    "recipe_params": {
+      "tag_0x1c": 2,
+      "tag_0x19": 1,
+      "coffee_ml": 100,
+      "temperature": 1,
+      "milk": 150,
+      "tag_0x04": 0
+    },
+    "profile": 1,
+    "beverage_id": "0x0d"
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "write_frame": "0d 0b 90 f0 00 3e 00 00 00 02 04 d0",
+  "read_frame": "0d 07 95 f0 00 3e 56 bc",
+  "d282_after": {
+    "name": "d282_mchn_sett_aoff",
+    "base_type": "string",
+    "value": "0F+V8AA+AAAAAgAAAB0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA6wAAALEAAAAAAAAAAIAAAAAAAAAAMl+"
+  },
+  "datapoints": [
+    {
+      "seq_no": 0,
+      "data": {
+        "name": "data_response",
+        "value": "0AiQ8AA+AMsDasOXRw=="
+      }
+    },
+    {
+      "seq_no": 1,
+      "data": {
+        "name": "data_response",
+        "base_type": "string",
+        "value": "0AiQ8AA+AMsDasOXRw=="
+      }
+    },
+    {
+      "seq_no": 2,
+      "data": {
+        "name": "d282_mchn_sett_aoff",
+        "value": "0F+V8AA+AAAAAgAAAB0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA6wAAALEAAAAAAAAAAIAAAAAAAAAAMl+"
+      }
+    },
+    {
+      "seq_no": 3,
+      "data": {
+        "name": "d282_mchn_sett_aoff",
+        "base_type": "string",
+        "value": "0F+V8AA+AAAAAgAAAB0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA6wAAALEAAAAAAAAAAIAAAAAAAAAAMl+"
+      }
+    }
+  ]
+}

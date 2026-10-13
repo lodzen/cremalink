@@ -1,0 +1,25 @@
+{
+  "seq_no": 172,
+  "data": {
+    "name": "d057_1_rec_long_black",
+    "base_type": "string",
+    "value": "0Bem8AEZDAEZAQEBaA8AeBsEAgEEAP5Q"
+  },
+  "_decoded": {
+    "blob_family": "profile_recipe",
+    "crc_valid": true,
+    "truncated": false,
+    "hex": "d0 17 a6 f0 01 19 0c 01 19 01 01 01 68 0f 00 78 1b 04 02 01 04 00 fe 50",
+    "recipe_params": {
+      "tag_0x0c": 1,
+      "tag_0x19": 1,
+      "coffee_ml": 360,
+      "water_ml": 120,
+      "temperature": 4,
+      "intensity": 1,
+      "tag_0x04": 0
+    },
+    "profile": 1,
+    "beverage_id": "0x19"
+  }
+}

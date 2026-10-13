@@ -1,0 +1,172 @@
+{
+  "steps": [
+    {
+      "step": "device_connected",
+      "value": 1791207467
+    },
+    {
+      "step": "control_d302",
+      "republished": true
+    },
+    {
+      "step": "wake",
+      "frame": "0d 07 84 0f 02 01 55 12"
+    },
+    {
+      "step": "write_90",
+      "frame": "0d 0b 90 0f 00 3e 00 00 00 03 b1 80"
+    },
+    {
+      "step": "data_response",
+      "frame": ""
+    },
+    {
+      "step": "readback_d282",
+      "payload": "d0 5f 95 f0 00 3e 00 00 00 03 00 00 00 1d 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 03 ac 00 00 02 c4 00 00 00 00 00 00 00 02 00 00 00 00 00 00 00 00 c4 71"
+    }
+  ],
+  "datapoints": [
+    {
+      "seq_no": 0,
+      "data": {
+        "name": "d302_monitor",
+        "value": "0BJ1DwRAAgEAAAJkAAAAAAA/+mrDqC0="
+      }
+    },
+    {
+      "seq_no": 1,
+      "data": {
+        "name": "d302_monitor",
+        "value": "0BJ1DwBEAAEAAQEAAAAAAABR2GrDqDU="
+      }
+    },
+    {
+      "seq_no": 2,
+      "data": {
+        "name": "d302_monitor",
+        "value": "0BJ1DwAEAAAAAQIAAAAAAAA7X2rDqDc="
+      }
+    },
+    {
+      "seq_no": 3,
+      "data": {
+        "name": "d302_monitor",
+        "value": "0BJ1DwAGAAAAAQIAAAAAAAA9tWrDqDs="
+      }
+    },
+    {
+      "seq_no": 4,
+      "data": {
+        "name": "d302_monitor",
+        "value": "0BJ1DwAGAAAAAQUFAAAAAABn8GrDqEA="
+      }
+    },
+    {
+      "seq_no": 5,
+      "data": {
+        "name": "d302_monitor",
+        "value": "0BJ1DwAGAAAAAQUKAAAAAACi82rDqEE="
+      }
+    },
+    {
+      "seq_no": 6,
+      "data": {
+        "name": "d302_monitor",
+        "value": "0BJ1DwAGAAAAAQUPAAAAAADh8mrDqEI="
+      }
+    },
+    {
+      "seq_no": 7,
+      "data": {
+        "name": "d302_monitor",
+        "value": "0BJ1DwAGAAAAAQUUAAAAAAA41GrDqEM="
+      }
+    },
+    {
+      "seq_no": 8,
+      "data": {
+        "name": "d302_monitor",
+        "value": "0BJ1DwAGAAAAAQUZAAAAAAB2l2rDqEQ="
+      }
+    },
+    {
+      "seq_no": 9,
+      "data": {
+        "name": "d282_mchn_sett_aoff",
+        "value": "0AuVDwA+AAAAA3O9"
+      }
+    },
+    {
+      "seq_no": 10,
+      "data": {
+        "name": "d302_monitor",
+        "value": "0BJ1DwAGAAAAAQUeAAAAAAC+1mrDqEY="
+      }
+    },
+    {
+      "seq_no": 11,
+      "data": {
+        "name": "data_response",
+        "base_type": "string",
+        "value": ""
+      }
+    },
+    {
+      "seq_no": 12,
+      "data": {
+        "name": "d302_monitor",
+        "value": "0BJ1DwAGAAAAAQUlAAAAAABS+GrDqEc="
+      }
+    },
+    {
+      "seq_no": 13,
+      "data": {
+        "name": "d302_monitor",
+        "value": "0BJ1DwAGAAAAAQUqAAAAAACX+2rDqEg="
+      }
+    },
+    {
+      "seq_no": 14,
+      "data": {
+        "name": "d302_monitor",
+        "value": "0BJ1DwAGAAAAAQUwAAAAAAALfWrDqEk="
+      }
+    },
+    {
+      "seq_no": 15,
+      "data": {
+        "name": "d282_mchn_sett_aoff",
+        "value": "0F+V8AA+AAAAAwAAAB0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA6wAAALEAAAAAAAAAAIAAAAAAAAAAMRx"
+      }
+    },
+    {
+      "seq_no": 16,
+      "data": {
+        "name": "d302_monitor",
+        "value": "0BJ1DwAGAAAAAQU1AAAAAABIfGrDqEo="
+      }
+    },
+    {
+      "seq_no": 17,
+      "data": {
+        "name": "d302_monitor",
+        "value": "0BJ1DwAGAAAAAQU8AAAAAAAAnmrDqEs="
+      }
+    },
+    {
+      "seq_no": 18,
+      "data": {
+        "name": "d302_monitor",
+        "value": "0BJ1DwAGAAAAAQVBAAAAAAALQWrDqEw="
+      }
+    },
+    {
+      "seq_no": 19,
+      "data": {
+        "name": "d282_mchn_sett_aoff",
+        "base_type": "string",
+        "value": "0F+V8AA+AAAAAwAAAB0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA6wAAALEAAAAAAAAAAIAAAAAAAAAAMRx"
+      }
+    }
+  ]
+}

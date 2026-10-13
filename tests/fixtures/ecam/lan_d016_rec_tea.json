@@ -1,0 +1,41 @@
+{
+  "seq_no": 128,
+  "data": {
+    "name": "d016_rec_tea",
+    "base_type": "string",
+    "value": "0B2w8BYYAAEBGQACAg8AFACWAaQbAAEEDQABA64W"
+  },
+  "_decoded": {
+    "blob_family": "factory_descriptor",
+    "crc_valid": true,
+    "truncated": false,
+    "hex": "d0 1d b0 f0 16 18 00 01 01 19 00 02 02 0f 00 14 00 96 01 a4 1b 00 01 04 0d 00 01 03 ae 16",
+    "descriptor_ranges": {
+      "tag_0x18": [
+        0,
+        1,
+        1
+      ],
+      "tag_0x19": [
+        0,
+        2,
+        2
+      ],
+      "water_ml": [
+        20,
+        150,
+        420
+      ],
+      "temperature": [
+        0,
+        1,
+        4
+      ],
+      "tag_0x0d": [
+        0,
+        1,
+        3
+      ]
+    }
+  }
+}

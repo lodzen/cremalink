@@ -1,0 +1,41 @@
+{
+  "seq_no": 134,
+  "data": {
+    "name": "d021_rec_brew_over_ice",
+    "base_type": "string",
+    "value": "0B2w8BsZAAICGAABAQEAKABkAPAbAAEEAgEABaab"
+  },
+  "_decoded": {
+    "blob_family": "factory_descriptor",
+    "crc_valid": true,
+    "truncated": false,
+    "hex": "d0 1d b0 f0 1b 19 00 02 02 18 00 01 01 01 00 28 00 64 00 f0 1b 00 01 04 02 01 00 05 a6 9b",
+    "descriptor_ranges": {
+      "tag_0x19": [
+        0,
+        2,
+        2
+      ],
+      "tag_0x18": [
+        0,
+        1,
+        1
+      ],
+      "coffee_ml": [
+        40,
+        100,
+        240
+      ],
+      "temperature": [
+        0,
+        1,
+        4
+      ],
+      "intensity": [
+        1,
+        0,
+        5
+      ]
+    }
+  }
+}
