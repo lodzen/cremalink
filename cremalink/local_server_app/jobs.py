@@ -38,25 +38,39 @@ async def nudger_job(
     settings: ServerSettings,
     stop_event: asyncio.Event,
 ):
-    """
-    Periodically "nudges" the device by sending a registration request.
+    """Notifies a live session about pending commands (``PUT local_reg``).
 
-    This is a key part of the protocol. The device often needs to be prompted
-    to send data. This job ensures that registration is maintained, especially
-    if there are pending commands in the queue.
+    ``notify: 1`` makes the machine poll ``commands.json`` promptly, which is
+    what drains the outgoing queue. While the session is down, registration
+    retries are throttled to the register-timeout cadence — ``POST`` is what
+    actually opens a session (key exchange), ``PUT`` alone cannot re-key a
+    live or half-dead one (lodzen/cremalink#4).
     """
     interval = settings.nudger_poll_interval
     while not stop_event.is_set():
         try:
-            # Nudge if there are commands waiting or if we aren't registered.
+            # Nudge (PUT, notify) when the live session has commands waiting.
+            # A dead session is re-registered (POST, new key exchange) by the
+            # session job — here it is only retried at register-timeout
+            # cadence so a dead machine isn't spammed every tick.
             async with st.lock:
-                should_nudge = len(st.command_queue) > 0 or not st.registered
+                pending = len(st.command_queue) > 0
+                live = st.session_live()
+                retry_due = (
+                    st.last_register_attempt_at is None
+                    or time.monotonic() - st.last_register_attempt_at
+                    >= settings.session_register_timeout_seconds
+                )
+                should_nudge = (live and pending) or (
+                    not st.registered and retry_due
+                )
             if should_nudge:
                 await adapter.register_with_device(st)
         except Exception as exc:
             st.log("local_reg_nudge_failed", {"error": str(exc)})
-            # If nudging fails, it might be a key issue, so trigger a rekey.
-            await st.rekey()
+            # The session is unreachable — drop registration so the next
+            # register goes out as a session-creating POST.
+            await st.set_registered(False)
 
         try:
             # Wait for the specified interval or until the stop event is set.
@@ -96,30 +110,59 @@ async def monitor_job(
             continue
 
 
-async def rekey_job(
+async def session_job(
     state: LocalServerState,
     adapter: DeviceAdapter,
     settings: ServerSettings,
     stop_event: asyncio.Event,
 ):
-    """
-    Periodically triggers a full cryptographic re-keying process.
+    """Maintains the LAN session (lodzen/cremalink#4).
 
-    This enhances security by ensuring session keys are not long-lived.
+    - Live session → keep-alive ``PUT local_reg`` (``notify: 1``), then
+      verify the machine still polls ``commands.json``; a silent machine
+      marks the session dead and the next tick re-registers.
+    - Dead session → ``POST local_reg`` starts a new session and always
+      triggers a key exchange; keys are only replaced inside
+      :meth:`LocalServerState.init_crypto`, never wiped beforehand —
+      a preemptive wipe plus a no-rekey ``PUT`` is what produced the
+      hollow sessions this job replaces.
     """
-    interval = settings.rekey_interval_seconds
+    interval = settings.session_keepalive_interval_seconds
     while not stop_event.is_set():
         try:
-            # Wait for the rekey interval.
-            await asyncio.wait_for(stop_event.wait(), timeout=interval)
-            break
-        except asyncio.TimeoutError:
-            # Interval elapsed, proceed with re-keying.
-            pass
-        try:
-            state.log("rekey_triggered", {"interval": interval})
-            # Reset keys and re-register with the device.
-            await state.rekey()
-            await adapter.register_with_device(state)
+            if not state.is_configured():
+                pass
+            elif not state.session_live():
+                await state.rekey()
+                try:
+                    await adapter.register_with_device(state, method="POST")
+                except (ConnectionError, TimeoutError, ValueError) as exc:
+                    state.log("session_register_failed", {"error": str(exc)})
+                else:
+                    exchanged = await state.wait_for_key_exchange(
+                        settings.session_register_timeout_seconds
+                    )
+                    state.log(
+                        "session_registered",
+                        {"method": "POST", "key_exchanged": exchanged},
+                    )
+            else:
+                try:
+                    since = state.last_commands_poll_at
+                    await adapter.register_with_device(state, method="PUT")
+                except (ConnectionError, TimeoutError, ValueError) as exc:
+                    state.log("session_keepalive_failed", {"error": str(exc)})
+                    await state.set_registered(False)
+                else:
+                    if not await state.wait_for_commands_poll(
+                        settings.session_probe_timeout_seconds, since=since
+                    ):
+                        state.log("session_keepalive_no_poll")
+                        await state.set_registered(False)
         except Exception as exc:
-            state.log("rekey_failed", {"error": str(exc)})
+            state.log("session_job_failed", {"error": str(exc)})
+
+        try:
+            await asyncio.wait_for(stop_event.wait(), timeout=interval)
+        except asyncio.TimeoutError:
+            continue

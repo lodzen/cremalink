@@ -19,7 +19,10 @@ requires-python = ">=3.13"
 dependencies = [
     "requests>=2.32.5",
     "pycryptodome==3.23.0",
-    "aiohttp>=3.13.0",
+    # Floor = oldest API used (web.AppKey, 3.9). No upper pin and no
+    # exact pin: Home Assistant pins aiohttp itself, so a higher floor
+    # would force pip to upgrade aiohttp out from under HA.
+    "aiohttp>=3.9.0",
     "pydantic>=2.12.0",
     "pydantic-settings>=2.13.0",
 ]

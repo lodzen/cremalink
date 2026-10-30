@@ -34,7 +34,7 @@ async def app_client():
         enable_device_register=False,
         enable_nudger_job=False,
         enable_monitor_job=False,
-        enable_rekey_job=False,
+        enable_session_job=False,
         fixed_random_2="a5rLvXXkl7CAH6db",
         fixed_time_2="446005717073803",
     )
@@ -127,7 +127,7 @@ async def test_server_events_are_redacted_and_forwarded(caplog):
         enable_device_register=False,
         enable_nudger_job=False,
         enable_monitor_job=False,
-        enable_rekey_job=False,
+        enable_session_job=False,
     )
     ha_logger = logging.getLogger("test_cremalink_forwarded")
     caplog.set_level(logging.INFO, logger=ha_logger.name)
@@ -252,7 +252,7 @@ def test_standalone_startup_logs_without_prints(capsys):
         advertised_ip="192.0.2.30",
         enable_nudger_job=False,
         enable_monitor_job=False,
-        enable_rekey_job=False,
+        enable_session_job=False,
     )
     logger = create_logger(
         f"test_standalone_{uuid.uuid4().hex}",
@@ -300,7 +300,9 @@ async def test_rekey_while_the_body_is_in_flight_answers_503(app_client):
         )
     )
     await asyncio.sleep(0.1)
-    state.dev_crypto_key = None  # what rekey() does while the body is pending
+    # keys can momentarily be absent while a new session's key exchange is
+    # still pending (e.g. right after configure())
+    state.dev_crypto_key = None
     state.dev_iv_seed = None
     gate.set()
     resp = await request

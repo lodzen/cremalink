@@ -51,6 +51,95 @@ SETTING_OPTION_MAPS: dict[str, WritableSetting] = {
 }
 
 
+@dataclass(frozen=True)
+class BitSetting:
+    """A boolean flag inside a shared parameter word (``0x90`` write).
+
+    ``inverted=True`` means the set bit carries the OFF semantics (the
+    APK's ``Parameter.f()`` autostart: bit set = autostart disabled).
+    """
+
+    key: str
+    param_id: int
+    mask: int
+    capability: str  # device-map `capabilities` flag gating the HA entity
+    datapoint_hint: str = ""  # substring of the republished backing property
+    inverted: bool = False
+
+
+#: Param ``0x003F`` (``d284_mchn_sett_user_conf``) bits — decoded from the
+#: APK's ``it/delonghi/ecam/model/Parameter.java`` (protocol.md §14.8):
+#: ``f()`` autostart ``0x01`` (inverted), ``g()`` beep ``0x04``,
+#: ``h()`` cup light ``0x08``, ``j()`` energy saving ``0x10``,
+#: ``i()`` cup warmer ``0x20``. Live value ``0x1D`` = beep+energy ON.
+SETTING_BIT_MAPS: dict[str, BitSetting] = {
+    "beep": BitSetting(
+        key="beep",
+        param_id=0x003F,
+        mask=0x04,
+        capability="buzzer_settings",
+        datapoint_hint="user_conf",
+    ),
+    "energy_saving": BitSetting(
+        key="energy_saving",
+        param_id=0x003F,
+        mask=0x10,
+        capability="energy_saving_settings",
+        datapoint_hint="user_conf",
+    ),
+    "cup_light": BitSetting(
+        key="cup_light",
+        param_id=0x003F,
+        mask=0x08,
+        capability="cup_light_settings",
+        datapoint_hint="user_conf",
+    ),
+    "cup_warmer": BitSetting(
+        key="cup_warmer",
+        param_id=0x003F,
+        mask=0x20,
+        capability="cup_warmer_settings",
+        datapoint_hint="user_conf",
+    ),
+    "autostart": BitSetting(
+        key="autostart",
+        param_id=0x003F,
+        mask=0x01,
+        capability="auto_start_settings",
+        datapoint_hint="user_conf",
+        inverted=True,
+    ),
+}
+
+
+def settings_bits(param_id: int, param_raw: int) -> dict[str, bool]:
+    """Decode a param word into ``{key: on/off}`` for its bit settings.
+
+    Only settings backed by ``param_id`` are decoded — inversion-aware
+    (autostart's set bit means OFF).
+    """
+    out: dict[str, bool] = {}
+    for key, setting in SETTING_BIT_MAPS.items():
+        if setting.param_id != param_id:
+            continue
+        on = bool(param_raw & setting.mask)
+        out[key] = not on if setting.inverted else on
+    return out
+
+
+def merge_setting_bit(param_raw: int, setting: BitSetting, on: bool) -> int:
+    """Return ``param_raw`` with ``setting``'s flag set to ``on``.
+
+    ``on`` is the logical state (autostart ``on=True`` clears its inverted
+    bit); every unrelated bit is preserved — the merged u32 is what goes
+    on the wire in the ``0x90`` write.
+    """
+    target = on != setting.inverted
+    if target:
+        return (param_raw | setting.mask) & 0xFFFFFFFF
+    return (param_raw & ~setting.mask) & 0xFFFFFFFF
+
+
 def parse_settings(blob: bytes | bytearray) -> dict[int, int]:
     """Parse a ``0x95`` answer/stored blob into ``{param_id: raw_u32}``.
 

@@ -247,16 +247,22 @@ def build_read(
 
 
 def build_read_param(param_id: int, profile: MachineProfile) -> bytes:
-    """``0D 07 95 F0 <param:2B>`` — single parameter read (captured)."""
-    if not 0 <= param_id <= 0xFFFF:
-        raise ValueError(f"param_id out of range: {param_id!r}")
-    return build_read(REQ_READ_PARAM, param_id.to_bytes(2, "big"), profile)
+    """``0D 08 95 <flag> <param:2B> <qty=1>`` — single parameter read.
+
+    The app's ``buildParamRead`` (protocol.md §8) always carries the qty
+    byte; the legacy qty-less len-7 form is only *tolerated* by the
+    machine (answered sporadically — see §14.8's 2026-10-14 captures
+    where len-7 reads were dropped while ``0D 08`` app reads answered).
+    Delegates to :func:`build_read_block` with ``count=1``, which emits
+    the identical wire frame.
+    """
+    return build_read_block(param_id, 1, profile)
 
 
 def build_read_params(
     first_param: int, last_param: int, profile: MachineProfile
 ) -> bytes:
-    """``0D 09 95 F0 <first:2B> <last:2B>`` — param range read (captured)."""
+    """``0D 09 95 <flag> <first:2B> <last:2B>`` — param range read (captured)."""
     for p in (first_param, last_param):
         if not 0 <= p <= 0xFFFF:
             raise ValueError(f"param id out of range: {p!r}")
@@ -264,6 +270,7 @@ def build_read_params(
         REQ_READ_PARAM,
         first_param.to_bytes(2, "big") + last_param.to_bytes(2, "big"),
         profile,
+        flag=0xF0 if first_param >= 1000 else 0x0F,
     )
 
 
@@ -356,6 +363,21 @@ def build_striker_handshake(profile: MachineProfile) -> bytes:
     return _frame(REQ_STRIKER_HANDSHAKE, 0xF0, b"\x00")
 
 
+def build_handshake_blob() -> bytes:
+    """``45 DA 37 88 34 EB AF FF FF FA`` + CRC — non-striker session
+    handshake blob (APK ``s0()``/``buildHandshakeBlob``).
+
+    No ``0x0D`` header — the CRC covers the 10 payload bytes exactly
+    like the app's ``crc16`` (which iterates ``len-2``). The app's
+    connect sequence is ``device_connected`` → this blob → traffic;
+    without it the machine served property republishes and ``0xA2``
+    but ignored session commands (``0x95`` silent, ``0x90`` acked-not-
+    committed, ``0xA9`` unacked — observed 2026-10-14/25, §14.8).
+    """
+    blob = b"\x45\xda\x37\x88\x34\xeb\xaf\xff\xff\xfa"
+    return blob + crc16_ccitt(blob)
+
+
 def build_monitor_request(profile: MachineProfile) -> bytes:
     """``0D 05 <monitor_id> 0F`` — monitor snapshot request (APK ``V``)."""
     _require_profile(profile)
@@ -394,15 +416,18 @@ def encode_for_transport(
     *,
     timestamp: int | None = None,
     app_id: bytes | bytearray | None = None,
+    raw: bool = False,
 ) -> str:
     """Base64-encode ``frame + <ts:4B BE> [+ <app_id:4B>]`` for the wire.
 
     The timestamp is never CRC-covered; the striker app-id trailer follows
-    it (FR-004/005/007).
+    it (FR-004/005/007). ``raw=True`` skips frame validation — the
+    non-striker ``s0()`` handshake blob is a valid ``data_request``
+    payload that carries no ``0x0D`` header (§14.8).
     """
     _require_profile(profile)
     frame_b = bytes(frame)
-    if not verify_frame(frame_b):
+    if not raw and not verify_frame(frame_b):
         raise ValueError("encode_for_transport given an invalid frame")
     ts = int(time.time()) if timestamp is None else int(timestamp)
     payload = frame_b + ts.to_bytes(4, "big")

@@ -9,6 +9,7 @@ from cremalink.core.binary import crc16_ccitt
 from cremalink.ecam.answers import parse_a9_ack
 from cremalink.ecam.machine_profiles import NON_STRIKER, STRIKER
 from cremalink.ecam.profiles import parse_profile_names
+from cremalink.ecam.settings import parse_settings
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "ecam"
 
@@ -93,3 +94,18 @@ def test_parse_a9_ack_negative():
     assert parse_a9_ack(blob) == (2, False)
     with pytest.raises(ValueError):
         parse_a9_ack(b"\xd0\x07\x83\xf0\x01\x00\x00\x00")
+
+
+def test_parse_current_profile_param_page():
+    # Vendored live answer (captures/cloud_datapoint_history_20261014.json):
+    # `0D 07 95 F0 03 EE` -> d0 27 page listing params 1006..1013.
+    # Param 0x03EE is the register behind striker `d286_mach_sett_profile`
+    # (APK f2(): profile = u32 + 1). Live raw 0 = profile 1 = "Daniel"
+    # (user-confirmed 2026-10-14). protocol.md §5/§14.8.
+    blob = bytes.fromhex(
+        "d02795f003ee00000000005dde900000002000000002"
+        "00000000000000000000000000000000d91f6acf6642"
+    )
+    params = parse_settings(blob)
+    assert params[0x03EE] == 0
+    assert params[0x03EF] == 0x005DDE90  # next param in the page

@@ -14,6 +14,7 @@ import logging
 from aiohttp import web
 from pydantic import ValidationError
 
+from cremalink.crypto import rotate_iv_from_ciphertext
 from cremalink.ecam import builder as ecam_builder
 from cremalink.local_server_app import protocol
 from cremalink.local_server_app.config import ServerSettings, get_settings
@@ -22,7 +23,7 @@ from cremalink.local_server_app.jobs import (
     JobManager,
     monitor_job,
     nudger_job,
-    rekey_job,
+    session_job,
 )
 from cremalink.local_server_app.logging import create_logger, log_event
 from cremalink.local_server_app.models import (
@@ -308,6 +309,8 @@ def create_app(
 
     async def serve_command_poll() -> CommandPollResponse:
         """Shared logic for serving the next command to the device."""
+        # Every poll is the machine's liveness signal for the session job.
+        state.mark_commands_poll()
         if not state.keys_ready():
             state.log("command_poll_no_keys", {"queued": len(state.command_queue)})
             return CommandPollResponse(enc="", sign="", seq=state.seq)
@@ -345,13 +348,24 @@ def create_app(
     async def datapoint(request: web.Request) -> web.Response:
         """Endpoint for the device to push encrypted data to."""
         payload = await _parse_json_model(request, EncPayload)
-        # Read the keys only after the body arrived: a rekey can reset them
-        # while the body is still in flight, and nothing may yield between
-        # this check and the decryption.
+        # Read the keys only after the body arrived: a session reset can
+        # clear them while the body is still in flight, and nothing may
+        # yield between this check and the decryption.
         dev_key, dev_iv = state.dev_crypto_key, state.dev_iv_seed
         if not dev_key or not dev_iv:
             raise web.HTTPServiceUnavailable(text="Keys not initialized")
-        decrypted_bytes, new_iv = protocol.decrypt_payload(payload.enc, dev_key, dev_iv)
+        try:
+            decrypted_bytes, new_iv = protocol.decrypt_payload(
+                payload.enc, dev_key, dev_iv
+            )
+        except Exception:
+            # The device→server stream is chained CBC: the next IV derives
+            # from *this ciphertext*. Decryption failures (stale keys,
+            # corrupted frames) must still advance the chain or every
+            # subsequent datapoint also fails until the next key exchange.
+            state.dev_iv_seed = rotate_iv_from_ciphertext(payload.enc)
+            state.log("datapoint_decrypt_failed", {"cipher": payload.enc[:32]})
+            return web.Response(status=200)
         state.dev_iv_seed = new_iv
 
         try:
@@ -409,8 +423,10 @@ def create_app(
             jobs.start(nudger_job(state, adapter, settings, stop_event), name="nudger")
         if settings.enable_monitor_job:
             jobs.start(monitor_job(state, settings, stop_event), name="monitor")
-        if settings.enable_rekey_job:
-            jobs.start(rekey_job(state, adapter, settings, stop_event), name="rekey")
+        if settings.enable_session_job:
+            jobs.start(
+                session_job(state, adapter, settings, stop_event), name="session"
+            )
 
     async def on_cleanup(app_: web.Application) -> None:
         stop_event.set()

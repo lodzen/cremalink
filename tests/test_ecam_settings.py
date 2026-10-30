@@ -5,7 +5,13 @@ import json
 from pathlib import Path
 
 from cremalink.core.binary import crc16_ccitt
-from cremalink.ecam.settings import SETTING_OPTION_MAPS, parse_settings
+from cremalink.ecam.settings import (
+    SETTING_BIT_MAPS,
+    SETTING_OPTION_MAPS,
+    merge_setting_bit,
+    parse_settings,
+    settings_bits,
+)
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "ecam"
 
@@ -70,6 +76,54 @@ def test_option_maps():
     # stored 0-based index; displayed level = raw + 1
     assert set(hardness.options) == {0, 1, 2, 3}
     assert hardness.options[1] == "level_2"
+
+
+def test_bit_maps_match_parameter_java():
+    # it/delonghi/ecam/model/Parameter.java bits in value[3] (u32 LSB):
+    # f() autostart 0x01 inverted, g() beep 0x04, h() cup light 0x08,
+    # j() energy saving 0x10, i() cup warmer 0x20 — protocol.md §14.8.
+    beep = SETTING_BIT_MAPS["beep"]
+    assert (beep.param_id, beep.mask, beep.capability) == (
+        0x3F,
+        0x04,
+        "buzzer_settings",
+    )
+    energy = SETTING_BIT_MAPS["energy_saving"]
+    assert (energy.param_id, energy.mask, energy.capability) == (
+        0x3F,
+        0x10,
+        "energy_saving_settings",
+    )
+    assert SETTING_BIT_MAPS["autostart"].inverted is True
+
+
+def test_settings_bits_decode_live_0x1d():
+    # Live Soul d284 = 0x0000001D (user-confirmed): beep ON, energy
+    # saving ON, cup-light bit set, autostart OFF (inverted semantics).
+    bits = settings_bits(0x3F, 0x1D)
+    assert bits == {
+        "beep": True,
+        "energy_saving": True,
+        "cup_light": True,
+        "cup_warmer": False,
+        "autostart": False,
+    }
+
+
+def test_settings_bits_decode_zero():
+    bits = settings_bits(0x3F, 0)
+    assert bits["beep"] is False
+    assert bits["energy_saving"] is False
+    assert bits["autostart"] is True  # bit clear = enabled (inverted)
+
+
+def test_merge_setting_bit_preserves_others():
+    assert merge_setting_bit(0x1D, SETTING_BIT_MAPS["beep"], False) == 0x19
+    assert merge_setting_bit(0x1D, SETTING_BIT_MAPS["energy_saving"], False) == 0x0D
+    assert merge_setting_bit(0x0D, SETTING_BIT_MAPS["energy_saving"], True) == 0x1D
+    # inverted: turning autostart "on" clears its bit.
+    assert merge_setting_bit(0x1D, SETTING_BIT_MAPS["autostart"], True) == 0x1C
+    assert merge_setting_bit(0x1C, SETTING_BIT_MAPS["autostart"], False) == 0x1D
 
 
 def test_write_ack_shape():

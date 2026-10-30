@@ -5,6 +5,7 @@ device registration process.
 """
 
 import ssl
+import time
 
 import aiohttp
 
@@ -62,15 +63,22 @@ class DeviceAdapter:
             )
         return self._client
 
-    async def register_with_device(self, state: LocalServerState) -> None:
-        """
-        Sends a registration request to the coffee machine.
+    async def register_with_device(
+        self, state: LocalServerState, method: str | None = None
+    ) -> None:
+        """Sends a ``local_reg`` request to the coffee machine.
 
         This tells the device to send its data updates (like monitor status)
-        to this server's `/local_lan` endpoint.
+        to this server's ``/local_lan`` endpoint. The HTTP method is
+        load-bearing (lodzen/cremalink#4, verified against the Coffee Link
+        app's ``AylaLanModule.sendLocalRegistration``): a live session gets
+        a keep-alive ``PUT`` (never re-keys), while starting a session needs
+        ``POST``, which always triggers a key exchange. When ``method`` is
+        omitted it is chosen from :meth:`LocalServerState.session_live`.
 
         Args:
             state: The current server state, containing device IP and scheme.
+            method: ``"PUT"`` or ``"POST"``; ``None`` picks automatically.
 
         Raises:
             ValueError: If the device IP is not configured in the state.
@@ -83,7 +91,12 @@ class DeviceAdapter:
         if not state.device_ip:
             raise ValueError("Device IP not configured")
 
+        if method is None:
+            method = "PUT" if state.session_live() else "POST"
         api_url = f"{state.device_scheme}://{state.device_ip}/local_reg.json"
+        if method == "POST" and state.dsn:
+            # The app appends the DSN when opening a session.
+            api_url += f"?dsn={state.dsn}"
         # The payload tells the device this server's IP, port, and notification endpoint.
         payload = {
             "local_reg": {
@@ -94,21 +107,26 @@ class DeviceAdapter:
             }
         }
         client = await self._get_client()
+        state.last_register_attempt_at = time.monotonic()
         try:
-            resp = await client.put(
-                api_url, json=payload, ssl=self._build_ssl_context()
+            resp = await client.request(
+                method, api_url, json=payload, ssl=self._build_ssl_context()
             )
             async with resp:
                 resp.raise_for_status()
         except aiohttp.ClientError as exc:
             await state.set_registered(False)
-            state.log("local_reg_failed", {"error": str(exc)})
+            state.log("local_reg_failed", {"method": method, "error": str(exc)})
             raise ConnectionError(f"local_reg failed: {exc}") from exc
         else:
             await state.set_registered(True)
             state.log(
                 "local_reg_ok",
-                {"device_ip": state.device_ip, "scheme": state.device_scheme},
+                {
+                    "device_ip": state.device_ip,
+                    "scheme": state.device_scheme,
+                    "method": method,
+                },
             )
 
     async def close(self) -> None:
