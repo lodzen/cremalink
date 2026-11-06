@@ -174,12 +174,13 @@ async def test_machine_initiated_key_exchange_replaces_keys_in_place():
 
 @pytest.mark.asyncio
 async def test_session_job_posts_when_dead_then_keeps_alive_with_put():
-    """dead -> POST; live + polls -> PUT; live + silence -> dead -> POST."""
+    """dead -> POST; live + polls -> PUT; long silence -> dead -> POST."""
     state = await _configured_state()
     settings = ServerSettings(
         server_settings_path="",
         session_keepalive_interval_seconds=0.05,
         session_probe_timeout_seconds=0.15,
+        session_silence_reset_seconds=0.4,
         session_register_timeout_seconds=0.15,
     )
     state.settings = settings
@@ -222,6 +223,81 @@ async def test_session_job_posts_when_dead_then_keeps_alive_with_put():
     finally:
         stop.set()
         await asyncio.gather(job, poller)
+
+
+@pytest.mark.asyncio
+async def test_session_job_tolerates_poll_silence_within_reset_window():
+    """§14.9: a quiet machine is not dead — the app marks sessions dead on
+    local_reg transport errors only. Silence below the reset fuse must keep
+    the session live with PUT keepalives and never trigger a re-POST."""
+    state = await _configured_state()
+    settings = ServerSettings(
+        server_settings_path="",
+        session_keepalive_interval_seconds=0.05,
+        session_probe_timeout_seconds=0.02,
+        session_silence_reset_seconds=60.0,
+        session_register_timeout_seconds=0.15,
+    )
+    state.settings = settings
+
+    class MachineAdapter(SpyAdapter):
+        async def register_with_device(self, state, method=None):
+            await super().register_with_device(state, method)
+            if method == "POST":
+                await state.init_crypto(random_1="r", time_1="9")
+                state.mark_commands_poll()  # session bootstraps, then goes quiet
+
+    adapter = MachineAdapter(settings=settings)
+    stop = asyncio.Event()
+    job = asyncio.create_task(session_job(state, adapter, settings, stop))
+    try:
+        await asyncio.sleep(0.4)  # far beyond probe timeout, below the fuse
+        methods = [m for m, _ in adapter._client.calls]
+        assert methods.count("POST") == 1  # only the initial registration
+        assert "PUT" in methods
+        assert state.session_live()
+    finally:
+        stop.set()
+        await job
+
+
+@pytest.mark.asyncio
+async def test_session_job_posts_again_on_transport_failure():
+    """A keep-alive PUT transport error still marks the session dead and
+    re-POSTs — matching the app's handleKeyExchangeError path."""
+    state = await _configured_state()
+    settings = ServerSettings(
+        server_settings_path="",
+        session_keepalive_interval_seconds=0.05,
+        session_probe_timeout_seconds=0.15,
+        session_silence_reset_seconds=60.0,
+        session_register_timeout_seconds=0.15,
+    )
+    state.settings = settings
+    put_fails = False
+
+    class FlakyAdapter(SpyAdapter):
+        async def register_with_device(self, state, method=None):
+            await super().register_with_device(state, method)
+            if method == "POST":
+                await state.init_crypto(random_1="r", time_1="9")
+                state.mark_commands_poll()
+            elif put_fails:
+                raise ConnectionError("device unreachable")
+
+    adapter = FlakyAdapter(settings=settings)
+    stop = asyncio.Event()
+    job = asyncio.create_task(session_job(state, adapter, settings, stop))
+    try:
+        await asyncio.sleep(0.2)
+        assert state.session_live()
+        baseline = [m for m, _ in adapter._client.calls].count("POST")
+        put_fails = True
+        await asyncio.sleep(0.3)
+        assert [m for m, _ in adapter._client.calls].count("POST") > baseline
+    finally:
+        stop.set()
+        await job
 
 
 @pytest.mark.asyncio

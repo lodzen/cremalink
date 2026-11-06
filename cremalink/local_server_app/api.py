@@ -298,9 +298,24 @@ def create_app(
             raise web.HTTPBadRequest(text="Server not configured")
         req = await _parse_json_model(request, KeyExchangeRequest)
         exchange = req.key_exchange
+        # App parity (processLanModeKeyExchange): proto/ver must be 1/1; a
+        # non-empty `sec` marks the secure-setup exchange we don't support —
+        # log it so a future firmware change is diagnosable.
+        if exchange.sec:
+            state.log(
+                "key_exchange_secure_unsupported",
+                {"sec_len": len(exchange.sec)},
+            )
         await state.init_crypto(random_1=exchange.random_1, time_1=exchange.time_1)
         state.log(
-            "key_exchange", {"random_1": exchange.random_1, "time_1": exchange.time_1}
+            "key_exchange",
+            {
+                "random_1": exchange.random_1,
+                "time_1": exchange.time_1,
+                "proto": exchange.proto,
+                "ver": exchange.ver,
+                "key_id": exchange.key_id,
+            },
         )
         return web.json_response(
             {"random_2": state.random_2, "time_2": int(state.time_2)},
@@ -340,10 +355,20 @@ def create_app(
         )
         return CommandPollResponse(enc=enc, sign=sign, seq=current_seq)
 
+    def _commands_response_code() -> int:
+        # App parity (AylaLanModule.getResponseCode): 206 PARTIAL_CONTENT
+        # while commands remain queued, 200 OK when drained — the machine
+        # reads it as "keep polling" vs "idle".
+        return (
+            web.HTTPPartialContent.status_code
+            if state.command_queue
+            else web.HTTPOk.status_code
+        )
+
     async def poll_commands(request: web.Request) -> web.Response:
         """Endpoint for the device to poll for commands (GET/POST)."""
         result = await serve_command_poll()
-        return web.json_response(result.model_dump())
+        return web.json_response(result.model_dump(), status=_commands_response_code())
 
     async def datapoint(request: web.Request) -> web.Response:
         """Endpoint for the device to push encrypted data to."""
@@ -389,7 +414,7 @@ def create_app(
 
         state.log_telemetry("device_datapoint_received", decoded_json)
         await state.handle_datapoint(decoded_json)
-        return web.json_response({})
+        return web.json_response({}, status=_commands_response_code())
 
     async def register(request: web.Request) -> web.Response:
         try:
@@ -413,10 +438,30 @@ def create_app(
     app.router.add_get("/debug_queue", debug_queue)
     app.router.add_get("/monitor", monitor)
     app.router.add_post("/local_lan/key_exchange.json", key_exchange)
-    app.router.add_get("/local_lan/commands.json", poll_commands)
-    app.router.add_post("/local_lan/commands.json", poll_commands)
+    # aioecam accepts any method on commands.json — the machine polls with
+    # GET/POST, and any other method still counts as a liveness signal.
+    app.router.add_route("*", "/local_lan/commands.json", poll_commands)
     app.router.add_post("/local_lan/property/datapoint.json", datapoint)
+    # The machine POSTs datapoint acks here too (app: AckHandler, aioecam
+    # routes it to the same handler). Without the route, ack pushes get a
+    # silent 404.
+    app.router.add_post("/local_lan/property/datapoint/ack.json", datapoint)
     app.router.add_get("/register", register)
+
+    async def local_lan_catch_all(request: web.Request) -> web.Response:
+        """Log any machine request hitting an unrouted local_lan path.
+
+        aiohttp answers unrouted/unsupported-method requests silently, so a
+        machine polling an unexpected path would be invisible in the event
+        buffer — this makes the whole machine-side request surface audible.
+        """
+        state.log(
+            "local_lan_unhandled",
+            {"method": request.method, "path": request.path},
+        )
+        return web.Response(status=404)
+
+    app.router.add_route("*", "/local_lan/{tail:.*}", local_lan_catch_all)
 
     async def on_startup(app_: web.Application) -> None:
         if settings.enable_nudger_job:

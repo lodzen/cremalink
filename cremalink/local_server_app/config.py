@@ -63,8 +63,17 @@ class ServerSettings(BaseSettings):
     session_probe_timeout_seconds: float = Field(
         4.0,
         validation_alias="SESSION_PROBE_TIMEOUT_SECONDS",
-        description="After a keep-alive PUT, wait this long for a commands.json "
-        "poll from the machine before considering the session dead.",
+        description="Informational threshold for commands.json poll silence; "
+        "quiet periods longer than this are logged but do NOT kill the "
+        "session (standby machines may not poll for long stretches).",
+    )
+    session_silence_reset_seconds: float = Field(
+        900.0,
+        validation_alias="SESSION_SILENCE_RESET_SECONDS",
+        description="Total commands.json-poll silence (measured since the last "
+        "poll or key exchange) before one re-POST is allowed — a backstop for "
+        "sessions that died machine-side. The app only re-registers on "
+        "local_reg transport errors; a quiet machine is not a dead one.",
     )
     session_register_timeout_seconds: float = Field(
         5.0,

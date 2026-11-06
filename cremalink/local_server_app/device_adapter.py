@@ -98,10 +98,12 @@ class DeviceAdapter:
             # The app appends the DSN when opening a session.
             api_url += f"?dsn={state.dsn}"
         # The payload tells the device this server's IP, port, and notification endpoint.
+        # `notify` mirrors the app: 1 only while commands wait in the queue
+        # (`_pendingLanCommands.isEmpty() ? 0 : 1`), not a constant flag.
         payload = {
             "local_reg": {
                 "ip": self.settings.advertised_ip or self.settings.server_ip,
-                "notify": 1,
+                "notify": 1 if state.command_queue else 0,
                 "port": self.settings.server_port,
                 "uri": "/local_lan",
             }

@@ -5,6 +5,7 @@ monitoring, and re-keying operations.
 """
 
 import asyncio
+import logging
 import time
 
 from cremalink.local_server_app.config import ServerSettings
@@ -148,17 +149,39 @@ async def session_job(
                     )
             else:
                 try:
-                    since = state.last_commands_poll_at
                     await adapter.register_with_device(state, method="PUT")
                 except (ConnectionError, TimeoutError, ValueError) as exc:
                     state.log("session_keepalive_failed", {"error": str(exc)})
                     await state.set_registered(False)
                 else:
-                    if not await state.wait_for_commands_poll(
-                        settings.session_probe_timeout_seconds, since=since
-                    ):
-                        state.log("session_keepalive_no_poll")
+                    # A quiet machine is not a dead one (§14.9): standby
+                    # machines may not poll commands.json for long stretches
+                    # while still answering local_reg — the app marks
+                    # sessions dead on transport errors only. Silence is
+                    # logged for diagnostics; only a very long silence
+                    # (session_silence_reset_seconds) allows one re-POST as a
+                    # backstop for sessions that died machine-side.
+                    anchors = [
+                        t
+                        for t in (
+                            state.last_commands_poll_at,
+                            state.last_key_exchange_at,
+                        )
+                        if t is not None
+                    ]
+                    silent_for = time.monotonic() - max(anchors) if anchors else 0.0
+                    if silent_for >= settings.session_silence_reset_seconds:
+                        state.log(
+                            "session_silence_reset",
+                            {"silent_seconds": round(silent_for)},
+                        )
                         await state.set_registered(False)
+                    elif silent_for >= settings.session_probe_timeout_seconds:
+                        state.log(
+                            "session_keepalive_no_poll",
+                            {"silent_seconds": round(silent_for)},
+                            level=logging.DEBUG,
+                        )
         except Exception as exc:
             state.log("session_job_failed", {"error": str(exc)})
 
