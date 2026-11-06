@@ -11,8 +11,8 @@ sys.path.insert(0, os.path.abspath('../../'))
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = 'cremalink'
-copyright = '2026, Midian Tekle Elfu'
-author = 'Midian Tekle Elfu'
+copyright = '2026, Lodzen'
+author = 'Lodzen'
 try:
     from cremalink import __version__
     version = __version__
@@ -35,16 +35,13 @@ extensions = [
 
 intersphinx_mapping = {'python': ('https://docs.python.org/3', None)}
 
-templates_path = ['_templates']
 exclude_patterns = []
 
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 html_theme = 'sphinx_rtd_theme'
-html_static_path = ['_static']
 html_logo = "cremalink.png"
 html_theme_options = {
     'logo_only': True,
-    'display_version': False,
 }

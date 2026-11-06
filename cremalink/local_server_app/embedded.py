@@ -45,7 +45,9 @@ from cremalink.local_server_app.logging import (
 
 #: Default port, matching the standalone server/add-on's historical default.
 DEFAULT_PORT = 10280
-DEFAULT_REKEY_INTERVAL_SECONDS = 60.0
+#: LAN session keep-alive cadence (lodzen/cremalink#4): the app polls
+#: `local_reg` every ~10 s; 20–25 s held a session 15 min in field tests.
+DEFAULT_SESSION_KEEPALIVE_SECONDS = 20.0
 #: How many ports past the preferred one to try before giving up (FR-007).
 DEFAULT_PORT_FALLBACK_RANGE = 50
 #: Bound on how long stop() can take waiting for in-flight connections to
@@ -114,7 +116,7 @@ class EmbeddedLocalServer:
         self.device_map_path = device_map_path
         self.monitor_poll_interval = monitor_poll_interval
         self.nudger_poll_interval = nudger_poll_interval
-        self.rekey_interval_seconds = DEFAULT_REKEY_INTERVAL_SECONDS
+        self.session_keepalive_seconds = DEFAULT_SESSION_KEEPALIVE_SECONDS
         self._event_logger = create_logger(
             f"cremalink.embedded.{uuid.uuid4().hex}",
             200,
@@ -169,7 +171,7 @@ class EmbeddedLocalServer:
                 advertised_ip=self.advertised_ip,
                 monitor_poll_interval=self.monitor_poll_interval,
                 nudger_poll_interval=self.nudger_poll_interval,
-                rekey_interval_seconds=self.rekey_interval_seconds,
+                session_keepalive_interval_seconds=self.session_keepalive_seconds,
             )
             app = create_app(settings=settings, logger=self._event_logger)
             # aiohttp reports unexpected handler errors through ``logger``;

@@ -55,6 +55,10 @@ class KeyExchange(BaseModel):
 
     random_1: str
     time_1: str | int
+    proto: int | None = None
+    ver: int | None = None
+    key_id: int | None = None
+    sec: str | None = None
 
 
 class KeyExchangeRequest(BaseModel):

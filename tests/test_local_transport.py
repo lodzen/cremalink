@@ -79,3 +79,42 @@ def test_local_transport_flow():
 
     health = transport.health()
     assert health == "ok"
+
+
+def test_pop_response_buffers_all_drained_entries():
+    """`/responses` drains the whole mailbox — every frame must be kept.
+
+    Previously only the newest entry was returned and the rest were lost;
+    settings `0x95` read-backs arriving ahead of another response vanished.
+    """
+    frames = [b"\x95\x0f\x00\x3f\x00\x00\x00\x1d", b"\x90\x0f\x00\x3f\x00"]
+
+    class MultiResponseTransport(DummyLocalTransport):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.response_calls = 0
+
+        def _get_server(self, path: str, timeout: int = 10):
+            if path == "/responses":
+                self.response_calls += 1
+                if self.response_calls == 1:
+                    return DummyResponse(
+                        200,
+                        {
+                            "responses": [
+                                {"name": "data_response", "value_b64": base64.b64encode(f).decode()}
+                                for f in frames
+                            ]
+                        },
+                    )
+                return DummyResponse(200, {"responses": []})
+            return super()._get_server(path, timeout=timeout)
+
+    transport = MultiResponseTransport(
+        dsn="d", lan_key="k", device_ip="1.2.3.4", server_port=1
+    )
+    assert transport.pop_response() == frames[0]
+    assert transport.pop_response() == frames[1]
+    # buffer exhausted -> next pop hits the server again (now empty)
+    assert transport.pop_response() is None
+    assert transport.response_calls == 2

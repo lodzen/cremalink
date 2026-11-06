@@ -87,8 +87,10 @@ def test_write_and_select_frames_match_captures():
     )
     # profile_switch_alice: A9 select profile 1.
     assert build_profile_select(1, NON_STRIKER).hex() == "0d06a9f001d7c0"
-    # write_aoff_test read-back: 0x95 read of param 0x3E.
-    assert build_read_param(0x003E, NON_STRIKER).hex() == "0d0795f0003e56bc"
+    # 0x95 param reads use the app's buildParamRead shape — qty byte
+    # mandatory; flags param <1000 -> 0x0F, >=1000 -> 0xF0 (§8).
+    assert build_read_param(0x003E, NON_STRIKER).hex() == "0d08950f003e0118b2"
+    assert build_read_param(0x03EE, NON_STRIKER).hex() == "0d0895f003ee011f66"
 
 
 def test_length_byte_counts_through_crc():

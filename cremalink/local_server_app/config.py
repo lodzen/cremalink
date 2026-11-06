@@ -52,10 +52,34 @@ class ServerSettings(BaseSettings):
         validation_alias="MONITOR_POLL_INTERVAL",
         description="Interval in seconds for the monitor job to fetch device status.",
     )
-    rekey_interval_seconds: float = Field(
-        60.0,
-        validation_alias="REKEY_INTERVAL_SECONDS",
-        description="Interval in seconds to perform the authentication key exchange.",
+    session_keepalive_interval_seconds: float = Field(
+        20.0,
+        validation_alias="SESSION_KEEPALIVE_INTERVAL_SECONDS",
+        description="Keep-alive interval for the LAN session job (PUT local_reg "
+        "while live, POST re-registration when dead). The Coffee Link app "
+        "defaults to 10 s; 20–25 s held a session 15 min in field tests "
+        "(lodzen/cremalink#4).",
+    )
+    session_probe_timeout_seconds: float = Field(
+        4.0,
+        validation_alias="SESSION_PROBE_TIMEOUT_SECONDS",
+        description="Informational threshold for commands.json poll silence; "
+        "quiet periods longer than this are logged but do NOT kill the "
+        "session (standby machines may not poll for long stretches).",
+    )
+    session_silence_reset_seconds: float = Field(
+        900.0,
+        validation_alias="SESSION_SILENCE_RESET_SECONDS",
+        description="Total commands.json-poll silence (measured since the last "
+        "poll or key exchange) before one re-POST is allowed — a backstop for "
+        "sessions that died machine-side. The app only re-registers on "
+        "local_reg transport errors; a quiet machine is not a dead one.",
+    )
+    session_register_timeout_seconds: float = Field(
+        5.0,
+        validation_alias="SESSION_REGISTER_TIMEOUT_SECONDS",
+        description="After a session-opening POST, wait this long for the "
+        "machine's key exchange before the next retry.",
     )
 
     # --- Buffer/Queue Size Settings ---
@@ -103,10 +127,11 @@ class ServerSettings(BaseSettings):
         validation_alias="ENABLE_MONITOR_JOB",
         description="Feature flag to enable the status monitoring job.",
     )
-    enable_rekey_job: bool = Field(
+    enable_session_job: bool = Field(
         True,
-        validation_alias="ENABLE_REKEY_JOB",
-        description="Feature flag to enable the periodic re-keying job.",
+        validation_alias="ENABLE_SESSION_JOB",
+        description="Feature flag to enable the LAN session keep-alive job "
+        "(POST/PUT local_reg management).",
     )
 
     # --- Testing / Determinism Hooks ---

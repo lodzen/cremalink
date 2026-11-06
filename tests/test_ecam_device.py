@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 from cremalink.core.binary import crc16_ccitt
-from cremalink.domain.device import Device, MachineStandbyError
+from cremalink.domain.device import Device
 
 DEVICES = Path(__file__).resolve().parents[1] / "cremalink" / "devices"
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "ecam"
@@ -33,15 +33,20 @@ def _answer(content: bytes) -> bytes:
 class FakeTransport:
     """Minimal LAN transport: records sends, scripts mailbox/properties."""
 
-    def __init__(self, *, properties=None, responses=None):
+    def __init__(self, *, properties=None, responses=None, on_send=None):
         self.sent = []  # decoded wire payloads (frame + ts)
         self.properties = dict(properties or {})
         self.responses = list(responses or [])
         self.written_properties = []
         self.requested_properties = []
+        self.on_send = on_send  # optional hook: frame -> responses to queue
 
     def send_command(self, command, alternative_property=None):
-        self.sent.append((base64.b64decode(command), alternative_property))
+        frame = base64.b64decode(command)
+        self.sent.append((frame, alternative_property))
+        if self.on_send is not None:
+            for answer in self.on_send(frame) or []:
+                self.responses.append(answer)
         return {}
 
     def write_property(self, name, value):
@@ -100,7 +105,7 @@ class TestSessionGate:
 
     def test_session_reused_within_ttl(self):
         device = _acked_device()
-        device.set_setting("auto_off", 1)
+        device.set_setting("auto_off", 2)
         device.transport.responses.extend(
             [
                 _answer(bytes([0x90, 0xF0, 0x00, 0x3E, 0x00])),
@@ -266,12 +271,16 @@ class TestProfiles:
         sent = _sent_frame(device)
         assert sent[:4].hex() == "0d06a9f0" and sent[4] == 0x02
 
-    def test_select_profile_no_ack_no_state(self):
+    def test_select_profile_no_ack_marks_selected(self):
+        # Non-striker 0xA9 is fire-and-forget — the app storms it ~11x
+        # and never sees an ack (cloud capture 2026-10-14), yet the
+        # machine applies the select; there is no read-back on Soul
+        # (DECODED.md §335). A silent channel still marks the selection.
         device = _device(
             transport=FakeTransport(), response_timeout=0.01, response_poll=0
         )
-        assert device.select_profile(3) is False
-        assert device.current_profile == 0
+        assert device.select_profile(3) is True
+        assert device.current_profile == 3
 
     def test_select_profile_negative_ack_no_state(self):
         nack = _answer(bytes([0xA9, 0xF0, 0x04, 0x01]))
@@ -298,16 +307,24 @@ class TestSettings:
     @pytest.mark.parametrize(
         "status", ["in_standby", "going_to_sleep", "sleeping", "deep_sleep"]
     )
-    def test_set_setting_in_standby_aborts_without_waking_or_writing(self, status):
-        # Product decision (protocol.md 14.5 woke the machine for its test):
-        # a machine in standby is never woken, nothing is sent at all.
-        device = _device(transport=FakeTransport(), response_poll=0)
-        device.transport.get_monitor = lambda: None  # transport can report status
+    def test_set_setting_in_standby_writes_without_waking(self, status):
+        # Standby does not block configuration writes (§14.8 — the machine
+        # processes data_request while in_standby; the app exposes config
+        # changes there, only profile selection is gated). The library
+        # still never sends a wake frame for a config change.
+        ack = _answer(bytes([0x90, 0xF0, 0x00, 0x3E, 0x00]))
+        readback = _answer(bytes([0x95, 0x0F, 0x00, 0x3E]) + (2).to_bytes(4, "big"))
+        device = _device(
+            transport=FakeTransport(responses=[ack, readback]), response_poll=0
+        )
+        device.transport.get_monitor = lambda: None
         device.get_monitor = lambda: type("M", (), {"status_name": status})()
-        with pytest.raises(MachineStandbyError):
-            device.set_setting("auto_off", 2)
-        assert device.transport.sent == []
-        assert device.transport.written_properties == []
+        assert device.set_setting("auto_off", 2) is True
+        assert device.transport.written_properties[0][0] == "device_connected"
+        # sent[0] is the s0 session handshake (§14.8); the write follows.
+        assert _sent_frame(device, 0)[:2] == b"\x45\xda"
+        assert _sent_frame(device, 1)[2] == 0x90
+        assert all(sent[0][2] != 0x84 for sent in device.transport.sent)
 
     def test_set_setting_does_not_wake_an_awake_machine(self):
         ack = _answer(bytes([0x90, 0xF0, 0x00, 0x3E, 0x00]))
@@ -340,14 +357,14 @@ class TestSettings:
         blob = base64.b64encode(self._aoff_blob(1)).decode()
         device = _device(
             transport=FakeTransport(properties={"d282_mchn_sett_aoff": blob}),
-            response_timeout=0.05,
+            write_confirm_seconds=0.05,
             response_poll=0,
         )
         assert device.set_setting("auto_off", 3) is False
 
     def test_set_setting_no_ack_raises(self):
         device = _device(
-            transport=FakeTransport(), response_timeout=0.01, response_poll=0
+            transport=FakeTransport(), write_confirm_seconds=0.01, response_poll=0
         )
         with pytest.raises(TimeoutError):
             device.set_setting("auto_off", 1)
@@ -372,6 +389,250 @@ class TestSettings:
         settings = device.get_settings()
         assert settings["auto_off"] == 2
         assert settings["water_hardness"] == 1
+
+
+# Vendored live answer to `0D 07 95 F0 03 EE` (cloud_datapoint_history_
+# 20261014.json): page of params 1006-1013, param 0x03EE = 0 -> profile 1.
+PROFILE_PAGE = bytes.fromhex(
+    "d02795f003ee00000000005dde900000002000000002"
+    "00000000000000000000000000000000d91f6acf6642"
+)
+
+
+def _awake(device):
+    """Make _machine_in_standby() report an awake machine."""
+    device.transport.get_monitor = lambda: None
+    device.get_monitor = lambda: type("M", (), {"status_name": "ready"})()
+    return device
+
+
+class TestCurrentProfile:
+    def test_refresh_reads_03ee_and_updates_state(self):
+        device = _awake(
+            _device(
+                transport=FakeTransport(responses=[PROFILE_PAGE]),
+                response_poll=0,
+            )
+        )
+        assert device.refresh_current_profile() == 1
+        assert device.current_profile == 1
+        # 0x95 read went out on the wire (0x03EE >= 1000 -> flag F0).
+        assert _sent_frame(device)[:-4] == bytes.fromhex("0d0895f003ee011f66")
+        # Session was announced first (reads are gated too — §14.8).
+        assert device.transport.written_properties[0][0] == "device_connected"
+
+    def test_refresh_still_runs_in_standby(self):
+        # §14.8 addendum: the machine answered 0xA2 statistics reads
+        # while monitor status was in_standby — standby does not block
+        # data_request processing, so the profile read is attempted even
+        # when the machine is asleep (a timeout just keeps last-known).
+        device = _device(
+            transport=FakeTransport(responses=[PROFILE_PAGE]),
+            response_poll=0,
+        )
+        device.transport.get_monitor = lambda: None
+        device.get_monitor = lambda: type("M", (), {"status_name": "in_standby"})()
+        assert device.refresh_current_profile() == 1
+        assert device.current_profile == 1
+        assert _sent_frame(device)[:-4] == bytes.fromhex("0d0895f003ee011f66")
+
+    def test_refresh_keeps_last_known_on_no_answer(self):
+        # Non-striker: a known selection is the truth (0x03EE doesn't
+        # track 0xA9 selects — verified 2026-10-25) — the read is skipped
+        # entirely once a profile is known.
+        device = _awake(
+            _device(transport=FakeTransport(), response_timeout=0.01, response_poll=0)
+        )
+        device.current_profile = 3
+        assert device.refresh_current_profile() == 3
+        assert device.current_profile == 3
+        # No 0x95 read went out for a known non-striker profile.
+        assert device.transport.sent == []
+
+    def test_refresh_reads_register_when_profile_unknown(self):
+        # On cold start (current_profile=0) the register is still the
+        # best available hint for the machine's state.
+        device = _awake(
+            _device(
+                transport=FakeTransport(responses=[PROFILE_PAGE]),
+                response_poll=0,
+            )
+        )
+        device.transport.get_monitor = lambda: None
+        assert device.refresh_current_profile() == 1
+        assert device.current_profile == 1
+
+
+class TestSettingBits:
+    @staticmethod
+    def _conf_blob(value):
+        return _answer(bytes([0x95, 0x0F, 0x00, 0x3F]) + value.to_bytes(4, "big"))
+
+    def test_get_setting_bits_from_republished_d284(self):
+        blob = base64.b64encode(self._conf_blob(0x1D)).decode()
+        device = _device(
+            transport=FakeTransport(
+                properties={"d284_mchn_sett_user_conf": {"value": blob}}
+            )
+        )
+        bits = device.get_setting_bits()
+        assert bits["beep"] is True
+        assert bits["energy_saving"] is True
+
+    def test_set_bit_merges_and_preserves_others(self):
+        # raw 0x1D, turning beep OFF must write 0x19 (only bit 0x04 cleared).
+        device = _awake(_device(response_poll=0))
+        device.transport.properties["d284_mchn_sett_user_conf"] = {
+            "value": base64.b64encode(self._conf_blob(0x1D)).decode()
+        }
+        device.transport.responses.append(
+            self._conf_blob(0x19)  # read-back answers the new value
+        )
+        assert device.set_setting_bit("beep", False) is True
+        frames = [sent[0][:-4] for sent in device.transport.sent]
+        assert bytes.fromhex("0d0b900f003f00000019a8aa") in frames
+        assert device.transport.written_properties[0][0] == "device_connected"
+
+    def test_set_bit_enables_energy_saving(self):
+        device = _awake(_device(response_poll=0))
+        device.transport.properties["d284_mchn_sett_user_conf"] = {
+            "value": base64.b64encode(self._conf_blob(0x0D)).decode()
+        }
+        device.transport.responses.append(self._conf_blob(0x1D))
+        assert device.set_setting_bit("energy_saving", True) is True
+        frames = [sent[0][:-4] for sent in device.transport.sent]
+        assert bytes.fromhex("0d0b900f003f0000001de82e") in frames
+
+    def test_read_param_waits_for_delayed_property_republish(self):
+        """The machine serves the queued GET a poll cycle later — the read
+        must poll the store instead of falling back to the `0x95` mailbox
+        (its answer *is* the republished property, protocol.md §13)."""
+        blob = base64.b64encode(self._conf_blob(0x1D)).decode()
+
+        class DelayedRepublish(FakeTransport):
+            def __init__(self):
+                super().__init__()
+                self.get_calls = 0
+
+            def request_property(self, name):
+                super().request_property(name)
+
+            def get_property(self, name):
+                self.get_calls += 1
+                if self.get_calls < 3:  # answer lands ~2 polls later
+                    return None
+                return {"value": blob}
+
+        device = _device(transport=DelayedRepublish(), response_poll=0)
+        assert device._read_param_value(0x003F, "user_conf") == 0x1D
+        # the named-property path sufficed — no 0x95 frame hit the wire
+        assert not any(sent[0][2] == 0x95 for sent in device.transport.sent)
+
+    def test_set_bit_falls_back_to_mailbox_read(self):
+        # No stored d284: the base value comes from a 0x95 mailbox read.
+        device = _awake(
+            _device(
+                transport=FakeTransport(
+                    responses=[self._conf_blob(0x1D), self._conf_blob(0x0D)]
+                ),
+                response_poll=0,
+            )
+        )
+        assert device.set_setting_bit("energy_saving", False) is True
+        frames = [sent[0][:-4] for sent in device.transport.sent]
+        assert bytes.fromhex("0d08950f003f012b83") in frames  # base read
+        assert bytes.fromhex("0d0b900f003f0000000dfa1f") in frames  # write
+
+    def test_set_bit_refuses_blind_write_when_unreadable(self):
+        device = _awake(
+            _device(transport=FakeTransport(), response_timeout=0.01, response_poll=0)
+        )
+        with pytest.raises(TimeoutError):
+            device.set_setting_bit("beep", True)
+        # No 0x90 write may go out without the base value.
+        assert all(sent[0][2] != 0x90 for sent in device.transport.sent)
+
+    @pytest.mark.parametrize(
+        "status", ["in_standby", "going_to_sleep", "sleeping", "deep_sleep"]
+    )
+    def test_set_bit_in_standby_writes_without_waking(self, status):
+        # Same standby write allowance as set_setting: announce + merged
+        # 0x90 write go out, no wake frame.
+        blob = base64.b64encode(self._conf_blob(0x1D)).decode()
+        ack = _answer(bytes([0x90, 0x0F, 0x00, 0x3F, 0x00]))
+        readback = _answer(bytes([0x95, 0x0F, 0x00, 0x3F]) + (0x19).to_bytes(4, "big"))
+        device = _device(
+            transport=FakeTransport(
+                properties={"d284_mchn_sett_user_conf": {"value": blob}},
+                responses=[ack, readback],
+            ),
+            response_poll=0,
+        )
+        device.transport.get_monitor = lambda: None
+        device.get_monitor = lambda: type("M", (), {"status_name": status})()
+        assert device.set_setting_bit("beep", False) is True
+        assert device.transport.written_properties[0][0] == "device_connected"
+        write = next(sent[0] for sent in device.transport.sent if sent[0][2] == 0x90)
+        assert write[:-4] == bytes.fromhex("0d0b900f003f00000019a8aa")
+        assert all(sent[0][2] != 0x84 for sent in device.transport.sent)
+
+    def test_set_bit_retries_unconfirmed_write_with_fresh_announce(self):
+        # The machine dropped the first write (observed live 2026-10-14 —
+        # acked ok yet the param kept its old value): the retry must
+        # re-announce the session before resending.
+        blob = base64.b64encode(self._conf_blob(0x1D)).decode()
+        ack = _answer(bytes([0x90, 0x0F, 0x00, 0x3F, 0x00]))
+        stale = _answer(bytes([0x95, 0x0F, 0x00, 0x3F]) + (0x1D).to_bytes(4, "big"))
+        good = _answer(bytes([0x95, 0x0F, 0x00, 0x3F]) + (0x19).to_bytes(4, "big"))
+        write_count = [0]
+
+        def _respond(frame):
+            # Model the real mailbox: answers arrive per request.
+            if frame[2] == 0x90:
+                write_count[0] += 1
+                return [ack]
+            if frame[2] == 0x95 and frame[4:6] == b"\x00\x3f":
+                return [stale] if write_count[0] < 2 else [good]
+            return []
+
+        device = _awake(
+            _device(
+                transport=FakeTransport(
+                    properties={"d284_mchn_sett_user_conf": {"value": blob}},
+                    on_send=_respond,
+                ),
+                response_poll=0,
+                write_confirm_seconds=0.05,
+            )
+        )
+        assert device.set_setting_bit("beep", False) is True
+        announces = [
+            name
+            for name, _ in device.transport.written_properties
+            if name == "device_connected"
+        ]
+        assert len(announces) == 2  # re-announced before the retry
+        writes = [sent[0] for sent in device.transport.sent if sent[0][2] == 0x90]
+        assert len(writes) == 2
+
+    def test_set_bit_unknown_key_raises(self):
+        device = _device()
+        with pytest.raises(ValueError):
+            device.set_setting_bit("bogus", True)
+
+    def test_set_bit_unconfirmed_reports_failure(self):
+        # Property keeps the old value and no read-back arrives.
+        blob = base64.b64encode(self._conf_blob(0x1D)).decode()
+        device = _awake(
+            _device(
+                transport=FakeTransport(
+                    properties={"d284_mchn_sett_user_conf": {"value": blob}}
+                ),
+                write_confirm_seconds=0.05,
+                response_poll=0,
+            )
+        )
+        assert device.set_setting_bit("beep", False) is False
 
 
 class TestCatalog:

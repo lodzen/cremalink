@@ -84,7 +84,9 @@ High-level `Device` methods built on it:
 | `stop_brew()` / `wake()` / `standby()` / `session_refresh()` | Power/session control (`0x83`/`0x84`) |
 | `get_statistics()` | Native `0xA2` statistics pager (LAN) or cloud counters per the device map's `statistics_source` |
 | `get_profiles()` / `select_profile(index)` | Read occupied profile slots; session-gated `0xA9` selection |
+| `refresh_current_profile()` | Read the machine's own selected profile from param `0x03EE` (0-based register, +1); session-announced, attempted in standby too (reads answer there — §14.8) |
 | `get_settings()` / `set_setting(key, index)` | Read/write machine settings (auto-off, water hardness) via `0x95`/`0x90` |
+| `get_setting_bits()` / `set_setting_bit(key, on)` | Boolean flags in the shared user-config param `0x003F` (beep, energy saving, …) — merged bit writes via `0x90` |
 | `read_catalog()` | Parse the recipe catalogue (`b0f0`/`a6f0`/`aaf0`/`a8f0`/`baf0` blobs) |
 
 **Writes are session-gated**: the device announces a ~300 s session
