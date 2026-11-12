@@ -34,19 +34,19 @@ class DeviceAdapter:
         self.logger = logger
         self._client: aiohttp.ClientSession | None = None
 
-    def _build_ssl_context(self) -> ssl.SSLContext | bool | None:
+    def _build_ssl_context(self) -> ssl.SSLContext | bool:
         """
         Translates the CA-path/verify settings into an aiohttp `ssl=` value.
 
         A configured CA path always wins (custom trust root); otherwise
         `device_register_verify` toggles default certificate verification.
+        `True` keeps aiohttp's default verified context (ssl=None is not a
+        valid aiohttp value anymore).
         """
         ca_path = self.settings.device_register_ca_path
         if ca_path:
             return ssl.create_default_context(cafile=ca_path)
-        if not self.settings.device_register_verify:
-            return False
-        return None
+        return self.settings.device_register_verify
 
     async def _get_client(self) -> aiohttp.ClientSession:
         """

@@ -7,6 +7,7 @@ throughout the code, each family's differences live in one frozen
 :class:`MachineProfile` here, bound explicitly via the ``machine_profile``
 field of the device map (FR-006).
 """
+
 from __future__ import annotations
 
 import logging

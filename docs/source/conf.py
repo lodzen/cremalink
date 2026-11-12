@@ -1,6 +1,7 @@
 import os
 import sys
-sys.path.insert(0, os.path.abspath('../../'))
+
+sys.path.insert(0, os.path.abspath("../../"))
 
 # Configuration file for the Sphinx documentation builder.
 #
@@ -10,14 +11,15 @@ sys.path.insert(0, os.path.abspath('../../'))
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = 'cremalink'
-copyright = '2026, Lodzen'
-author = 'Lodzen'
+project = "cremalink"
+copyright = "2026, Lodzen"
+author = "Lodzen"
 try:
     from cremalink import __version__
+
     version = __version__
 except ImportError:
-    version = '0.0.0'
+    version = "0.0.0"
 release = version
 
 
@@ -25,23 +27,23 @@ release = version
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 extensions = [
-    'sphinx.ext.autodoc',
-    'sphinx.ext.intersphinx',
-    'sphinx.ext.napoleon',
-    'sphinx.ext.viewcode',
-    'sphinx.ext.githubpages',
-    'sphinx_rtd_theme'
+    "sphinx.ext.autodoc",
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.napoleon",
+    "sphinx.ext.viewcode",
+    "sphinx.ext.githubpages",
+    "sphinx_rtd_theme",
 ]
 
-intersphinx_mapping = {'python': ('https://docs.python.org/3', None)}
+intersphinx_mapping = {"python": ("https://docs.python.org/3", None)}
 
 exclude_patterns = []
 
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
-html_theme = 'sphinx_rtd_theme'
+html_theme = "sphinx_rtd_theme"
 html_logo = "cremalink.png"
 html_theme_options = {
-    'logo_only': True,
+    "logo_only": True,
 }

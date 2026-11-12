@@ -1,6 +1,7 @@
 """
 This module provides classes for handling and decoding device properties.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -23,6 +24,7 @@ class PropertiesSnapshot:
         received_at: The timestamp when the snapshot was taken.
         parsed: A dictionary to hold processed or parsed property values.
     """
+
     raw: dict[str, Any]
     received_at: Optional[datetime]
     parsed: dict[str, Any] = field(default_factory=dict)
@@ -48,6 +50,9 @@ class PropertiesSnapshot:
         # If not, iterate through the values to find a nested property object.
         # This handles the common format: `{'some_id': {'property': {'name': name, ...}}}`
         for entry in self.raw.values():
-            if isinstance(entry, dict) and entry.get("property", {}).get("name") == name:
+            if (
+                isinstance(entry, dict)
+                and entry.get("property", {}).get("name") == name
+            ):
                 return entry
         return None

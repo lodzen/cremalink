@@ -3,6 +3,7 @@ This module defines the data structures for a "Monitor Profile". A profile is a
 declarative configuration that describes how to interpret the raw bytes of a
 monitor frame for a specific device model.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -18,6 +19,7 @@ class FlagDefinition:
     Defines how to extract a boolean flag from a specific bit in a byte array.
     This is used for parsing the 'alarms' and 'switches' byte fields.
     """
+
     source: str
     byte: int
     bit: int
@@ -41,6 +43,7 @@ class PredicateDefinition:
     Predicates are used to create higher-level boolean states, like "is_on"
     or "is_making_coffee".
     """
+
     kind: str
     source: Optional[str] = None
     value: Any = None
@@ -52,8 +55,14 @@ class PredicateDefinition:
     def validate(self) -> None:
         """Checks if the predicate definition is valid."""
         if self.kind not in {
-            "equals", "not_equals", "in_set", "not_in_set",
-            "flag_true", "flag_false", "bit_set", "bit_clear",
+            "equals",
+            "not_equals",
+            "in_set",
+            "not_in_set",
+            "flag_true",
+            "flag_false",
+            "bit_set",
+            "bit_clear",
         }:
             raise ValueError(f"Unsupported predicate kind: {self.kind}")
         if self.source and self.source not in VALID_SOURCES:
@@ -79,6 +88,7 @@ class MonitorProfile:
     monitor frame into meaningful, human-readable data. It is typically loaded
     from a device-specific JSON file.
     """
+
     flags: Dict[str, FlagDefinition] = field(default_factory=dict)
     enums: Dict[str, Dict[int, str]] = field(default_factory=dict)
     predicates: Dict[str, PredicateDefinition] = field(default_factory=dict)
@@ -90,7 +100,7 @@ class MonitorProfile:
         """
         if not data:
             return cls()
-        
+
         # --- Load Flag Definitions ---
         flags = {}
         for name, flag_data in (data.get("flags") or {}).items():
@@ -111,7 +121,9 @@ class MonitorProfile:
                 kind=pred_data.get("kind"),
                 source=pred_data.get("source"),
                 value=pred_data.get("value"),
-                values=pred_data.get("values") or pred_data.get("set") or pred_data.get("in"),
+                values=pred_data.get("values")
+                or pred_data.get("set")
+                or pred_data.get("in"),
                 flag=pred_data.get("flag"),
                 byte=pred_data.get("byte"),
                 bit=pred_data.get("bit"),
@@ -136,7 +148,9 @@ class MonitorProfile:
         """Provides a brief summary of the profile's contents."""
         return {
             "flags": list(self.flags.keys()),
-            "enums": {name: list(mapping.keys()) for name, mapping in self.enums.items()},
+            "enums": {
+                name: list(mapping.keys()) for name, mapping in self.enums.items()
+            },
             "predicates": list(self.predicates.keys()),
         }
 

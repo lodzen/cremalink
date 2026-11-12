@@ -16,7 +16,6 @@ import json
 import logging
 
 import pytest
-import pytest_asyncio
 from aiohttp.test_utils import TestClient, TestServer
 
 from cremalink.local_server_app import ServerSettings, create_app
@@ -145,7 +144,11 @@ async def test_rekey_keeps_keys_store_and_queue():
 
     await state.rekey()
 
-    assert (state.app_crypto_key, state.dev_crypto_key, state.dev_iv_seed) == keys_before
+    assert (
+        state.app_crypto_key,
+        state.dev_crypto_key,
+        state.dev_iv_seed,
+    ) == keys_before
     assert await state.get_property_value("d284_mchn_sett_user_conf") is not None
     assert len(state.command_queue) == 1
     assert state.registered is False

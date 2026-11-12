@@ -42,7 +42,15 @@ class DummyLocalTransport(LocalTransport):
         if path == "/health":
             return DummyResponse(200, text="ok")
         if path == "/get_properties":
-            return DummyResponse(200, {"properties": {"prop": {"property": {"name": "prop", "value": "v"}}}, "received_at": 1.0})
+            return DummyResponse(
+                200,
+                {
+                    "properties": {
+                        "prop": {"property": {"name": "prop", "value": "v"}}
+                    },
+                    "received_at": 1.0,
+                },
+            )
         if path.startswith("/properties/"):
             return DummyResponse(200, {"value": "v"})
         if path == "/get_monitor":
@@ -65,7 +73,10 @@ def test_local_transport_flow():
     )
     transport.configure()
     assert ("POST", "/configure") in transport.calls
-    assert transport.configure_payloads[-1]["monitor_property_name"] == "d302_monitor_machine"
+    assert (
+        transport.configure_payloads[-1]["monitor_property_name"]
+        == "d302_monitor_machine"
+    )
 
     result = transport.send_command("brew")
     assert result["status"] == "queued"
@@ -102,7 +113,10 @@ def test_pop_response_buffers_all_drained_entries():
                         200,
                         {
                             "responses": [
-                                {"name": "data_response", "value_b64": base64.b64encode(f).decode()}
+                                {
+                                    "name": "data_response",
+                                    "value_b64": base64.b64encode(f).decode(),
+                                }
                                 for f in frames
                             ]
                         },

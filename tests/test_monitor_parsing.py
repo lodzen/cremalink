@@ -28,7 +28,10 @@ def test_extract_fields_from_b64_handles_invalid():
 
 def test_build_monitor_snapshot_collects_errors():
     raw_b64 = base64.b64encode(b"\x01\x02").decode("utf-8")
-    payload = {"monitor_b64": raw_b64, "received_at": dt.datetime.now(dt.UTC).timestamp()}
+    payload = {
+        "monitor_b64": raw_b64,
+        "received_at": dt.datetime.now(dt.UTC).timestamp(),
+    }
     snapshot = build_monitor_snapshot(payload, source="local", device_id="dsn123")
     assert snapshot.raw_b64 == raw_b64
     assert snapshot.errors

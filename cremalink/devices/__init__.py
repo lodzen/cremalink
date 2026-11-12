@@ -2,10 +2,10 @@
 This module handles the discovery and loading of device definition files,
 referred to as "device maps."
 """
+
 from __future__ import annotations
 
 import json
-import pathlib
 import tempfile
 from pathlib import Path
 from typing import Any, List
@@ -14,6 +14,7 @@ from importlib import resources
 
 class DeviceMapNotFoundError(FileNotFoundError):
     """Custom exception raised when a specific device map cannot be found."""
+
     pass
 
 
@@ -77,9 +78,9 @@ def device_map(model_id: str) -> str:
     filename = f"{model_id}.json"
 
     base = resources.files("cremalink.devices")
-    res: pathlib.Path = base.joinpath(filename)
+    res = base.joinpath(filename)
 
-    if not res.exists():
+    if not res.is_file():
         available = get_device_maps()
         raise DeviceMapNotFoundError(
             f"Device map '{model_id}' not found. Available: {available}"

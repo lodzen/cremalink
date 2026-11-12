@@ -401,7 +401,7 @@ class Device:
         except (ValueError, TypeError):
             return None
 
-    def _ensure_app_id(self) -> bool:
+    def _ensure_app_id(self) -> str | None:
         """Check the app_id matches the cremalink app id and try to set it"""
         app_id = self.get_property(self.property_map.get("app_id", "app_id")) or {}
         value = app_id.get("value")
@@ -413,6 +413,8 @@ class Device:
         elif value == hex_to_signed_decimal(APP_ID_HEX):
             self._refresh_app_id()
             return APP_ID_HEX
+        if not isinstance(value, str):
+            return None
         return signed_decimal_to_hex(value)
 
     def _register_app_id(self, app_id_hex: str) -> Any:
@@ -497,9 +499,7 @@ class Device:
     def _send_blob(self, blob: bytes) -> Any:
         """Send a non-frame payload (the ``s0`` handshake) — timestamp
         trailer like a frame but no ``0x0D`` structure (§14.8)."""
-        encoded = ecam_builder.encode_for_transport(
-            blob, self._profile(), raw=True
-        )
+        encoded = ecam_builder.encode_for_transport(blob, self._profile(), raw=True)
         try:
             return self.transport.send_command(
                 encoded,
@@ -921,7 +921,9 @@ class Device:
                 logger.debug("monitor status probe failed: %s", err)
         if status in ("standby", "sleeping", "off"):
             self.wake()
-        striker = self._profile().session != ecam_profiles_mod.SESSION_DEVICE_CONNECTED_TS
+        striker = (
+            self._profile().session != ecam_profiles_mod.SESSION_DEVICE_CONNECTED_TS
+        )
         attempts = 1 if striker else 3
         for attempt in range(attempts):
             self._send_gated(ecam_builder.build_profile_select(index, self._profile()))
@@ -974,7 +976,9 @@ class Device:
         Throttled to :attr:`profile_poll_seconds`; the read runs under
         the session gate (§14.8).
         """
-        striker = self._profile().session != ecam_profiles_mod.SESSION_DEVICE_CONNECTED_TS
+        striker = (
+            self._profile().session != ecam_profiles_mod.SESSION_DEVICE_CONNECTED_TS
+        )
         if not striker and self.current_profile:
             return self.current_profile  # last-asserted is the truth on Soul
         now = time.monotonic()

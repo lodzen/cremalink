@@ -2,6 +2,7 @@
 This module provides a function to load the language configuration from the
 embedded `lang.json` resource file.
 """
+
 from __future__ import annotations
 
 import json

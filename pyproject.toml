@@ -65,6 +65,12 @@ docs = [
     "sphinx-rtd-theme==3.1.0",
 ]
 
+[tool.ty.src]
+# Tests use protocol-violating test doubles by design (mock transports that
+# don't satisfy the full DeviceTransport protocol) — same convention as HA's
+# own type-check setup, which excludes the test suite.
+exclude = ["tests"]
+
 [dependency-groups]
 docs = [
     "sphinx==9.1.0",

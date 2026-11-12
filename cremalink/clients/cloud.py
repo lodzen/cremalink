@@ -95,8 +95,8 @@ class Client:
 
         # Load API configuration from resources.
         self.api_conf = load_api_config()
-        self.gigya_api = self.api_conf.get("GIGYA")
-        self.ayla_api = self.api_conf.get("AYLA")
+        self.gigya_api = self.api_conf["GIGYA"]
+        self.ayla_api = self.api_conf["AYLA"]
 
         self.token_agent = self.api_conf["USER_AGENT"]["TOKEN"]
         self.api_agent = self.api_conf["USER_AGENT"]["API"]
@@ -126,13 +126,14 @@ class Client:
             devices.append(device["device"]["dsn"])
         return devices
 
-    def get_device(self, dsn: str, device_map_path: dict | None = None):
+    def get_device(self, dsn: str, device_map_path: str | None = None):
         """
         Retrieves a specific cloud device by its DSN.
 
         Args:
             dsn (str): The Device Serial Number of the desired device.
-            device_map_path (dict | None): Optional mapping for device properties.
+            device_map_path (str | None): Optional path to a device-specific
+                command map file.
 
         Returns:
             CloudDevice | None: An instance of CloudDevice if found, otherwise None.

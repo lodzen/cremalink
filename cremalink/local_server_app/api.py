@@ -25,7 +25,11 @@ from cremalink.local_server_app.jobs import (
     nudger_job,
     session_job,
 )
-from cremalink.local_server_app.logging import create_logger, log_event
+from cremalink.local_server_app.logging import (
+    RingBufferHandler,
+    create_logger,
+    log_event,
+)
 from cremalink.local_server_app.models import (
     CommandPollResponse,
     CommandRequest,
@@ -272,7 +276,7 @@ def create_app(
 
     async def logs(request: web.Request) -> web.Response:
         ring_handler = next(
-            (h for h in logger.handlers if hasattr(h, "get_events")), None
+            (h for h in logger.handlers if isinstance(h, RingBufferHandler)), None
         )
         events = ring_handler.get_events() if ring_handler else []
         return web.json_response({"events": events, "last_command": state.last_command})
@@ -333,6 +337,10 @@ def create_app(
         next_item = await state.next_command_payload()
         payload, current_seq = next_item["payload"], next_item["seq"]
 
+        # `keys_ready()` above guarantees all three key material fields.
+        assert state.app_crypto_key is not None
+        assert state.app_iv_seed is not None
+        assert state.app_sign_key is not None
         enc, new_iv = protocol.encrypt_payload(
             payload, state.app_crypto_key, state.app_iv_seed
         )

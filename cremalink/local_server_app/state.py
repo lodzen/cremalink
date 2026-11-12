@@ -87,8 +87,8 @@ class LocalServerState:
         self.last_properties_received_at: float | None = None
         self._monitor_request_pending = False
         self._properties_request_pending = False
-        self.monitor_property_name: str = None
-        self.data_request_property_name: str = None
+        self.monitor_property_name: str | None = None
+        self.data_request_property_name: str | None = None
         # Per-property store keyed by datapoint name (any `value` datapoint
         # and every entry of a `properties` block lands here) plus the
         # `data_response` response mailbox (1-deep, last-write-wins).
@@ -206,8 +206,8 @@ class LocalServerState:
         device_ip: str,
         lan_key: str,
         device_scheme: str,
-        monitor_property_name: str,
-        data_request_property_name: str,
+        monitor_property_name: str | None,
+        data_request_property_name: str | None,
     ):
         if self.settings.server_settings_path == "":
             return

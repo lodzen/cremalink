@@ -62,9 +62,7 @@ async def nudger_job(
                     or time.monotonic() - st.last_register_attempt_at
                     >= settings.session_register_timeout_seconds
                 )
-                should_nudge = (live and pending) or (
-                    not st.registered and retry_due
-                )
+                should_nudge = (live and pending) or (not st.registered and retry_due)
             if should_nudge:
                 await adapter.register_with_device(st)
         except Exception as exc:

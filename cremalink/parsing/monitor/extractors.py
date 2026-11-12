@@ -1,6 +1,7 @@
 """
 This module provides extractor functions that pull data from a raw monitor frame.
 """
+
 from __future__ import annotations
 
 import base64
@@ -34,7 +35,7 @@ def extract_fields_from_b64(
     warnings: list[str] = []
     errors: list[str] = []
     frame: MonitorFrame | None = None
-    
+
     # --- Step 1: Decode the raw bytes into a MonitorFrame ---
     try:
         frame = MonitorFrame.from_b64(raw_b64)

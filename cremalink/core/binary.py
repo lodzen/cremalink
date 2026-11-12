@@ -3,6 +3,7 @@ This module provides binary utility functions for handling data conversions,
 checksum calculations, and bitwise operations, often required for communication
 with hardware devices.
 """
+
 from __future__ import annotations
 
 import base64
