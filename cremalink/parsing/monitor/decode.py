@@ -2,6 +2,7 @@
 This module contains the primary functions for decoding a raw monitor payload
 into a structured `MonitorSnapshot`.
 """
+
 from __future__ import annotations
 
 import base64
@@ -46,14 +47,18 @@ def build_monitor_snapshot(
         A populated `MonitorSnapshot` instance.
     """
     # The base64 data can be in a few different places depending on the source.
-    raw_b64 = payload.get("monitor_b64") or payload.get("monitor", {}).get("data", {}).get("value")
-    
+    raw_b64 = payload.get("monitor_b64") or payload.get("monitor", {}).get(
+        "data", {}
+    ).get("value")
+
     # If no base64 data is found, return an empty snapshot with a warning.
     if not raw_b64:
         return MonitorSnapshot(
             raw=b"",
             raw_b64="",
-            received_at=dt.datetime.fromtimestamp(payload.get("received_at") or dt.datetime.now(dt.UTC).timestamp()),
+            received_at=dt.datetime.fromtimestamp(
+                payload.get("received_at") or dt.datetime.now(dt.UTC).timestamp()
+            ),
             parsed={},
             warnings=["no monitor_b64 in payload"],
             errors=[],
@@ -64,12 +69,14 @@ def build_monitor_snapshot(
     # Decode the base64 string and then extract the low-level fields.
     raw = decode_monitor_b64(raw_b64)
     parsed, warnings, errors, frame = extract_fields_from_b64(raw_b64)
-    
+
     # Assemble the final snapshot object.
     return MonitorSnapshot(
         raw=raw,
         raw_b64=raw_b64,
-        received_at=dt.datetime.fromtimestamp(payload.get("received_at") or dt.datetime.now(dt.UTC).timestamp()),
+        received_at=dt.datetime.fromtimestamp(
+            payload.get("received_at") or dt.datetime.now(dt.UTC).timestamp()
+        ),
         parsed=parsed,
         warnings=warnings,
         errors=errors,

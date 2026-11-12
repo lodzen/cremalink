@@ -15,6 +15,7 @@ cache, parsed per the reference rules: plain ints pass through, JSON
 per-recipe objects sum to a total and keep their breakdown, anything
 unparseable becomes ``None`` (unknown — never invented).
 """
+
 from __future__ import annotations
 
 import json

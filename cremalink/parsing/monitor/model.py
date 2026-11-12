@@ -1,6 +1,7 @@
 """
 This module defines the high-level data model for a "monitor" data snapshot.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -31,6 +32,7 @@ class MonitorSnapshot:
         frame: A `MonitorFrame` instance if the raw bytes were successfully
                decoded into a low-level frame structure.
     """
+
     raw: bytes
     raw_b64: str
     received_at: datetime

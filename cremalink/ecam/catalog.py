@@ -242,9 +242,10 @@ def parse_triples(payload: bytes) -> dict[int, tuple[int, int, int]] | None:
         width = 2 if tag in WIDE_TAGS else 1
         if i + 1 + 3 * width > end:
             return None
-        out[tag] = tuple(
-            int.from_bytes(payload[i + 1 + n * width : i + 1 + (n + 1) * width], "big")
-            for n in range(3)
+        out[tag] = (
+            int.from_bytes(payload[i + 1 : i + 1 + width], "big"),
+            int.from_bytes(payload[i + 1 + width : i + 1 + 2 * width], "big"),
+            int.from_bytes(payload[i + 1 + 2 * width : i + 1 + 3 * width], "big"),
         )
         i += 1 + 3 * width
     return out
@@ -524,7 +525,11 @@ def build_declared_catalog(model: str | None) -> RecipeCatalogue:
         source="model_table",
         beverages=beverages,
         priority_lists={},
-        names={"beverages": {b.bev_id: b.name for b in beverages.values()}},
+        names={
+            "beverages": {
+                b.bev_id: b.name for b in beverages.values() if b.name is not None
+            }
+        },
         stats={
             "model": model,
             "source_type": declaration["source_type"],

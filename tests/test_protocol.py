@@ -13,8 +13,8 @@ def test_derive_keys_matches_reference():
     time_1 = "123456"
     time_2 = "654321"
 
-    app_sign_key, app_crypto_key, app_iv_seed, dev_crypto_key, dev_iv_seed = protocol.derive_keys(
-        lan_key, random_1, random_2, time_1, time_2
+    app_sign_key, app_crypto_key, app_iv_seed, dev_crypto_key, dev_iv_seed = (
+        protocol.derive_keys(lan_key, random_1, random_2, time_1, time_2)
     )
 
     # Manual derivation (mirrors implementation)
@@ -22,16 +22,36 @@ def test_derive_keys_matches_reference():
         return crypto.hmac_for_key_and_data(key, data)
 
     lan_key_bytes = lan_key.encode("utf-8")
-    expected_app_sign = h(lan_key_bytes, h(lan_key_bytes, b"random_onerandom_two1234566543210") + b"random_onerandom_two1234566543210")
-    expected_app_crypto = h(lan_key_bytes, h(lan_key_bytes, b"random_onerandom_two1234566543211") + b"random_onerandom_two1234566543211")
+    expected_app_sign = h(
+        lan_key_bytes,
+        h(lan_key_bytes, b"random_onerandom_two1234566543210")
+        + b"random_onerandom_two1234566543210",
+    )
+    expected_app_crypto = h(
+        lan_key_bytes,
+        h(lan_key_bytes, b"random_onerandom_two1234566543211")
+        + b"random_onerandom_two1234566543211",
+    )
     expected_app_iv = crypto.extract_bits(
-        h(lan_key_bytes, h(lan_key_bytes, b"random_onerandom_two1234566543212") + b"random_onerandom_two1234566543212"),
+        h(
+            lan_key_bytes,
+            h(lan_key_bytes, b"random_onerandom_two1234566543212")
+            + b"random_onerandom_two1234566543212",
+        ),
         0,
         32,
     )
-    expected_dev_crypto = h(lan_key_bytes, h(lan_key_bytes, b"random_tworandom_one6543211234561") + b"random_tworandom_one6543211234561")
+    expected_dev_crypto = h(
+        lan_key_bytes,
+        h(lan_key_bytes, b"random_tworandom_one6543211234561")
+        + b"random_tworandom_one6543211234561",
+    )
     expected_dev_iv = crypto.extract_bits(
-        h(lan_key_bytes, h(lan_key_bytes, b"random_tworandom_one6543211234562") + b"random_tworandom_one6543211234562"),
+        h(
+            lan_key_bytes,
+            h(lan_key_bytes, b"random_tworandom_one6543211234562")
+            + b"random_tworandom_one6543211234562",
+        ),
         0,
         32,
     )

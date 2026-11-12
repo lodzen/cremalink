@@ -82,8 +82,6 @@ def decode_bits(word: bytes, table: dict[int, BitDef]) -> dict[str, bool | None]
     than ``False`` — absent data is not a cleared bit.
     """
     return {
-        bit.key: (
-            bool(word[n // 8] >> (n % 8) & 1) if n // 8 < len(word) else None
-        )
+        bit.key: (bool(word[n // 8] >> (n % 8) & 1) if n // 8 < len(word) else None)
         for n, bit in table.items()
     }

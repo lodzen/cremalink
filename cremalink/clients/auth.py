@@ -8,11 +8,13 @@ from datetime import datetime
 from cremalink.resources.api_config import load_api_config
 from cremalink.resources.lang import load_lang_config
 
+
 class CloudToken:
     """
     Responsible for handling authentication with the Ayla IoT cloud platform.
     This module implements the multi-step authentication flow required to obtain a refresh token, which can be used for API interactions.
     """
+
     def __init__(self, refresh_token: str):
         self.refresh_token = refresh_token
 
@@ -25,6 +27,7 @@ class CloudToken:
     Returns:
         str: The absolute path to the saved token file.
     """
+
     def save(self, path: str = "token.json") -> str:
         abs_path = os.path.abspath(path)
         with open(abs_path, "w", encoding="utf-8") as f:
@@ -37,6 +40,7 @@ class CloudToken:
     Returns:
         str: The refresh token contained in the CloudToken instance.
     """
+
     def __str__(self):
         return self.refresh_token
 
@@ -81,7 +85,9 @@ def authenticate_cloud(email: str, password: str, language: str = "en") -> Cloud
     browser_agent = api_conf["USER_AGENT"]["BROWSER"]
     token_agent = api_conf["USER_AGENT"]["TOKEN"]
 
-    auth_header = "Basic " + base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
+    auth_header = (
+        "Basic " + base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
+    )
 
     lang_conf = load_lang_config()
     supported_langs = lang_conf.get("languages", {})
@@ -121,14 +127,25 @@ def authenticate_cloud(email: str, password: str, language: str = "en") -> Cloud
     gmid_ticket = res.get("gmidTicket")
 
     # Step 3: Login
-    risk_context_json = json.dumps({
-        "b0": 4494, "b1": [0, 2, 2, 0], "b2": 2, "b3": [], "b4": 2, "b5": 1,
-        "b6": browser_agent,
-        "b7": [{"name": "PDF Viewer", "filename": "internal-pdf-viewer", "length": 2}],
-        "b8": datetime.now().strftime("%H:%M:%S"),
-        "b9": 0, "b10": {"state": "denied"}, "b11": False,
-        "b13": [5, "440|956|24", False, True],
-    })
+    risk_context_json = json.dumps(
+        {
+            "b0": 4494,
+            "b1": [0, 2, 2, 0],
+            "b2": 2,
+            "b3": [],
+            "b4": 2,
+            "b5": 1,
+            "b6": browser_agent,
+            "b7": [
+                {"name": "PDF Viewer", "filename": "internal-pdf-viewer", "length": 2}
+            ],
+            "b8": datetime.now().strftime("%H:%M:%S"),
+            "b9": 0,
+            "b10": {"state": "denied"},
+            "b11": False,
+            "b13": [5, "440|956|24", False, True],
+        }
+    )
 
     res = requests.post(
         "https://accounts.eu1.gigya.com/accounts.login",
@@ -205,9 +222,14 @@ def authenticate_cloud(email: str, password: str, language: str = "en") -> Cloud
             "context": context,
             "login_token": login_token,
             "consent": json.dumps(
-                {"scope": "openid email profile UID comfort en alexa", "clientID": client_id, "context": context,
-                 "UID": user_uid, "consent": True},
-                separators=(",", ":")
+                {
+                    "scope": "openid email profile UID comfort en alexa",
+                    "clientID": client_id,
+                    "context": context,
+                    "UID": user_uid,
+                    "consent": True,
+                },
+                separators=(",", ":"),
             ),
             "sig": signature,
             "gmidTicket": gmid_ticket,
@@ -224,7 +246,11 @@ def authenticate_cloud(email: str, password: str, language: str = "en") -> Cloud
             "Authorization": auth_header,
             "Content-Type": "application/x-www-form-urlencoded",
         },
-        data={"code": code, "grant_type": "authorization_code", "redirect_uri": "https://google.it"},
+        data={
+            "code": code,
+            "grant_type": "authorization_code",
+            "redirect_uri": "https://google.it",
+        },
     ).json()
     idp_token = res["access_token"]
 

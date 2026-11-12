@@ -11,6 +11,7 @@ import base64
 import json
 import logging
 import os
+import re
 import time
 from collections import deque
 from typing import TYPE_CHECKING, Any
@@ -75,18 +76,36 @@ class LocalServerState:
         self.last_monitor_received_at: float | None = None
         self.last_monitor_command_sent_at: float | None = None
         self._monitor_command_payloads: set[str] = set()
+        # Names of property GETs still sitting in the queue — identical
+        # GETs are idempotent (the republish answers every waiter), so a
+        # second request for a name already queued is a no-op. Keeps
+        # re-request loops and the periodic settings lane from stacking
+        # duplicates on the one-command-per-poll drain (observed
+        # 2026-10-30: a recipe GET waited ~19 s behind stacked bursts).
+        self._property_get_pending: set[str] = set()
         self.last_properties: dict[str, Any] = {}
         self.last_properties_received_at: float | None = None
         self._monitor_request_pending = False
         self._properties_request_pending = False
-        self.monitor_property_name: str = None
-        self.data_request_property_name: str = None
+        self.monitor_property_name: str | None = None
+        self.data_request_property_name: str | None = None
         # Per-property store keyed by datapoint name (any `value` datapoint
         # and every entry of a `properties` block lands here) plus the
         # `data_response` response mailbox (1-deep, last-write-wins).
         self.properties_by_name: dict[str, dict[str, Any]] = {}
         self.data_response_property_name: str = "data_response"
         self._response_mailbox: deque[dict[str, Any]] = deque(maxlen=16)
+
+        # --- LAN session liveness markers (issue lodzen/cremalink#4) ---
+        # `last_commands_poll_at` advances every time the machine polls
+        # `commands.json`; `last_key_exchange_at` marks the last completed
+        # key exchange. The session job uses both to tell a live session
+        # from a hollow one.
+        self.last_commands_poll_at: float | None = None
+        self.last_key_exchange_at: float | None = None
+        # Throttles re-registration attempts while the session is down so a
+        # dead machine isn't POSTed at nudger cadence (every ~1 s).
+        self.last_register_attempt_at: float | None = None
 
         # --- Concurrency Control ---
         self.lock = asyncio.Lock()
@@ -159,12 +178,16 @@ class LocalServerState:
             self.last_monitor_received_at = None
             self.last_monitor_command_sent_at = None
             self._monitor_command_payloads.clear()
+            self._property_get_pending.clear()
             self._monitor_request_pending = False
             self.last_properties = {}
             self.last_properties_received_at = None
             self._properties_request_pending = False
             self.properties_by_name = {}
             self._response_mailbox.clear()
+            self.last_commands_poll_at = None
+            self.last_key_exchange_at = None
+            self.last_register_attempt_at = None
         self.log(
             "configured", {"dsn": dsn, "device_ip": device_ip, "scheme": device_scheme}
         )
@@ -183,8 +206,8 @@ class LocalServerState:
         device_ip: str,
         lan_key: str,
         device_scheme: str,
-        monitor_property_name: str,
-        data_request_property_name: str,
+        monitor_property_name: str | None,
+        data_request_property_name: str | None,
     ):
         if self.settings.server_settings_path == "":
             return
@@ -224,26 +247,26 @@ class LocalServerState:
             self.logger.error(f"Error loading state: {e}")
 
     async def rekey(self) -> None:
-        """
-        Resets cryptographic keys and session state to force a new key exchange.
+        """Prepares a fresh LAN session (lodzen/cremalink#4).
+
+        The machine only performs a key exchange on ``POST local_reg``
+        (or on its own initiative) — a ``PUT`` on a live session is a
+        pure keep-alive. Discarding our keys before registering therefore
+        produces a hollow session: the machine keeps encrypting with the
+        old keys while we can no longer decrypt anything. So this method
+        now only resets the *registration* state — fresh ``random_2`` /
+        ``time_2`` nonces and ``registered = False`` — while the derived
+        keys, datapoint store, mailbox, and command queue are kept. The
+        keys are replaced atomically by :meth:`init_crypto` when the
+        machine answers the subsequent ``POST`` with a key exchange, so
+        in-flight old-key datapoints keep decrypting until then.
         """
         async with self.lock:
-            self.app_sign_key = None
-            self.app_crypto_key = None
-            self.app_iv_seed = None
-            self.dev_crypto_key = None
-            self.dev_iv_seed = None
             self.random_2 = self._generate_random_2()
             self.time_2 = self._generate_time_2()
-            self.seq = 0
-            self.command_queue = deque()
-            self.command_payload = protocol.build_empty_payload(self.seq)
-            self._monitor_request_pending = False
-            self._properties_request_pending = False
-            self.properties_by_name = {}
-            self._response_mailbox.clear()
             self.registered = False
-        self.logger.info("rekey_reset")
+            self.last_commands_poll_at = None
+        self.logger.info("session_reset")
 
     async def init_crypto(self, random_1: str, time_1: str | int) -> None:
         """
@@ -252,6 +275,14 @@ class LocalServerState:
         if not self.lan_key:
             raise ValueError("LAN key not set; configure server first")
 
+        async with self.lock:
+            # Fresh server nonces per exchange (the app's
+            # processLanModeKeyExchange does the same) — also correct for
+            # exchanges the machine initiates without a prior POST.
+            self.random_2 = self._generate_random_2()
+            self.time_2 = self._generate_time_2()
+            random_2, time_2 = self.random_2, self.time_2
+
         (
             app_sign_key,
             app_crypto_key,
@@ -259,7 +290,7 @@ class LocalServerState:
             dev_crypto_key,
             dev_iv_seed,
         ) = protocol.derive_keys(
-            self.lan_key, random_1, self.random_2, str(time_1), str(self.time_2)
+            self.lan_key, random_1, random_2, str(time_1), str(time_2)
         )
 
         async with self.lock:
@@ -270,6 +301,10 @@ class LocalServerState:
             self.dev_iv_seed = dev_iv_seed
             self.seq = 0
             self.command_payload = protocol.build_empty_payload(self.seq)
+            # A completed exchange — ours (after POST local_reg) or the
+            # machine's own — proves the session is live again.
+            self.registered = True
+            self.last_key_exchange_at = time.monotonic()
         self.log("crypto_init", {"app_crypto_key": True, "dev_crypto_key": True})
 
     # --- state queries ---
@@ -280,6 +315,54 @@ class LocalServerState:
     def keys_ready(self) -> bool:
         """Returns True if the cryptographic session keys have been derived."""
         return bool(self.app_crypto_key and self.app_iv_seed and self.app_sign_key)
+
+    def session_live(self) -> bool:
+        """True while a registered LAN session with valid keys is held.
+
+        Drives the ``local_reg`` method choice (lodzen/cremalink#4):
+        ``PUT`` keeps a live session alive / notifies it; ``POST`` starts
+        a new session and always triggers a key exchange.
+        """
+        return bool(self.registered and self.keys_ready())
+
+    def mark_commands_poll(self) -> None:
+        """Record a ``commands.json`` poll from the machine."""
+        self.last_commands_poll_at = time.monotonic()
+
+    async def wait_for_commands_poll(
+        self, timeout: float, *, since: float | None = None
+    ) -> bool:
+        """Wait until the machine polls ``commands.json`` after ``since``.
+
+        ``PUT local_reg`` with ``notify: 1`` makes the machine poll within
+        ~0.05–1.3 s; no poll inside ``timeout`` means the session is dead
+        on the machine side.
+        """
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if self.last_commands_poll_at is not None and (
+                since is None or self.last_commands_poll_at > since
+            ):
+                return True
+            await asyncio.sleep(0.1)
+        return self.last_commands_poll_at is not None and (
+            since is None or self.last_commands_poll_at > since
+        )
+
+    async def wait_for_key_exchange(
+        self, timeout: float, *, since: float | None = None
+    ) -> bool:
+        """Wait until a key exchange completes after ``since``."""
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if self.last_key_exchange_at is not None and (
+                since is None or self.last_key_exchange_at > since
+            ):
+                return True
+            await asyncio.sleep(0.1)
+        return self.last_key_exchange_at is not None and (
+            since is None or self.last_key_exchange_at > since
+        )
 
     # --- command queue ---
     async def queue_command(self, command: str) -> None:
@@ -356,6 +439,9 @@ class LocalServerState:
             ]
         }
         async with self.lock:
+            if name in self._property_get_pending:
+                self.log("queue_property_get_dedup", {"name": name})
+                return
             if len(self.command_queue) >= self.settings.queue_max_size:
                 raise OverflowError("Command queue is full")
             self.command_queue.append(
@@ -364,6 +450,7 @@ class LocalServerState:
                     separators=(",", ":"),
                 )
             )
+            self._property_get_pending.add(name)
         self.log("queue_property_get", {"name": name})
 
     async def queue_monitor(self) -> None:
@@ -435,6 +522,11 @@ class LocalServerState:
                 if payload in self._monitor_command_payloads:
                     self._monitor_command_payloads.remove(payload)
                     self.last_monitor_command_sent_at = time.monotonic()
+                # Release the dedup slot for a served property GET so the
+                # next request for that name queues again.
+                name = re.search(r"property\.json\?name=([^\"\\&]+)", payload)
+                if name:
+                    self._property_get_pending.discard(name.group(1))
             else:
                 payload = protocol.build_empty_payload(self.seq)
             current_seq = self.seq

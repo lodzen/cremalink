@@ -123,8 +123,8 @@ async def test_monitor_interval_is_passed_to_server_settings(monkeypatch):
     try:
         assert created_settings[0].monitor_poll_interval == 12.0
         assert created_settings[0].nudger_poll_interval == 0.5
-        assert created_settings[0].rekey_interval_seconds == 60.0
-        assert server.rekey_interval_seconds == 60.0
+        assert created_settings[0].session_keepalive_interval_seconds == 20.0
+        assert server.session_keepalive_seconds == 20.0
     finally:
         await server.stop()
 

@@ -127,7 +127,7 @@ def rotate_iv_from_ciphertext(enc: str) -> bytes:
     """
     decoded_hex = base64.b64decode(enc).hex()
     # The last 16 bytes are the last 32 characters of the hex string.
-    return bytearray.fromhex(decoded_hex[-32:])
+    return bytes.fromhex(decoded_hex[-32:])
 
 
 # Specifies the public API of this module.

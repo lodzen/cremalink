@@ -59,6 +59,10 @@ OPERATIONAL_VISIBLE_KEYS = {
 class OperationalConsoleHandler(logging.StreamHandler):
     """Render operational details to the standalone server's console."""
 
+    # Marker set on instances added by create_logger() so a second call can
+    # detect the console handler without touching other handlers.
+    _cremalink_console: bool = False
+
     def emit(self, record: logging.LogRecord) -> None:
         details = getattr(record, "operational_details", None)
         if details:

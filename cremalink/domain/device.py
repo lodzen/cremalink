@@ -10,8 +10,9 @@ import json
 import logging
 import time
 from base64 import b64decode, b64encode
+from collections.abc import Collection
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, ClassVar
 
 from cremalink.core.binary import hex_to_signed_decimal, signed_decimal_to_hex
 from cremalink.devices import device_map
@@ -123,10 +124,20 @@ class Device:
     # Tunables for the data_response mailbox polling loop.
     response_timeout: float = 8.0
     response_poll: float = 0.25
+    #: Post-write confirmation window — longer than ``response_timeout``
+    #: because the machine can commit ``0x90`` writes sluggishly under
+    #: load (the app's own re-read waits ~2 s; we budget generously and
+    #: poll the republished property meanwhile).
+    write_confirm_seconds: float = 15.0
     # Internal per-device session/response state (never shared).
     _session_gate: SessionGate | None = field(default=None, init=False, repr=False)
     # Last 0xA9-acknowledged profile index (0 = none acked yet).
     current_profile: int = field(default=0, init=False)
+    #: Min seconds between param-0x03EE current-profile reads — callers
+    #: may hook this to a ~1 s monitor cycle, far too chatty for a
+    #: register that only changes on a profile switch.
+    profile_poll_seconds: float = 30.0
+    _profile_polled_at: float = field(default=0.0, init=False, repr=False)
 
     @classmethod
     def from_map(
@@ -390,7 +401,7 @@ class Device:
         except (ValueError, TypeError):
             return None
 
-    def _ensure_app_id(self) -> bool:
+    def _ensure_app_id(self) -> str | None:
         """Check the app_id matches the cremalink app id and try to set it"""
         app_id = self.get_property(self.property_map.get("app_id", "app_id")) or {}
         value = app_id.get("value")
@@ -402,6 +413,8 @@ class Device:
         elif value == hex_to_signed_decimal(APP_ID_HEX):
             self._refresh_app_id()
             return APP_ID_HEX
+        if not isinstance(value, str):
+            return None
         return signed_decimal_to_hex(value)
 
     def _register_app_id(self, app_id_hex: str) -> Any:
@@ -450,6 +463,13 @@ class Device:
                 self.resolve_property("device_connected", "device_connected"),
                 int(time.time()),
             )
+            # §14.8/DECODED.md: the app's connect sequence is
+            # ``device_connected`` → ``s0`` handshake blob → traffic.
+            # The announce alone left session commands unprocessed
+            # (0x95 silent, 0x90 acked-but-not-committed, 0xA9 unacked
+            # — 2026-10-14 and 2026-10-25 live runs); the handshake is
+            # the missing session opener, re-sent on every refresh.
+            self._send_blob(ecam_builder.build_handshake_blob())
             return
         # striker: 0xE8 handshake, then the app-id registration path.
         self.send_frame(ecam_builder.build_striker_handshake(profile))
@@ -471,6 +491,21 @@ class Device:
                 encoded,
                 alternative_property=self.resolve_property(
                     profile.command_property, profile.command_property
+                ),
+            )
+        except TypeError:
+            return self.transport.send_command(encoded)
+
+    def _send_blob(self, blob: bytes) -> Any:
+        """Send a non-frame payload (the ``s0`` handshake) — timestamp
+        trailer like a frame but no ``0x0D`` structure (§14.8)."""
+        encoded = ecam_builder.encode_for_transport(blob, self._profile(), raw=True)
+        try:
+            return self.transport.send_command(
+                encoded,
+                alternative_property=self.resolve_property(
+                    self._profile().command_property,
+                    self._profile().command_property,
                 ),
             )
         except TypeError:
@@ -684,16 +719,32 @@ class Device:
                 request(name)
             except (OSError, ValueError, RuntimeError) as err:
                 logger.debug("request_property(%s) failed: %s", name, err)
-            time.sleep(self.response_poll)
-        for _ in range(3):
+        # The republish lands one machine poll cycle (~1.3 s) after the
+        # queued GET drains — and the trigger+GET may sit behind several
+        # other commands first. Observed 2026-10-30: 'coffee' failed with
+        # "no recipe" while d040_1_rec_* republished ~5 s later, still
+        # behind the settings-lane backlog on an empty post-restart
+        # store. Budget the full response_timeout like _confirm_param_write
+        # and re-request every ~3 s to cover a dropped GET.
+        deadline = time.monotonic() + self.response_timeout
+        last_request = time.monotonic()
+        while True:
             value = self._named_value(name)
             raw = self._as_blob_bytes(value) if value is not None else None
             if raw is not None:
                 recipe = self._brew_recipe_bytes(raw)
                 if recipe is not None:
                     return recipe
+            now = time.monotonic()
+            if now >= deadline:
+                return None
+            if request is not None and now - last_request >= 3.0:
+                last_request = now
+                try:
+                    request(name)
+                except (OSError, ValueError, RuntimeError) as err:
+                    logger.debug("request_property(%s) failed: %s", name, err)
             time.sleep(self.response_poll)
-        return None
 
     # --- brew / power ---
     def brew(
@@ -848,11 +899,17 @@ class Device:
         return [slots[i] for i in sorted(slots)]
 
     def select_profile(self, index: int) -> bool:
-        """Switch the active profile (session-gated ``0xA9`` + ack).
+        """Switch the active profile (session-gated ``0xA9``).
 
-        Wakes a standby machine first; the state only updates after a
-        matching positive ack — never on monitor bytes or unconfirmed
-        writes (FR-019/021).
+        Wakes a standby machine first. On striker a matching positive
+        ack is required (the ``a9`` ack path updates ``EcamMachine.B``).
+        On non-striker the app treats ``0xA9`` as fire-and-retry — its
+        connect storm sends it ~11× and the 2026-10-14 cloud capture
+        shows zero acks, while the machine still applies the selection
+        (DECODED.md "Current profile — never fetched on non-striker").
+        There is no machine-side read-back on Soul: after a nack-free
+        send the asserted index becomes the truth, matching the app's
+        ``UserData.USER_PROFILE_SELECTED`` model.
         """
         if not 1 <= index <= max(self.n_profiles, 1):
             raise ValueError(f"profile index {index} out of range 1..{self.n_profiles}")
@@ -864,51 +921,135 @@ class Device:
                 logger.debug("monitor status probe failed: %s", err)
         if status in ("standby", "sleeping", "off"):
             self.wake()
-        self._send_gated(ecam_builder.build_profile_select(index, self._profile()))
-        frame = self._wait_answer(ecam_builder.REQ_PROFILE_SELECT)
-        if frame is None:
+        striker = (
+            self._profile().session != ecam_profiles_mod.SESSION_DEVICE_CONNECTED_TS
+        )
+        attempts = 1 if striker else 3
+        for attempt in range(attempts):
+            self._send_gated(ecam_builder.build_profile_select(index, self._profile()))
+            try:
+                frame = self._wait_answer(
+                    ecam_builder.REQ_PROFILE_SELECT,
+                    timeout=None if striker else min(self.response_timeout, 4.0),
+                )
+            except TimeoutError:
+                return False
+            if frame is None:
+                continue  # expected on non-striker — see docstring
+            try:
+                profile, ok = ecam_answers.parse_a9_ack(frame)
+            except ValueError:
+                continue
+            if ok and profile == index:
+                self.current_profile = index
+                return True
+            if not ok:
+                return False  # explicit nack — resending is pointless
+        if striker:
             return False
-        try:
-            profile, ok = ecam_answers.parse_a9_ack(frame)
-        except ValueError:
-            return False
-        if ok and profile == index:
-            self.current_profile = index
-            return True
-        return False
+        self.current_profile = index
+        return True
 
     @property
     def selected_profile(self) -> int | None:
         """The last acknowledged ``0xA9`` profile index, if any."""
         return self.current_profile or None
 
+    #: Param behind striker ``d286_mach_sett_profile`` — on striker it is
+    #: the live selected-profile register (``f2()`` asserts the envelope
+    #: param id). On the Soul it answers ``0x95`` but does NOT track
+    #: ``0xA9`` selections — verified 2026-10-25: display on profile 2
+    #: while the register still read 0. On non-striker it is only a
+    #: boot-state hint, never truth (DECODED.md §335).
+    PARAM_CURRENT_PROFILE: ClassVar[int] = 0x03EE
+
+    def refresh_current_profile(self, *, force: bool = False) -> int | None:
+        """Refresh :attr:`current_profile` — striker reads ``0x03EE``,
+        non-striker keeps the last-asserted profile.
+
+        On striker the register is read back whenever it is stale.
+        On non-striker the app never asks the machine for the profile —
+        ``0xA9`` is told-never-asked and ``0x03EE`` does not follow
+        panel/app selects, so the read only seeds the initial state
+        (when ``current_profile`` is still 0/unknown) and can never
+        overwrite a selection this process asserted or confirmed.
+        Throttled to :attr:`profile_poll_seconds`; the read runs under
+        the session gate (§14.8).
+        """
+        striker = (
+            self._profile().session != ecam_profiles_mod.SESSION_DEVICE_CONNECTED_TS
+        )
+        if not striker and self.current_profile:
+            return self.current_profile  # last-asserted is the truth on Soul
+        now = time.monotonic()
+        if (
+            not force
+            and self._profile_polled_at
+            and now - self._profile_polled_at < self.profile_poll_seconds
+        ):
+            return None
+        if getattr(self.transport, "pop_response", None) is None:
+            return None  # transports without a mailbox cannot answer 0x95
+        self._profile_polled_at = now
+        try:
+            self._session().ensure_fresh()
+        except (ConnectionError, OSError, RuntimeError) as err:
+            logger.debug("session announce before profile read failed: %s", err)
+        frame = self._read_param_frame(self.PARAM_CURRENT_PROFILE)
+        if frame is None:
+            return None
+        raw = ecam_settings.parse_settings(frame).get(self.PARAM_CURRENT_PROFILE)
+        if raw is None:
+            return None
+        if not striker and self.current_profile:
+            return self.current_profile  # register can lag panel selects
+        self.current_profile = raw + 1
+        return self.current_profile
+
     # --- settings ---
-    def get_settings(self) -> dict[str, int | None]:
+    def get_settings(
+        self,
+        *,
+        hints: Collection[str] | None = None,
+        keys: Collection[str] | None = None,
+    ) -> dict[str, int | None]:
         """Read writable settings as ``{key: raw_option_index}``.
 
         Republished ``dNNN`` ``95``-blobs are read first; settings without
         a stored blob fall back to a ``0x95`` mailbox read. Capability-
         gated settings the map marks unsupported are omitted.
+
+        ``hints`` narrows the re-requested datapoints to names containing
+        one of the hint substrings (``datapoint_hint`` semantics) — the
+        HA coordinator passes the entity-backed hints so the periodic
+        refresh queues ~3 GETs instead of the full six (observed
+        2026-10-30: the full lane burst-starved interactive commands on
+        the one-command-per-poll drain). ``keys`` narrows the evaluated
+        settings to the given map keys — entities refreshing a single
+        setting pass their own key so sibling keys don't each sink into
+        a seconds-long ``0x95`` fallback.
         """
+        names = self.settings_datapoints
+        if hints is not None:
+            names = [n for n in names if any(h in n for h in hints)]
         merged: dict[int, int] = {}
-        if self.settings_datapoints:
-            props = self._collect_named_properties(self.settings_datapoints)
+        if names:
+            props = self._collect_named_properties(names)
             for value in props.values():
                 raw = self._as_blob_bytes(value)
                 if raw is not None:
                     merged.update(ecam_settings.parse_settings(raw))
         out: dict[str, int | None] = {}
         for key, setting in ecam_settings.SETTING_OPTION_MAPS.items():
+            if keys is not None and key not in keys:
+                continue
             if self.capabilities and not self.capabilities.get(
                 setting.capability, True
             ):
                 continue
             raw = merged.get(setting.param_id)
             if raw is None:
-                self.send_frame(
-                    ecam_builder.build_read_param(setting.param_id, self._profile())
-                )
-                frame = self._wait_answer(ecam_builder.REQ_READ_PARAM)
+                frame = self._read_param_frame(setting.param_id)
                 if frame is not None:
                     raw = ecam_settings.parse_settings(frame).get(setting.param_id)
             out[key] = raw
@@ -930,19 +1071,22 @@ class Device:
 
         Follows protocol.md §14.5: ``device_connected`` announce (via
         :meth:`_send_gated`) → ``0x90``. §14.5 woke the machine for its test;
-        by product decision this library never wakes it — a machine in
-        standby aborts the write with :class:`MachineStandbyError` before
-        any frame is sent. §14.5 confirmed the commits on the machine's
-        display and recorded no ack for them, so the ack is treated as
-        optional: the write counts as committed when a read-back — mailbox
-        answer or the republished ``dNNN`` backing property — shows the
-        new value.
+        by product decision this library never wakes it — configuration
+        writes are attempted in standby as well: the machine processes
+        ``data_request`` while ``in_standby`` (§14.8 — ``0xA2`` reads were
+        answered there) and the official app exposes config changes in
+        standby (only profile selection is gated). §14.5 confirmed the
+        commits on the machine's display and recorded no ack for them, so
+        the ack is treated as optional: the write counts as committed when
+        a read-back — mailbox answer or the republished ``dNNN`` backing
+        property — shows the new value. An unconfirmed write is retried
+        once with a fresh session announce — the machine rate-limits and
+        drops frames under load (observed 2026-10-14).
 
         Returns ``True`` when the write is confirmed and ``False`` when the
         machine nacked it or reports a different value. Raises
-        ``ValueError`` for unknown keys/options, ``MachineStandbyError``
-        when the machine is in standby and ``TimeoutError`` when neither an
-        ack nor a read-back arrives.
+        ``ValueError`` for unknown keys/options and ``TimeoutError`` when
+        neither an ack nor a read-back arrives.
         """
         setting = ecam_settings.SETTING_OPTION_MAPS.get(key)
         if setting is None:
@@ -952,28 +1096,37 @@ class Device:
                 f"option {option_index} out of range for {key!r} "
                 f"(allowed: {sorted(setting.options)})"
             )
-        if self._machine_in_standby():
-            raise MachineStandbyError(
-                f"the machine is in standby; switch it on to change {key!r}"
-            )
-        self._send_gated(
+        return self._write_setting_confirmed(
+            key,
             ecam_builder.build_write_param(
                 setting.param_id, option_index, self._profile()
-            )
+            ),
+            setting.param_id,
+            option_index,
+            setting.datapoint_hint,
         )
-        self.send_frame(
-            ecam_builder.build_read_param(setting.param_id, self._profile())
-        )
+
+    def _confirm_param_write(
+        self, key: str, param_id: int, expected: int, datapoint_hint: str
+    ) -> str:
+        """Post-write confirmation shared by option and bit writes.
+
+        Polls the mailbox (``0x90`` ack + the ``0x95`` read-back already on
+        the wire) and re-requests the republished ``dNNN`` backing property
+        until the new value shows or the timeout expires. Returns
+        ``"confirmed"``, ``"rejected"`` (explicit nack) or ``"stale"``
+        (a different value seen — worth a retry)."""
+
         datapoint = next(
             (
                 name
                 for name in self.settings_datapoints or []
-                if setting.datapoint_hint and setting.datapoint_hint in name
+                if datapoint_hint and datapoint_hint in name
             ),
             None,
         )
         request = getattr(self.transport, "request_property", None)
-        deadline = time.monotonic() + self.response_timeout
+        deadline = time.monotonic() + self.write_confirm_seconds
         last_request: float | None = None
         acked = False
         seen: int | None = None
@@ -988,20 +1141,20 @@ class Device:
                     answer = None
                 if answer == ecam_builder.REQ_WRITE_PARAM:
                     param, ok = ecam_answers.parse_write_ack(frame)
-                    if param == setting.param_id:
+                    if param == param_id:
                         if not ok:
                             self._session().invalidate()
-                            return False
+                            return "rejected"
                         acked = True
                 elif answer == ecam_builder.REQ_READ_PARAM:
-                    value = ecam_settings.parse_settings(frame).get(setting.param_id)
+                    value = ecam_settings.parse_settings(frame).get(param_id)
                     seen = value if value is not None else seen
-                if seen == option_index:
-                    return True
+                if seen == expected:
+                    return "confirmed"
                 continue
             now = time.monotonic()
             if datapoint and request is not None:
-                if last_request is None or now - last_request >= 2.0:
+                if last_request is None or now - last_request >= 3.0:
                     last_request = now
                     try:
                         request(datapoint)
@@ -1009,29 +1162,212 @@ class Device:
                         logger.debug("request_property(%s) failed: %s", datapoint, err)
                 raw = self._as_blob_bytes(self._named_value(datapoint))
                 value = (
-                    ecam_settings.parse_settings(raw).get(setting.param_id)
+                    ecam_settings.parse_settings(raw).get(param_id)
                     if raw is not None
                     else None
                 )
                 seen = value if value is not None else seen
-                if seen == option_index:
-                    return True
+                if seen == expected:
+                    return "confirmed"
             if now >= deadline:
                 break
             time.sleep(self.response_poll)
         logger.debug(
-            "set_setting(%s=%s) unconfirmed: acked=%s last_seen=%s",
+            "param write (%s=%s) unconfirmed: acked=%s last_seen=%s",
             key,
-            option_index,
+            expected,
             acked,
             seen,
         )
         if seen is None:
             if acked:
-                return True
+                return "confirmed"
             raise TimeoutError(
                 f"machine neither acknowledged nor republished setting {key!r}"
             )
+        return "stale"
+
+    def _read_param_value(self, param_id: int, datapoint_hint: str = "") -> int | None:
+        """Current u32 of a parameter — republished ``dNNN`` first, then a
+        ``0x95`` mailbox read.
+
+        The named property is re-requested before reading so a stale
+        last-published value is less likely to be used as a merge base.
+        """
+        datapoint = next(
+            (
+                name
+                for name in self.settings_datapoints or []
+                if datapoint_hint and datapoint_hint in name
+            ),
+            None,
+        )
+        if datapoint:
+            request = getattr(self.transport, "request_property", None)
+            if request is not None:
+                try:
+                    request(datapoint)
+                except (OSError, ValueError, RuntimeError) as err:
+                    logger.debug("request_property(%s) failed: %s", datapoint, err)
+            # The machine serves ~one queued GET per poll cycle and the
+            # answer arrives as a republish of the property itself
+            # (protocol.md §13 — `0x95` replies for settings don't use the
+            # data_response mailbox), so poll the store for a few seconds.
+            deadline = time.monotonic() + min(self.response_timeout, 4.0)
+            while True:
+                raw = self._as_blob_bytes(self._named_value(datapoint))
+                if raw is not None:
+                    value = ecam_settings.parse_settings(raw).get(param_id)
+                    if value is not None:
+                        return value
+                if time.monotonic() >= deadline:
+                    break
+                time.sleep(self.response_poll)
+        frame = self._read_param_frame(param_id)
+        if frame is None:
+            return None
+        return ecam_settings.parse_settings(frame).get(param_id)
+
+    def _read_param_frame(self, param_id: int, *, retries: int = 1) -> bytes | None:
+        """Send a ``0x95`` param read and wait for its mailbox answer.
+
+        The machine drops ``data_request`` frames when busy or
+        rate-limited (observed 2026-10-14 — whole read batches went
+        unanswered), so an unanswered read is retried ``retries`` times
+        before giving up. Session commands appear to be processed only
+        while a session is live (§14.8 — reads went silent on dead
+        sessions while ``0xA2`` answered), so the gate is refreshed
+        first; an announce failure is tolerated.
+        """
+        try:
+            self._session().ensure_fresh()
+        except (ConnectionError, OSError, RuntimeError) as err:
+            logger.debug("session announce before param read failed: %s", err)
+        frame: bytes | None = None
+        for _ in range(retries + 1):
+            self.send_frame(ecam_builder.build_read_param(param_id, self._profile()))
+            frame = self._wait_answer(ecam_builder.REQ_READ_PARAM)
+            if frame is not None:
+                break
+        return frame
+
+    def get_setting_bits(self, *, refresh: bool = True) -> dict[str, bool | None]:
+        """Read boolean bit settings as ``{key: on/off}`` (param ``0x003F``).
+
+        Same read strategy as :meth:`get_settings`: republished ``dNNN``
+        ``95``-blobs first, ``0x95`` mailbox read for params without one.
+        Capability-gated settings the map marks unsupported are omitted;
+        unreadable params yield ``None`` — never a fabricated ``False``.
+
+        ``refresh=False`` harvests only what is already in the property
+        store — no ``request_property`` GETs and no ``0x95`` fallback.
+        Used by the HA coordinator's tracking poll: ``get_settings``
+        refreshes the store first, then this reads param ``0x003F`` off
+        it without queuing a second GET round (protocol.md §14.11 —
+        republished ``dNNN`` is the WiFi read channel).
+        """
+        merged: dict[int, int] = {}
+        if self.settings_datapoints:
+            if refresh:
+                props = self._collect_named_properties(self.settings_datapoints)
+            else:
+                props = {
+                    name: value
+                    for name in self.settings_datapoints
+                    if (value := self._named_value(name)) is not None
+                }
+            for value in props.values():
+                raw = self._as_blob_bytes(value)
+                if raw is not None:
+                    merged.update(ecam_settings.parse_settings(raw))
+        needed: dict[int, list[str]] = {}
+        for key, setting in ecam_settings.SETTING_BIT_MAPS.items():
+            if self.capabilities and not self.capabilities.get(
+                setting.capability, True
+            ):
+                continue
+            needed.setdefault(setting.param_id, []).append(key)
+        out: dict[str, bool | None] = {}
+        for param_id, keys in needed.items():
+            raw = merged.get(param_id)
+            if raw is None and refresh:
+                frame = self._read_param_frame(param_id)
+                if frame is not None:
+                    raw = ecam_settings.parse_settings(frame).get(param_id)
+            bits = ecam_settings.settings_bits(param_id, raw) if raw is not None else {}
+            for key in keys:
+                out[key] = bits.get(key)
+        return out
+
+    def set_setting_bit(self, key: str, on: bool) -> bool:
+        """Flip a boolean flag inside a shared param word (``0x90`` write).
+
+        Reads the param's current u32 first — the flag is merged so
+        unrelated bits survive (the app's ``f0`` write does exactly this;
+        protocol.md §14.8). Standby does not block configuration writes:
+        the machine processes ``data_request`` while ``in_standby`` and
+        the app exposes these toggles there. An unreadable base value
+        aborts with ``TimeoutError`` — a blind write could clobber other
+        settings. Returns ``True`` on confirmed state, ``False`` when the
+        machine reports a different value.
+        """
+        setting = ecam_settings.SETTING_BIT_MAPS.get(key)
+        if setting is None:
+            raise ValueError(f"unknown bit setting {key!r}")
+        raw = self._read_param_value(setting.param_id, setting.datapoint_hint)
+        if raw is None:
+            raise TimeoutError(
+                f"could not read the current value of param "
+                f"0x{setting.param_id:04x}; refusing a blind write of {key!r}"
+            )
+        new = ecam_settings.merge_setting_bit(raw, setting, on)
+        if new == raw:
+            return True  # already in the desired state — no wire traffic
+        return self._write_setting_confirmed(
+            key,
+            ecam_builder.build_write_param(setting.param_id, new, self._profile()),
+            setting.param_id,
+            new,
+            setting.datapoint_hint,
+        )
+
+    def _write_setting_confirmed(
+        self,
+        key: str,
+        frame: bytes,
+        param_id: int,
+        expected: int,
+        datapoint_hint: str,
+    ) -> bool:
+        """Send a ``0x90`` param write and confirm, retrying once.
+
+        The machine drops frames when busy/rate-limited (observed
+        2026-10-14 — a write was acked ``ok`` yet the param republished
+        the old value). An unconfirmed first attempt re-announces the
+        session and resends the same write — idempotent, the merged
+        value is unchanged. The read-back follows each write.
+        """
+        for attempt in range(2):
+            self._send_gated(frame)
+            self.send_frame(ecam_builder.build_read_param(param_id, self._profile()))
+            try:
+                result = self._confirm_param_write(
+                    key, param_id, expected, datapoint_hint
+                )
+            except TimeoutError:
+                if attempt:
+                    raise
+                result = "stale"
+            if result == "confirmed":
+                return True
+            if result == "rejected":
+                return False  # an explicit nack — resending is pointless
+            # "stale": the write was likely ignored — re-announce and
+            # resend (idempotent, the merged value is unchanged).
+            if attempt == 0:
+                self._session().invalidate()
+            else:
+                return False
         return False
 
     # --- catalogue ---

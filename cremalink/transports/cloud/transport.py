@@ -37,7 +37,7 @@ class CloudTransport(DeviceTransport):
         """
         self.api_conf = load_api_config()
         self.gigya_api = self.api_conf.get("GIGYA")
-        self.ayla_api = self.api_conf.get("AYLA")
+        self.ayla_api = self.api_conf["AYLA"]
 
         self.api_agent = self.api_conf["USER_AGENT"]["API"]
 
@@ -162,7 +162,7 @@ class CloudTransport(DeviceTransport):
         This works by fetching the specific 'monitor' property, extracting its
         base64 value, and then decoding it into a structured snapshot.
         """
-        property_name = self.property_map.get("monitor")
+        property_name = self.property_map.get("monitor", "monitor")
         prop = self.get_property(property_name) or {}
         raw_b64 = prop.get("value")
         received_at = prop.get("updated_at")

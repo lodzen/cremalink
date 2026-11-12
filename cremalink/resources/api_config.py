@@ -2,6 +2,7 @@
 This module provides a function to load the API configuration from the
 embedded `api_config.json` resource file.
 """
+
 from __future__ import annotations
 
 import json

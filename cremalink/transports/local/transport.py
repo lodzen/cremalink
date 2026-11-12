@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import base64
 import json
+from collections import deque
 from datetime import datetime, timezone
 from typing import Any
 
@@ -59,6 +60,9 @@ class LocalTransport(DeviceTransport):
         self.device_scheme = device_scheme
         self.server_base_url = f"http://{server_host}:{server_port}"
         self._configured = False
+        # `/responses` drains the whole server mailbox; frames not consumed
+        # yet wait here so none are lost between polls.
+        self._response_buffer: deque[bytes] = deque()
         self.command_map = command_map or {}
         self.property_map = property_map or {}
         self._auto_configure = auto_configure
@@ -175,16 +179,17 @@ class LocalTransport(DeviceTransport):
         return resp.json()
 
     def pop_response(self) -> bytes | None:
-        """Returns the most recent `data_response` frame as raw bytes."""
-        resp = self._get_server("/responses")
-        resp.raise_for_status()
-        entries = resp.json().get("responses") or []
-        if not entries:
+        """Returns the oldest unconsumed `data_response` frame as raw bytes."""
+        if not self._response_buffer:
+            resp = self._get_server("/responses")
+            resp.raise_for_status()
+            for entry in resp.json().get("responses") or []:
+                value_b64 = entry.get("value_b64")
+                if value_b64:
+                    self._response_buffer.append(base64.b64decode(value_b64))
+        if not self._response_buffer:
             return None
-        value_b64 = entries[-1].get("value_b64")
-        if not value_b64:
-            return None
-        return base64.b64decode(value_b64)
+        return self._response_buffer.popleft()
 
     def get_monitor(self) -> Any:
         """Retrieves and parses the device's monitoring data."""
