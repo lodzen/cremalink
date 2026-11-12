@@ -79,6 +79,7 @@
 <span class="sd">declarative configuration that describes how to interpret the raw bytes of a</span>
 <span class="sd">monitor frame for a specific device model.</span>
 <span class="sd">"""</span>
+
 <span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
@@ -96,6 +97,7 @@
 <span class="sd">    Defines how to extract a boolean flag from a specific bit in a byte array.</span>
 <span class="sd">    This is used for parsing the 'alarms' and 'switches' byte fields.</span>
 <span class="sd">    """</span>
+
     <span class="n">source</span><span class="p">:</span> <span class="nb">str</span>
     <span class="n">byte</span><span class="p">:</span> <span class="nb">int</span>
     <span class="n">bit</span><span class="p">:</span> <span class="nb">int</span>
@@ -125,6 +127,7 @@
 <span class="sd">    Predicates are used to create higher-level boolean states, like "is_on"</span>
 <span class="sd">    or "is_making_coffee".</span>
 <span class="sd">    """</span>
+
     <span class="n">kind</span><span class="p">:</span> <span class="nb">str</span>
     <span class="n">source</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">value</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span>
@@ -138,8 +141,14 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">validate</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""Checks if the predicate definition is valid."""</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">kind</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">{</span>
-            <span class="s2">"equals"</span><span class="p">,</span> <span class="s2">"not_equals"</span><span class="p">,</span> <span class="s2">"in_set"</span><span class="p">,</span> <span class="s2">"not_in_set"</span><span class="p">,</span>
-            <span class="s2">"flag_true"</span><span class="p">,</span> <span class="s2">"flag_false"</span><span class="p">,</span> <span class="s2">"bit_set"</span><span class="p">,</span> <span class="s2">"bit_clear"</span><span class="p">,</span>
+            <span class="s2">"equals"</span><span class="p">,</span>
+            <span class="s2">"not_equals"</span><span class="p">,</span>
+            <span class="s2">"in_set"</span><span class="p">,</span>
+            <span class="s2">"not_in_set"</span><span class="p">,</span>
+            <span class="s2">"flag_true"</span><span class="p">,</span>
+            <span class="s2">"flag_false"</span><span class="p">,</span>
+            <span class="s2">"bit_set"</span><span class="p">,</span>
+            <span class="s2">"bit_clear"</span><span class="p">,</span>
         <span class="p">}:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Unsupported predicate kind: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">kind</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">source</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">source</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">VALID_SOURCES</span><span class="p">:</span>
@@ -175,6 +184,7 @@
 <span class="sd">    monitor frame into meaningful, human-readable data. It is typically loaded</span>
 <span class="sd">    from a device-specific JSON file.</span>
 <span class="sd">    """</span>
+
     <span class="n">flags</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">FlagDefinition</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>
     <span class="n">enums</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>
     <span class="n">predicates</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">PredicateDefinition</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>
@@ -188,7 +198,7 @@
 <span class="sd">        """</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">data</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">cls</span><span class="p">()</span>
-        
+
         <span class="c1"># --- Load Flag Definitions ---</span>
         <span class="n">flags</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">flag_data</span> <span class="ow">in</span> <span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"flags"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{})</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
@@ -209,7 +219,9 @@
                 <span class="n">kind</span><span class="o">=</span><span class="n">pred_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"kind"</span><span class="p">),</span>
                 <span class="n">source</span><span class="o">=</span><span class="n">pred_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"source"</span><span class="p">),</span>
                 <span class="n">value</span><span class="o">=</span><span class="n">pred_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"value"</span><span class="p">),</span>
-                <span class="n">values</span><span class="o">=</span><span class="n">pred_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"values"</span><span class="p">)</span> <span class="ow">or</span> <span class="n">pred_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"set"</span><span class="p">)</span> <span class="ow">or</span> <span class="n">pred_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"in"</span><span class="p">),</span>
+                <span class="n">values</span><span class="o">=</span><span class="n">pred_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"values"</span><span class="p">)</span>
+                <span class="ow">or</span> <span class="n">pred_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"set"</span><span class="p">)</span>
+                <span class="ow">or</span> <span class="n">pred_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"in"</span><span class="p">),</span>
                 <span class="n">flag</span><span class="o">=</span><span class="n">pred_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"flag"</span><span class="p">),</span>
                 <span class="n">byte</span><span class="o">=</span><span class="n">pred_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"byte"</span><span class="p">),</span>
                 <span class="n">bit</span><span class="o">=</span><span class="n">pred_data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"bit"</span><span class="p">),</span>
@@ -240,7 +252,9 @@
 <span class="w">        </span><span class="sd">"""Provides a brief summary of the profile's contents."""</span>
         <span class="k">return</span> <span class="p">{</span>
             <span class="s2">"flags"</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">keys</span><span class="p">()),</span>
-            <span class="s2">"enums"</span><span class="p">:</span> <span class="p">{</span><span class="n">name</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="n">mapping</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">mapping</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">enums</span><span class="o">.</span><span class="n">items</span><span class="p">()},</span>
+            <span class="s2">"enums"</span><span class="p">:</span> <span class="p">{</span>
+                <span class="n">name</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="n">mapping</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">mapping</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">enums</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+            <span class="p">},</span>
             <span class="s2">"predicates"</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">predicates</span><span class="o">.</span><span class="n">keys</span><span class="p">()),</span>
         <span class="p">}</span></div>
 </div>
@@ -257,7 +271,7 @@
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright 2026, Midian Tekle Elfu.</p>
+    <p>&#169; Copyright 2026, Lodzen.</p>
   </div>
 
   Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a

@@ -83,6 +83,7 @@
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">base64</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">collections</span><span class="w"> </span><span class="kn">import</span> <span class="n">deque</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">timezone</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
 
@@ -137,6 +138,9 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">device_scheme</span> <span class="o">=</span> <span class="n">device_scheme</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">server_base_url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"http://</span><span class="si">{</span><span class="n">server_host</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">server_port</span><span class="si">}</span><span class="s2">"</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_configured</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="c1"># `/responses` drains the whole server mailbox; frames not consumed</span>
+        <span class="c1"># yet wait here so none are lost between polls.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_response_buffer</span><span class="p">:</span> <span class="n">deque</span><span class="p">[</span><span class="nb">bytes</span><span class="p">]</span> <span class="o">=</span> <span class="n">deque</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">command_map</span> <span class="o">=</span> <span class="n">command_map</span> <span class="ow">or</span> <span class="p">{}</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">property_map</span> <span class="o">=</span> <span class="n">property_map</span> <span class="ow">or</span> <span class="p">{}</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_auto_configure</span> <span class="o">=</span> <span class="n">auto_configure</span>
@@ -273,16 +277,17 @@
 <div class="viewcode-block" id="LocalTransport.pop_response">
 <a class="viewcode-back" href="../../../../api/cremalink.transports.local.transport.html#cremalink.transports.local.LocalTransport.pop_response">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">pop_response</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">"""Returns the most recent `data_response` frame as raw bytes."""</span>
-        <span class="n">resp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_server</span><span class="p">(</span><span class="s2">"/responses"</span><span class="p">)</span>
-        <span class="n">resp</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
-        <span class="n">entries</span> <span class="o">=</span> <span class="n">resp</span><span class="o">.</span><span class="n">json</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"responses"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[]</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">entries</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Returns the oldest unconsumed `data_response` frame as raw bytes."""</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_response_buffer</span><span class="p">:</span>
+            <span class="n">resp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_server</span><span class="p">(</span><span class="s2">"/responses"</span><span class="p">)</span>
+            <span class="n">resp</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">resp</span><span class="o">.</span><span class="n">json</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"responses"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[]:</span>
+                <span class="n">value_b64</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"value_b64"</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">value_b64</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_response_buffer</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">base64</span><span class="o">.</span><span class="n">b64decode</span><span class="p">(</span><span class="n">value_b64</span><span class="p">))</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_response_buffer</span><span class="p">:</span>
             <span class="k">return</span> <span class="kc">None</span>
-        <span class="n">value_b64</span> <span class="o">=</span> <span class="n">entries</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"value_b64"</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">value_b64</span><span class="p">:</span>
-            <span class="k">return</span> <span class="kc">None</span>
-        <span class="k">return</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64decode</span><span class="p">(</span><span class="n">value_b64</span><span class="p">)</span></div>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_response_buffer</span><span class="o">.</span><span class="n">popleft</span><span class="p">()</span></div>
 
 
 <div class="viewcode-block" id="LocalTransport.get_monitor">
@@ -345,7 +350,7 @@
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright 2026, Midian Tekle Elfu.</p>
+    <p>&#169; Copyright 2026, Lodzen.</p>
   </div>
 
   Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a

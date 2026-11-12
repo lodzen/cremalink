@@ -137,6 +137,10 @@
 <span class="k">class</span><span class="w"> </span><span class="nc">OperationalConsoleHandler</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">StreamHandler</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">"""Render operational details to the standalone server's console."""</span>
 
+    <span class="c1"># Marker set on instances added by create_logger() so a second call can</span>
+    <span class="c1"># detect the console handler without touching other handlers.</span>
+    <span class="n">_cremalink_console</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+
 <div class="viewcode-block" id="OperationalConsoleHandler.emit">
 <a class="viewcode-back" href="../../../api/cremalink.local_server_app.logging.html#cremalink.OperationalConsoleHandler.emit">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">emit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">record</span><span class="p">:</span> <span class="n">logging</span><span class="o">.</span><span class="n">LogRecord</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
@@ -454,7 +458,7 @@
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright 2026, Midian Tekle Elfu.</p>
+    <p>&#169; Copyright 2026, Lodzen.</p>
   </div>
 
   Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a

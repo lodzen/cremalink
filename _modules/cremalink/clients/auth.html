@@ -84,6 +84,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">cremalink.resources.api_config</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_api_config</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">cremalink.resources.lang</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_lang_config</span>
 
+
 <div class="viewcode-block" id="CloudToken">
 <a class="viewcode-back" href="../../../api/cremalink.clients.auth.html#cremalink.CloudToken">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">CloudToken</span><span class="p">:</span>
@@ -91,6 +92,7 @@
 <span class="sd">    Responsible for handling authentication with the Ayla IoT cloud platform.</span>
 <span class="sd">    This module implements the multi-step authentication flow required to obtain a refresh token, which can be used for API interactions.</span>
 <span class="sd">    """</span>
+
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">refresh_token</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">refresh_token</span> <span class="o">=</span> <span class="n">refresh_token</span>
 
@@ -103,6 +105,7 @@
 <span class="sd">    Returns:</span>
 <span class="sd">        str: The absolute path to the saved token file.</span>
 <span class="sd">    """</span>
+
 <div class="viewcode-block" id="CloudToken.save">
 <a class="viewcode-back" href="../../../api/cremalink.clients.auth.html#cremalink.CloudToken.save">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"token.json"</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
@@ -118,6 +121,7 @@
 <span class="sd">    Returns:</span>
 <span class="sd">        str: The refresh token contained in the CloudToken instance.</span>
 <span class="sd">    """</span>
+
     <span class="k">def</span><span class="w"> </span><span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">refresh_token</span></div>
 
@@ -165,7 +169,9 @@
     <span class="n">browser_agent</span> <span class="o">=</span> <span class="n">api_conf</span><span class="p">[</span><span class="s2">"USER_AGENT"</span><span class="p">][</span><span class="s2">"BROWSER"</span><span class="p">]</span>
     <span class="n">token_agent</span> <span class="o">=</span> <span class="n">api_conf</span><span class="p">[</span><span class="s2">"USER_AGENT"</span><span class="p">][</span><span class="s2">"TOKEN"</span><span class="p">]</span>
 
-    <span class="n">auth_header</span> <span class="o">=</span> <span class="s2">"Basic "</span> <span class="o">+</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64encode</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">client_id</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">client_secret</span><span class="si">}</span><span class="s2">"</span><span class="o">.</span><span class="n">encode</span><span class="p">())</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span>
+    <span class="n">auth_header</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="s2">"Basic "</span> <span class="o">+</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64encode</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">client_id</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">client_secret</span><span class="si">}</span><span class="s2">"</span><span class="o">.</span><span class="n">encode</span><span class="p">())</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span>
+    <span class="p">)</span>
 
     <span class="n">lang_conf</span> <span class="o">=</span> <span class="n">load_lang_config</span><span class="p">()</span>
     <span class="n">supported_langs</span> <span class="o">=</span> <span class="n">lang_conf</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"languages"</span><span class="p">,</span> <span class="p">{})</span>
@@ -205,14 +211,25 @@
     <span class="n">gmid_ticket</span> <span class="o">=</span> <span class="n">res</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"gmidTicket"</span><span class="p">)</span>
 
     <span class="c1"># Step 3: Login</span>
-    <span class="n">risk_context_json</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({</span>
-        <span class="s2">"b0"</span><span class="p">:</span> <span class="mi">4494</span><span class="p">,</span> <span class="s2">"b1"</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="s2">"b2"</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s2">"b3"</span><span class="p">:</span> <span class="p">[],</span> <span class="s2">"b4"</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s2">"b5"</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
-        <span class="s2">"b6"</span><span class="p">:</span> <span class="n">browser_agent</span><span class="p">,</span>
-        <span class="s2">"b7"</span><span class="p">:</span> <span class="p">[{</span><span class="s2">"name"</span><span class="p">:</span> <span class="s2">"PDF Viewer"</span><span class="p">,</span> <span class="s2">"filename"</span><span class="p">:</span> <span class="s2">"internal-pdf-viewer"</span><span class="p">,</span> <span class="s2">"length"</span><span class="p">:</span> <span class="mi">2</span><span class="p">}],</span>
-        <span class="s2">"b8"</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">"%H:%M:%S"</span><span class="p">),</span>
-        <span class="s2">"b9"</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">"b10"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"state"</span><span class="p">:</span> <span class="s2">"denied"</span><span class="p">},</span> <span class="s2">"b11"</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
-        <span class="s2">"b13"</span><span class="p">:</span> <span class="p">[</span><span class="mi">5</span><span class="p">,</span> <span class="s2">"440|956|24"</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="kc">True</span><span class="p">],</span>
-    <span class="p">})</span>
+    <span class="n">risk_context_json</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span>
+        <span class="p">{</span>
+            <span class="s2">"b0"</span><span class="p">:</span> <span class="mi">4494</span><span class="p">,</span>
+            <span class="s2">"b1"</span><span class="p">:</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
+            <span class="s2">"b2"</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+            <span class="s2">"b3"</span><span class="p">:</span> <span class="p">[],</span>
+            <span class="s2">"b4"</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+            <span class="s2">"b5"</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="s2">"b6"</span><span class="p">:</span> <span class="n">browser_agent</span><span class="p">,</span>
+            <span class="s2">"b7"</span><span class="p">:</span> <span class="p">[</span>
+                <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="s2">"PDF Viewer"</span><span class="p">,</span> <span class="s2">"filename"</span><span class="p">:</span> <span class="s2">"internal-pdf-viewer"</span><span class="p">,</span> <span class="s2">"length"</span><span class="p">:</span> <span class="mi">2</span><span class="p">}</span>
+            <span class="p">],</span>
+            <span class="s2">"b8"</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">"%H:%M:%S"</span><span class="p">),</span>
+            <span class="s2">"b9"</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s2">"b10"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"state"</span><span class="p">:</span> <span class="s2">"denied"</span><span class="p">},</span>
+            <span class="s2">"b11"</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+            <span class="s2">"b13"</span><span class="p">:</span> <span class="p">[</span><span class="mi">5</span><span class="p">,</span> <span class="s2">"440|956|24"</span><span class="p">,</span> <span class="kc">False</span><span class="p">,</span> <span class="kc">True</span><span class="p">],</span>
+        <span class="p">}</span>
+    <span class="p">)</span>
 
     <span class="n">res</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
         <span class="s2">"https://accounts.eu1.gigya.com/accounts.login"</span><span class="p">,</span>
@@ -289,9 +306,14 @@
             <span class="s2">"context"</span><span class="p">:</span> <span class="n">context</span><span class="p">,</span>
             <span class="s2">"login_token"</span><span class="p">:</span> <span class="n">login_token</span><span class="p">,</span>
             <span class="s2">"consent"</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span>
-                <span class="p">{</span><span class="s2">"scope"</span><span class="p">:</span> <span class="s2">"openid email profile UID comfort en alexa"</span><span class="p">,</span> <span class="s2">"clientID"</span><span class="p">:</span> <span class="n">client_id</span><span class="p">,</span> <span class="s2">"context"</span><span class="p">:</span> <span class="n">context</span><span class="p">,</span>
-                 <span class="s2">"UID"</span><span class="p">:</span> <span class="n">user_uid</span><span class="p">,</span> <span class="s2">"consent"</span><span class="p">:</span> <span class="kc">True</span><span class="p">},</span>
-                <span class="n">separators</span><span class="o">=</span><span class="p">(</span><span class="s2">","</span><span class="p">,</span> <span class="s2">":"</span><span class="p">)</span>
+                <span class="p">{</span>
+                    <span class="s2">"scope"</span><span class="p">:</span> <span class="s2">"openid email profile UID comfort en alexa"</span><span class="p">,</span>
+                    <span class="s2">"clientID"</span><span class="p">:</span> <span class="n">client_id</span><span class="p">,</span>
+                    <span class="s2">"context"</span><span class="p">:</span> <span class="n">context</span><span class="p">,</span>
+                    <span class="s2">"UID"</span><span class="p">:</span> <span class="n">user_uid</span><span class="p">,</span>
+                    <span class="s2">"consent"</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+                <span class="p">},</span>
+                <span class="n">separators</span><span class="o">=</span><span class="p">(</span><span class="s2">","</span><span class="p">,</span> <span class="s2">":"</span><span class="p">),</span>
             <span class="p">),</span>
             <span class="s2">"sig"</span><span class="p">:</span> <span class="n">signature</span><span class="p">,</span>
             <span class="s2">"gmidTicket"</span><span class="p">:</span> <span class="n">gmid_ticket</span><span class="p">,</span>
@@ -308,7 +330,11 @@
             <span class="s2">"Authorization"</span><span class="p">:</span> <span class="n">auth_header</span><span class="p">,</span>
             <span class="s2">"Content-Type"</span><span class="p">:</span> <span class="s2">"application/x-www-form-urlencoded"</span><span class="p">,</span>
         <span class="p">},</span>
-        <span class="n">data</span><span class="o">=</span><span class="p">{</span><span class="s2">"code"</span><span class="p">:</span> <span class="n">code</span><span class="p">,</span> <span class="s2">"grant_type"</span><span class="p">:</span> <span class="s2">"authorization_code"</span><span class="p">,</span> <span class="s2">"redirect_uri"</span><span class="p">:</span> <span class="s2">"https://google.it"</span><span class="p">},</span>
+        <span class="n">data</span><span class="o">=</span><span class="p">{</span>
+            <span class="s2">"code"</span><span class="p">:</span> <span class="n">code</span><span class="p">,</span>
+            <span class="s2">"grant_type"</span><span class="p">:</span> <span class="s2">"authorization_code"</span><span class="p">,</span>
+            <span class="s2">"redirect_uri"</span><span class="p">:</span> <span class="s2">"https://google.it"</span><span class="p">,</span>
+        <span class="p">},</span>
     <span class="p">)</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
     <span class="n">idp_token</span> <span class="o">=</span> <span class="n">res</span><span class="p">[</span><span class="s2">"access_token"</span><span class="p">]</span>
 
@@ -330,7 +356,7 @@
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright 2026, Midian Tekle Elfu.</p>
+    <p>&#169; Copyright 2026, Lodzen.</p>
   </div>
 
   Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a

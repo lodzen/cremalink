@@ -78,6 +78,7 @@
 <span class="sd">This module contains the primary functions for decoding a raw monitor payload</span>
 <span class="sd">into a structured `MonitorSnapshot`.</span>
 <span class="sd">"""</span>
+
 <span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">base64</span>
@@ -127,14 +128,18 @@
 <span class="sd">        A populated `MonitorSnapshot` instance.</span>
 <span class="sd">    """</span>
     <span class="c1"># The base64 data can be in a few different places depending on the source.</span>
-    <span class="n">raw_b64</span> <span class="o">=</span> <span class="n">payload</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"monitor_b64"</span><span class="p">)</span> <span class="ow">or</span> <span class="n">payload</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"monitor"</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"data"</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"value"</span><span class="p">)</span>
-    
+    <span class="n">raw_b64</span> <span class="o">=</span> <span class="n">payload</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"monitor_b64"</span><span class="p">)</span> <span class="ow">or</span> <span class="n">payload</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"monitor"</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+        <span class="s2">"data"</span><span class="p">,</span> <span class="p">{}</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"value"</span><span class="p">)</span>
+
     <span class="c1"># If no base64 data is found, return an empty snapshot with a warning.</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">raw_b64</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">MonitorSnapshot</span><span class="p">(</span>
             <span class="n">raw</span><span class="o">=</span><span class="sa">b</span><span class="s2">""</span><span class="p">,</span>
             <span class="n">raw_b64</span><span class="o">=</span><span class="s2">""</span><span class="p">,</span>
-            <span class="n">received_at</span><span class="o">=</span><span class="n">dt</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">fromtimestamp</span><span class="p">(</span><span class="n">payload</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"received_at"</span><span class="p">)</span> <span class="ow">or</span> <span class="n">dt</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span><span class="n">dt</span><span class="o">.</span><span class="n">UTC</span><span class="p">)</span><span class="o">.</span><span class="n">timestamp</span><span class="p">()),</span>
+            <span class="n">received_at</span><span class="o">=</span><span class="n">dt</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">fromtimestamp</span><span class="p">(</span>
+                <span class="n">payload</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"received_at"</span><span class="p">)</span> <span class="ow">or</span> <span class="n">dt</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span><span class="n">dt</span><span class="o">.</span><span class="n">UTC</span><span class="p">)</span><span class="o">.</span><span class="n">timestamp</span><span class="p">()</span>
+            <span class="p">),</span>
             <span class="n">parsed</span><span class="o">=</span><span class="p">{},</span>
             <span class="n">warnings</span><span class="o">=</span><span class="p">[</span><span class="s2">"no monitor_b64 in payload"</span><span class="p">],</span>
             <span class="n">errors</span><span class="o">=</span><span class="p">[],</span>
@@ -145,12 +150,14 @@
     <span class="c1"># Decode the base64 string and then extract the low-level fields.</span>
     <span class="n">raw</span> <span class="o">=</span> <span class="n">decode_monitor_b64</span><span class="p">(</span><span class="n">raw_b64</span><span class="p">)</span>
     <span class="n">parsed</span><span class="p">,</span> <span class="n">warnings</span><span class="p">,</span> <span class="n">errors</span><span class="p">,</span> <span class="n">frame</span> <span class="o">=</span> <span class="n">extract_fields_from_b64</span><span class="p">(</span><span class="n">raw_b64</span><span class="p">)</span>
-    
+
     <span class="c1"># Assemble the final snapshot object.</span>
     <span class="k">return</span> <span class="n">MonitorSnapshot</span><span class="p">(</span>
         <span class="n">raw</span><span class="o">=</span><span class="n">raw</span><span class="p">,</span>
         <span class="n">raw_b64</span><span class="o">=</span><span class="n">raw_b64</span><span class="p">,</span>
-        <span class="n">received_at</span><span class="o">=</span><span class="n">dt</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">fromtimestamp</span><span class="p">(</span><span class="n">payload</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"received_at"</span><span class="p">)</span> <span class="ow">or</span> <span class="n">dt</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span><span class="n">dt</span><span class="o">.</span><span class="n">UTC</span><span class="p">)</span><span class="o">.</span><span class="n">timestamp</span><span class="p">()),</span>
+        <span class="n">received_at</span><span class="o">=</span><span class="n">dt</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">fromtimestamp</span><span class="p">(</span>
+            <span class="n">payload</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"received_at"</span><span class="p">)</span> <span class="ow">or</span> <span class="n">dt</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span><span class="n">dt</span><span class="o">.</span><span class="n">UTC</span><span class="p">)</span><span class="o">.</span><span class="n">timestamp</span><span class="p">()</span>
+        <span class="p">),</span>
         <span class="n">parsed</span><span class="o">=</span><span class="n">parsed</span><span class="p">,</span>
         <span class="n">warnings</span><span class="o">=</span><span class="n">warnings</span><span class="p">,</span>
         <span class="n">errors</span><span class="o">=</span><span class="n">errors</span><span class="p">,</span>
@@ -168,7 +175,7 @@
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright 2026, Midian Tekle Elfu.</p>
+    <p>&#169; Copyright 2026, Lodzen.</p>
   </div>
 
   Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a

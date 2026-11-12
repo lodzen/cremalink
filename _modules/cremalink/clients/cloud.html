@@ -176,8 +176,8 @@
 
         <span class="c1"># Load API configuration from resources.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">api_conf</span> <span class="o">=</span> <span class="n">load_api_config</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">gigya_api</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api_conf</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"GIGYA"</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">ayla_api</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api_conf</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"AYLA"</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gigya_api</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api_conf</span><span class="p">[</span><span class="s2">"GIGYA"</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ayla_api</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api_conf</span><span class="p">[</span><span class="s2">"AYLA"</span><span class="p">]</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">token_agent</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api_conf</span><span class="p">[</span><span class="s2">"USER_AGENT"</span><span class="p">][</span><span class="s2">"TOKEN"</span><span class="p">]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">api_agent</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api_conf</span><span class="p">[</span><span class="s2">"USER_AGENT"</span><span class="p">][</span><span class="s2">"API"</span><span class="p">]</span>
@@ -212,13 +212,14 @@
 
 <div class="viewcode-block" id="Client.get_device">
 <a class="viewcode-back" href="../../../api/cremalink.clients.cloud.html#cremalink.Client.get_device">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">get_device</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dsn</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">device_map_path</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_device</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dsn</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">device_map_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Retrieves a specific cloud device by its DSN.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            dsn (str): The Device Serial Number of the desired device.</span>
-<span class="sd">            device_map_path (dict | None): Optional mapping for device properties.</span>
+<span class="sd">            device_map_path (str | None): Optional path to a device-specific</span>
+<span class="sd">                command map file.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            CloudDevice | None: An instance of CloudDevice if found, otherwise None.</span>
@@ -445,7 +446,7 @@
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright 2026, Midian Tekle Elfu.</p>
+    <p>&#169; Copyright 2026, Lodzen.</p>
   </div>
 
   Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a

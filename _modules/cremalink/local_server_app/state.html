@@ -87,6 +87,7 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">collections</span><span class="w"> </span><span class="kn">import</span> <span class="n">deque</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">Any</span>
@@ -153,18 +154,36 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">last_monitor_received_at</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">last_monitor_command_sent_at</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_monitor_command_payloads</span><span class="p">:</span> <span class="nb">set</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="c1"># Names of property GETs still sitting in the queue — identical</span>
+        <span class="c1"># GETs are idempotent (the republish answers every waiter), so a</span>
+        <span class="c1"># second request for a name already queued is a no-op. Keeps</span>
+        <span class="c1"># re-request loops and the periodic settings lane from stacking</span>
+        <span class="c1"># duplicates on the one-command-per-poll drain (observed</span>
+        <span class="c1"># 2026-10-30: a recipe GET waited ~19 s behind stacked bursts).</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_property_get_pending</span><span class="p">:</span> <span class="nb">set</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">last_properties</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">last_properties_received_at</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_monitor_request_pending</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_properties_request_pending</span> <span class="o">=</span> <span class="kc">False</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">monitor_property_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">data_request_property_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">monitor_property_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data_request_property_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="c1"># Per-property store keyed by datapoint name (any `value` datapoint</span>
         <span class="c1"># and every entry of a `properties` block lands here) plus the</span>
         <span class="c1"># `data_response` response mailbox (1-deep, last-write-wins).</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">properties_by_name</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">data_response_property_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"data_response"</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_response_mailbox</span><span class="p">:</span> <span class="n">deque</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="n">deque</span><span class="p">(</span><span class="n">maxlen</span><span class="o">=</span><span class="mi">16</span><span class="p">)</span>
+
+        <span class="c1"># --- LAN session liveness markers (issue lodzen/cremalink#4) ---</span>
+        <span class="c1"># `last_commands_poll_at` advances every time the machine polls</span>
+        <span class="c1"># `commands.json`; `last_key_exchange_at` marks the last completed</span>
+        <span class="c1"># key exchange. The session job uses both to tell a live session</span>
+        <span class="c1"># from a hollow one.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">last_commands_poll_at</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">last_key_exchange_at</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="c1"># Throttles re-registration attempts while the session is down so a</span>
+        <span class="c1"># dead machine isn't POSTed at nudger cadence (every ~1 s).</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">last_register_attempt_at</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
 
         <span class="c1"># --- Concurrency Control ---</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">lock</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
@@ -239,12 +258,16 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">last_monitor_received_at</span> <span class="o">=</span> <span class="kc">None</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">last_monitor_command_sent_at</span> <span class="o">=</span> <span class="kc">None</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_monitor_command_payloads</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_property_get_pending</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_monitor_request_pending</span> <span class="o">=</span> <span class="kc">False</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">last_properties</span> <span class="o">=</span> <span class="p">{}</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">last_properties_received_at</span> <span class="o">=</span> <span class="kc">None</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_properties_request_pending</span> <span class="o">=</span> <span class="kc">False</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">properties_by_name</span> <span class="o">=</span> <span class="p">{}</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_response_mailbox</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">last_commands_poll_at</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">last_key_exchange_at</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">last_register_attempt_at</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
             <span class="s2">"configured"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"dsn"</span><span class="p">:</span> <span class="n">dsn</span><span class="p">,</span> <span class="s2">"device_ip"</span><span class="p">:</span> <span class="n">device_ip</span><span class="p">,</span> <span class="s2">"scheme"</span><span class="p">:</span> <span class="n">device_scheme</span><span class="p">}</span>
         <span class="p">)</span>
@@ -264,8 +287,8 @@
         <span class="n">device_ip</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="n">lan_key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
         <span class="n">device_scheme</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-        <span class="n">monitor_property_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-        <span class="n">data_request_property_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">monitor_property_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">data_request_property_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">):</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">server_settings_path</span> <span class="o">==</span> <span class="s2">""</span><span class="p">:</span>
             <span class="k">return</span>
@@ -307,26 +330,26 @@
 <div class="viewcode-block" id="LocalServerState.rekey">
 <a class="viewcode-back" href="../../../api/cremalink.local_server_app.state.html#cremalink.local_server_app.state.LocalServerState.rekey">[docs]</a>
     <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">rekey</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">"""</span>
-<span class="sd">        Resets cryptographic keys and session state to force a new key exchange.</span>
+<span class="w">        </span><span class="sd">"""Prepares a fresh LAN session (lodzen/cremalink#4).</span>
+
+<span class="sd">        The machine only performs a key exchange on ``POST local_reg``</span>
+<span class="sd">        (or on its own initiative) — a ``PUT`` on a live session is a</span>
+<span class="sd">        pure keep-alive. Discarding our keys before registering therefore</span>
+<span class="sd">        produces a hollow session: the machine keeps encrypting with the</span>
+<span class="sd">        old keys while we can no longer decrypt anything. So this method</span>
+<span class="sd">        now only resets the *registration* state — fresh ``random_2`` /</span>
+<span class="sd">        ``time_2`` nonces and ``registered = False`` — while the derived</span>
+<span class="sd">        keys, datapoint store, mailbox, and command queue are kept. The</span>
+<span class="sd">        keys are replaced atomically by :meth:`init_crypto` when the</span>
+<span class="sd">        machine answers the subsequent ``POST`` with a key exchange, so</span>
+<span class="sd">        in-flight old-key datapoints keep decrypting until then.</span>
 <span class="sd">        """</span>
         <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">lock</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">app_sign_key</span> <span class="o">=</span> <span class="kc">None</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">app_crypto_key</span> <span class="o">=</span> <span class="kc">None</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">app_iv_seed</span> <span class="o">=</span> <span class="kc">None</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">dev_crypto_key</span> <span class="o">=</span> <span class="kc">None</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">dev_iv_seed</span> <span class="o">=</span> <span class="kc">None</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">random_2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_generate_random_2</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">time_2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_generate_time_2</span><span class="p">()</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">seq</span> <span class="o">=</span> <span class="mi">0</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">command_queue</span> <span class="o">=</span> <span class="n">deque</span><span class="p">()</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">command_payload</span> <span class="o">=</span> <span class="n">protocol</span><span class="o">.</span><span class="n">build_empty_payload</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">seq</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_monitor_request_pending</span> <span class="o">=</span> <span class="kc">False</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_properties_request_pending</span> <span class="o">=</span> <span class="kc">False</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">properties_by_name</span> <span class="o">=</span> <span class="p">{}</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_response_mailbox</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">registered</span> <span class="o">=</span> <span class="kc">False</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">"rekey_reset"</span><span class="p">)</span></div>
+            <span class="bp">self</span><span class="o">.</span><span class="n">last_commands_poll_at</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">"session_reset"</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="LocalServerState.init_crypto">
@@ -338,6 +361,14 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">lan_key</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"LAN key not set; configure server first"</span><span class="p">)</span>
 
+        <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">lock</span><span class="p">:</span>
+            <span class="c1"># Fresh server nonces per exchange (the app's</span>
+            <span class="c1"># processLanModeKeyExchange does the same) — also correct for</span>
+            <span class="c1"># exchanges the machine initiates without a prior POST.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">random_2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_generate_random_2</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">time_2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_generate_time_2</span><span class="p">()</span>
+            <span class="n">random_2</span><span class="p">,</span> <span class="n">time_2</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">random_2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">time_2</span>
+
         <span class="p">(</span>
             <span class="n">app_sign_key</span><span class="p">,</span>
             <span class="n">app_crypto_key</span><span class="p">,</span>
@@ -345,7 +376,7 @@
             <span class="n">dev_crypto_key</span><span class="p">,</span>
             <span class="n">dev_iv_seed</span><span class="p">,</span>
         <span class="p">)</span> <span class="o">=</span> <span class="n">protocol</span><span class="o">.</span><span class="n">derive_keys</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">lan_key</span><span class="p">,</span> <span class="n">random_1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">random_2</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">time_1</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">time_2</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">lan_key</span><span class="p">,</span> <span class="n">random_1</span><span class="p">,</span> <span class="n">random_2</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">time_1</span><span class="p">),</span> <span class="nb">str</span><span class="p">(</span><span class="n">time_2</span><span class="p">)</span>
         <span class="p">)</span>
 
         <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">lock</span><span class="p">:</span>
@@ -356,6 +387,10 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">dev_iv_seed</span> <span class="o">=</span> <span class="n">dev_iv_seed</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">seq</span> <span class="o">=</span> <span class="mi">0</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">command_payload</span> <span class="o">=</span> <span class="n">protocol</span><span class="o">.</span><span class="n">build_empty_payload</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">seq</span><span class="p">)</span>
+            <span class="c1"># A completed exchange — ours (after POST local_reg) or the</span>
+            <span class="c1"># machine's own — proves the session is live again.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">registered</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">last_key_exchange_at</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"crypto_init"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"app_crypto_key"</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s2">"dev_crypto_key"</span><span class="p">:</span> <span class="kc">True</span><span class="p">})</span></div>
 
 
@@ -372,6 +407,66 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">keys_ready</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""Returns True if the cryptographic session keys have been derived."""</span>
         <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">app_crypto_key</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">app_iv_seed</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">app_sign_key</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="LocalServerState.session_live">
+<a class="viewcode-back" href="../../../api/cremalink.local_server_app.state.html#cremalink.local_server_app.state.LocalServerState.session_live">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">session_live</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""True while a registered LAN session with valid keys is held.</span>
+
+<span class="sd">        Drives the ``local_reg`` method choice (lodzen/cremalink#4):</span>
+<span class="sd">        ``PUT`` keeps a live session alive / notifies it; ``POST`` starts</span>
+<span class="sd">        a new session and always triggers a key exchange.</span>
+<span class="sd">        """</span>
+        <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">registered</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">keys_ready</span><span class="p">())</span></div>
+
+
+<div class="viewcode-block" id="LocalServerState.mark_commands_poll">
+<a class="viewcode-back" href="../../../api/cremalink.local_server_app.state.html#cremalink.local_server_app.state.LocalServerState.mark_commands_poll">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">mark_commands_poll</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Record a ``commands.json`` poll from the machine."""</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">last_commands_poll_at</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="LocalServerState.wait_for_commands_poll">
+<a class="viewcode-back" href="../../../api/cremalink.local_server_app.state.html#cremalink.local_server_app.state.LocalServerState.wait_for_commands_poll">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">wait_for_commands_poll</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">since</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Wait until the machine polls ``commands.json`` after ``since``.</span>
+
+<span class="sd">        ``PUT local_reg`` with ``notify: 1`` makes the machine poll within</span>
+<span class="sd">        ~0.05–1.3 s; no poll inside ``timeout`` means the session is dead</span>
+<span class="sd">        on the machine side.</span>
+<span class="sd">        """</span>
+        <span class="n">deadline</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span> <span class="o">+</span> <span class="n">timeout</span>
+        <span class="k">while</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span> <span class="o">&lt;</span> <span class="n">deadline</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_commands_poll_at</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="p">(</span>
+                <span class="n">since</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_commands_poll_at</span> <span class="o">&gt;</span> <span class="n">since</span>
+            <span class="p">):</span>
+                <span class="k">return</span> <span class="kc">True</span>
+            <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_commands_poll_at</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="p">(</span>
+            <span class="n">since</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_commands_poll_at</span> <span class="o">&gt;</span> <span class="n">since</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="LocalServerState.wait_for_key_exchange">
+<a class="viewcode-back" href="../../../api/cremalink.local_server_app.state.html#cremalink.local_server_app.state.LocalServerState.wait_for_key_exchange">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">wait_for_key_exchange</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">since</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Wait until a key exchange completes after ``since``."""</span>
+        <span class="n">deadline</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span> <span class="o">+</span> <span class="n">timeout</span>
+        <span class="k">while</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span> <span class="o">&lt;</span> <span class="n">deadline</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_key_exchange_at</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="p">(</span>
+                <span class="n">since</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_key_exchange_at</span> <span class="o">&gt;</span> <span class="n">since</span>
+            <span class="p">):</span>
+                <span class="k">return</span> <span class="kc">True</span>
+            <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_key_exchange_at</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="p">(</span>
+            <span class="n">since</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_key_exchange_at</span> <span class="o">&gt;</span> <span class="n">since</span>
+        <span class="p">)</span></div>
 
 
     <span class="c1"># --- command queue ---</span>
@@ -457,6 +552,9 @@
             <span class="p">]</span>
         <span class="p">}</span>
         <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">lock</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_property_get_pending</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"queue_property_get_dedup"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="n">name</span><span class="p">})</span>
+                <span class="k">return</span>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">command_queue</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">queue_max_size</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">OverflowError</span><span class="p">(</span><span class="s2">"Command queue is full"</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">command_queue</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
@@ -465,6 +563,7 @@
                     <span class="n">separators</span><span class="o">=</span><span class="p">(</span><span class="s2">","</span><span class="p">,</span> <span class="s2">":"</span><span class="p">),</span>
                 <span class="p">)</span>
             <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_property_get_pending</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"queue_property_get"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="n">name</span><span class="p">})</span></div>
 
 
@@ -545,6 +644,11 @@
                 <span class="k">if</span> <span class="n">payload</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_monitor_command_payloads</span><span class="p">:</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">_monitor_command_payloads</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">last_monitor_command_sent_at</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span>
+                <span class="c1"># Release the dedup slot for a served property GET so the</span>
+                <span class="c1"># next request for that name queues again.</span>
+                <span class="n">name</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="sa">r</span><span class="s2">"property\.json\?name=([^</span><span class="se">\"\\</span><span class="s2">&amp;]+)"</span><span class="p">,</span> <span class="n">payload</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">name</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_property_get_pending</span><span class="o">.</span><span class="n">discard</span><span class="p">(</span><span class="n">name</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">payload</span> <span class="o">=</span> <span class="n">protocol</span><span class="o">.</span><span class="n">build_empty_payload</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">seq</span><span class="p">)</span>
             <span class="n">current_seq</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">seq</span>
@@ -752,7 +856,7 @@
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright 2026, Midian Tekle Elfu.</p>
+    <p>&#169; Copyright 2026, Lodzen.</p>
   </div>
 
   Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a

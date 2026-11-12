@@ -161,7 +161,7 @@ round-trip (which would also re-queue the bulk GET) per probe.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="cremalink.transports.local.transport.LocalTransport.pop_response">
 <span class="sig-name descname"><span class="pre">pop_response</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#bytes" title="(in Python v3.15)"><span class="pre">bytes</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/cremalink/transports/local/transport.html#LocalTransport.pop_response"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cremalink.transports.local.transport.LocalTransport.pop_response" title="Link to this definition"></a></dt>
-<dd><p>Returns the most recent <cite>data_response</cite> frame as raw bytes.</p>
+<dd><p>Returns the oldest unconsumed <cite>data_response</cite> frame as raw bytes.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -213,7 +213,7 @@ If the name of the monitoring property changes, the server is reconfigured.</p>
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright 2026, Midian Tekle Elfu.</p>
+    <p>&#169; Copyright 2026, Lodzen.</p>
   </div>
 
   Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a

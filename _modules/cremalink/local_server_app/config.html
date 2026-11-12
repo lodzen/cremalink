@@ -130,10 +130,34 @@
         <span class="n">validation_alias</span><span class="o">=</span><span class="s2">"MONITOR_POLL_INTERVAL"</span><span class="p">,</span>
         <span class="n">description</span><span class="o">=</span><span class="s2">"Interval in seconds for the monitor job to fetch device status."</span><span class="p">,</span>
     <span class="p">)</span>
-    <span class="n">rekey_interval_seconds</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span>
-        <span class="mf">60.0</span><span class="p">,</span>
-        <span class="n">validation_alias</span><span class="o">=</span><span class="s2">"REKEY_INTERVAL_SECONDS"</span><span class="p">,</span>
-        <span class="n">description</span><span class="o">=</span><span class="s2">"Interval in seconds to perform the authentication key exchange."</span><span class="p">,</span>
+    <span class="n">session_keepalive_interval_seconds</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span>
+        <span class="mf">20.0</span><span class="p">,</span>
+        <span class="n">validation_alias</span><span class="o">=</span><span class="s2">"SESSION_KEEPALIVE_INTERVAL_SECONDS"</span><span class="p">,</span>
+        <span class="n">description</span><span class="o">=</span><span class="s2">"Keep-alive interval for the LAN session job (PUT local_reg "</span>
+        <span class="s2">"while live, POST re-registration when dead). The Coffee Link app "</span>
+        <span class="s2">"defaults to 10 s; 20–25 s held a session 15 min in field tests "</span>
+        <span class="s2">"(lodzen/cremalink#4)."</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">session_probe_timeout_seconds</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span>
+        <span class="mf">4.0</span><span class="p">,</span>
+        <span class="n">validation_alias</span><span class="o">=</span><span class="s2">"SESSION_PROBE_TIMEOUT_SECONDS"</span><span class="p">,</span>
+        <span class="n">description</span><span class="o">=</span><span class="s2">"Informational threshold for commands.json poll silence; "</span>
+        <span class="s2">"quiet periods longer than this are logged but do NOT kill the "</span>
+        <span class="s2">"session (standby machines may not poll for long stretches)."</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">session_silence_reset_seconds</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span>
+        <span class="mf">900.0</span><span class="p">,</span>
+        <span class="n">validation_alias</span><span class="o">=</span><span class="s2">"SESSION_SILENCE_RESET_SECONDS"</span><span class="p">,</span>
+        <span class="n">description</span><span class="o">=</span><span class="s2">"Total commands.json-poll silence (measured since the last "</span>
+        <span class="s2">"poll or key exchange) before one re-POST is allowed — a backstop for "</span>
+        <span class="s2">"sessions that died machine-side. The app only re-registers on "</span>
+        <span class="s2">"local_reg transport errors; a quiet machine is not a dead one."</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">session_register_timeout_seconds</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span>
+        <span class="mf">5.0</span><span class="p">,</span>
+        <span class="n">validation_alias</span><span class="o">=</span><span class="s2">"SESSION_REGISTER_TIMEOUT_SECONDS"</span><span class="p">,</span>
+        <span class="n">description</span><span class="o">=</span><span class="s2">"After a session-opening POST, wait this long for the "</span>
+        <span class="s2">"machine's key exchange before the next retry."</span><span class="p">,</span>
     <span class="p">)</span>
 
     <span class="c1"># --- Buffer/Queue Size Settings ---</span>
@@ -181,10 +205,11 @@
         <span class="n">validation_alias</span><span class="o">=</span><span class="s2">"ENABLE_MONITOR_JOB"</span><span class="p">,</span>
         <span class="n">description</span><span class="o">=</span><span class="s2">"Feature flag to enable the status monitoring job."</span><span class="p">,</span>
     <span class="p">)</span>
-    <span class="n">enable_rekey_job</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span>
+    <span class="n">enable_session_job</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span>
         <span class="kc">True</span><span class="p">,</span>
-        <span class="n">validation_alias</span><span class="o">=</span><span class="s2">"ENABLE_REKEY_JOB"</span><span class="p">,</span>
-        <span class="n">description</span><span class="o">=</span><span class="s2">"Feature flag to enable the periodic re-keying job."</span><span class="p">,</span>
+        <span class="n">validation_alias</span><span class="o">=</span><span class="s2">"ENABLE_SESSION_JOB"</span><span class="p">,</span>
+        <span class="n">description</span><span class="o">=</span><span class="s2">"Feature flag to enable the LAN session keep-alive job "</span>
+        <span class="s2">"(POST/PUT local_reg management)."</span><span class="p">,</span>
     <span class="p">)</span>
 
     <span class="c1"># --- Testing / Determinism Hooks ---</span>
@@ -223,7 +248,7 @@
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright 2026, Midian Tekle Elfu.</p>
+    <p>&#169; Copyright 2026, Lodzen.</p>
   </div>
 
   Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a

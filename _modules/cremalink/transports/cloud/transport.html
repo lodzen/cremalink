@@ -115,7 +115,7 @@
 <span class="sd">        """</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">api_conf</span> <span class="o">=</span> <span class="n">load_api_config</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">gigya_api</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api_conf</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"GIGYA"</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">ayla_api</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api_conf</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"AYLA"</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">ayla_api</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api_conf</span><span class="p">[</span><span class="s2">"AYLA"</span><span class="p">]</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">api_agent</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api_conf</span><span class="p">[</span><span class="s2">"USER_AGENT"</span><span class="p">][</span><span class="s2">"API"</span><span class="p">]</span>
 
@@ -266,7 +266,7 @@
 <span class="sd">        This works by fetching the specific 'monitor' property, extracting its</span>
 <span class="sd">        base64 value, and then decoding it into a structured snapshot.</span>
 <span class="sd">        """</span>
-        <span class="n">property_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">property_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"monitor"</span><span class="p">)</span>
+        <span class="n">property_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">property_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"monitor"</span><span class="p">,</span> <span class="s2">"monitor"</span><span class="p">)</span>
         <span class="n">prop</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_property</span><span class="p">(</span><span class="n">property_name</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{}</span>
         <span class="n">raw_b64</span> <span class="o">=</span> <span class="n">prop</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"value"</span><span class="p">)</span>
         <span class="n">received_at</span> <span class="o">=</span> <span class="n">prop</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"updated_at"</span><span class="p">)</span>
@@ -315,7 +315,7 @@
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright 2026, Midian Tekle Elfu.</p>
+    <p>&#169; Copyright 2026, Lodzen.</p>
   </div>
 
   Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a

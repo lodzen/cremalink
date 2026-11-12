@@ -90,6 +90,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">aiohttp</span><span class="w"> </span><span class="kn">import</span> <span class="n">web</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="n">ValidationError</span>
 
+<span class="kn">from</span><span class="w"> </span><span class="nn">cremalink.crypto</span><span class="w"> </span><span class="kn">import</span> <span class="n">rotate_iv_from_ciphertext</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">cremalink.ecam</span><span class="w"> </span><span class="kn">import</span> <span class="n">builder</span> <span class="k">as</span> <span class="n">ecam_builder</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">cremalink.local_server_app</span><span class="w"> </span><span class="kn">import</span> <span class="n">protocol</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">cremalink.local_server_app.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">ServerSettings</span><span class="p">,</span> <span class="n">get_settings</span>
@@ -98,9 +99,13 @@
     <span class="n">JobManager</span><span class="p">,</span>
     <span class="n">monitor_job</span><span class="p">,</span>
     <span class="n">nudger_job</span><span class="p">,</span>
-    <span class="n">rekey_job</span><span class="p">,</span>
+    <span class="n">session_job</span><span class="p">,</span>
 <span class="p">)</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">cremalink.local_server_app.logging</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_logger</span><span class="p">,</span> <span class="n">log_event</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">cremalink.local_server_app.logging</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">RingBufferHandler</span><span class="p">,</span>
+    <span class="n">create_logger</span><span class="p">,</span>
+    <span class="n">log_event</span><span class="p">,</span>
+<span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">cremalink.local_server_app.models</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">CommandPollResponse</span><span class="p">,</span>
     <span class="n">CommandRequest</span><span class="p">,</span>
@@ -349,7 +354,7 @@
 
     <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">logs</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">web</span><span class="o">.</span><span class="n">Request</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">web</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
         <span class="n">ring_handler</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span>
-            <span class="p">(</span><span class="n">h</span> <span class="k">for</span> <span class="n">h</span> <span class="ow">in</span> <span class="n">logger</span><span class="o">.</span><span class="n">handlers</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">h</span><span class="p">,</span> <span class="s2">"get_events"</span><span class="p">)),</span> <span class="kc">None</span>
+            <span class="p">(</span><span class="n">h</span> <span class="k">for</span> <span class="n">h</span> <span class="ow">in</span> <span class="n">logger</span><span class="o">.</span><span class="n">handlers</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">h</span><span class="p">,</span> <span class="n">RingBufferHandler</span><span class="p">)),</span> <span class="kc">None</span>
         <span class="p">)</span>
         <span class="n">events</span> <span class="o">=</span> <span class="n">ring_handler</span><span class="o">.</span><span class="n">get_events</span><span class="p">()</span> <span class="k">if</span> <span class="n">ring_handler</span> <span class="k">else</span> <span class="p">[]</span>
         <span class="k">return</span> <span class="n">web</span><span class="o">.</span><span class="n">json_response</span><span class="p">({</span><span class="s2">"events"</span><span class="p">:</span> <span class="n">events</span><span class="p">,</span> <span class="s2">"last_command"</span><span class="p">:</span> <span class="n">state</span><span class="o">.</span><span class="n">last_command</span><span class="p">})</span>
@@ -375,9 +380,24 @@
             <span class="k">raise</span> <span class="n">web</span><span class="o">.</span><span class="n">HTTPBadRequest</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Server not configured"</span><span class="p">)</span>
         <span class="n">req</span> <span class="o">=</span> <span class="k">await</span> <span class="n">_parse_json_model</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">KeyExchangeRequest</span><span class="p">)</span>
         <span class="n">exchange</span> <span class="o">=</span> <span class="n">req</span><span class="o">.</span><span class="n">key_exchange</span>
+        <span class="c1"># App parity (processLanModeKeyExchange): proto/ver must be 1/1; a</span>
+        <span class="c1"># non-empty `sec` marks the secure-setup exchange we don't support —</span>
+        <span class="c1"># log it so a future firmware change is diagnosable.</span>
+        <span class="k">if</span> <span class="n">exchange</span><span class="o">.</span><span class="n">sec</span><span class="p">:</span>
+            <span class="n">state</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+                <span class="s2">"key_exchange_secure_unsupported"</span><span class="p">,</span>
+                <span class="p">{</span><span class="s2">"sec_len"</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">exchange</span><span class="o">.</span><span class="n">sec</span><span class="p">)},</span>
+            <span class="p">)</span>
         <span class="k">await</span> <span class="n">state</span><span class="o">.</span><span class="n">init_crypto</span><span class="p">(</span><span class="n">random_1</span><span class="o">=</span><span class="n">exchange</span><span class="o">.</span><span class="n">random_1</span><span class="p">,</span> <span class="n">time_1</span><span class="o">=</span><span class="n">exchange</span><span class="o">.</span><span class="n">time_1</span><span class="p">)</span>
         <span class="n">state</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
-            <span class="s2">"key_exchange"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"random_1"</span><span class="p">:</span> <span class="n">exchange</span><span class="o">.</span><span class="n">random_1</span><span class="p">,</span> <span class="s2">"time_1"</span><span class="p">:</span> <span class="n">exchange</span><span class="o">.</span><span class="n">time_1</span><span class="p">}</span>
+            <span class="s2">"key_exchange"</span><span class="p">,</span>
+            <span class="p">{</span>
+                <span class="s2">"random_1"</span><span class="p">:</span> <span class="n">exchange</span><span class="o">.</span><span class="n">random_1</span><span class="p">,</span>
+                <span class="s2">"time_1"</span><span class="p">:</span> <span class="n">exchange</span><span class="o">.</span><span class="n">time_1</span><span class="p">,</span>
+                <span class="s2">"proto"</span><span class="p">:</span> <span class="n">exchange</span><span class="o">.</span><span class="n">proto</span><span class="p">,</span>
+                <span class="s2">"ver"</span><span class="p">:</span> <span class="n">exchange</span><span class="o">.</span><span class="n">ver</span><span class="p">,</span>
+                <span class="s2">"key_id"</span><span class="p">:</span> <span class="n">exchange</span><span class="o">.</span><span class="n">key_id</span><span class="p">,</span>
+            <span class="p">},</span>
         <span class="p">)</span>
         <span class="k">return</span> <span class="n">web</span><span class="o">.</span><span class="n">json_response</span><span class="p">(</span>
             <span class="p">{</span><span class="s2">"random_2"</span><span class="p">:</span> <span class="n">state</span><span class="o">.</span><span class="n">random_2</span><span class="p">,</span> <span class="s2">"time_2"</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">time_2</span><span class="p">)},</span>
@@ -386,6 +406,8 @@
 
     <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">serve_command_poll</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">CommandPollResponse</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""Shared logic for serving the next command to the device."""</span>
+        <span class="c1"># Every poll is the machine's liveness signal for the session job.</span>
+        <span class="n">state</span><span class="o">.</span><span class="n">mark_commands_poll</span><span class="p">()</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">state</span><span class="o">.</span><span class="n">keys_ready</span><span class="p">():</span>
             <span class="n">state</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"command_poll_no_keys"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"queued"</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">command_queue</span><span class="p">)})</span>
             <span class="k">return</span> <span class="n">CommandPollResponse</span><span class="p">(</span><span class="n">enc</span><span class="o">=</span><span class="s2">""</span><span class="p">,</span> <span class="n">sign</span><span class="o">=</span><span class="s2">""</span><span class="p">,</span> <span class="n">seq</span><span class="o">=</span><span class="n">state</span><span class="o">.</span><span class="n">seq</span><span class="p">)</span>
@@ -393,6 +415,10 @@
         <span class="n">next_item</span> <span class="o">=</span> <span class="k">await</span> <span class="n">state</span><span class="o">.</span><span class="n">next_command_payload</span><span class="p">()</span>
         <span class="n">payload</span><span class="p">,</span> <span class="n">current_seq</span> <span class="o">=</span> <span class="n">next_item</span><span class="p">[</span><span class="s2">"payload"</span><span class="p">],</span> <span class="n">next_item</span><span class="p">[</span><span class="s2">"seq"</span><span class="p">]</span>
 
+        <span class="c1"># `keys_ready()` above guarantees all three key material fields.</span>
+        <span class="k">assert</span> <span class="n">state</span><span class="o">.</span><span class="n">app_crypto_key</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="k">assert</span> <span class="n">state</span><span class="o">.</span><span class="n">app_iv_seed</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="k">assert</span> <span class="n">state</span><span class="o">.</span><span class="n">app_sign_key</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
         <span class="n">enc</span><span class="p">,</span> <span class="n">new_iv</span> <span class="o">=</span> <span class="n">protocol</span><span class="o">.</span><span class="n">encrypt_payload</span><span class="p">(</span>
             <span class="n">payload</span><span class="p">,</span> <span class="n">state</span><span class="o">.</span><span class="n">app_crypto_key</span><span class="p">,</span> <span class="n">state</span><span class="o">.</span><span class="n">app_iv_seed</span>
         <span class="p">)</span>
@@ -415,21 +441,42 @@
         <span class="p">)</span>
         <span class="k">return</span> <span class="n">CommandPollResponse</span><span class="p">(</span><span class="n">enc</span><span class="o">=</span><span class="n">enc</span><span class="p">,</span> <span class="n">sign</span><span class="o">=</span><span class="n">sign</span><span class="p">,</span> <span class="n">seq</span><span class="o">=</span><span class="n">current_seq</span><span class="p">)</span>
 
+    <span class="k">def</span><span class="w"> </span><span class="nf">_commands_response_code</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="c1"># App parity (AylaLanModule.getResponseCode): 206 PARTIAL_CONTENT</span>
+        <span class="c1"># while commands remain queued, 200 OK when drained — the machine</span>
+        <span class="c1"># reads it as "keep polling" vs "idle".</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="n">web</span><span class="o">.</span><span class="n">HTTPPartialContent</span><span class="o">.</span><span class="n">status_code</span>
+            <span class="k">if</span> <span class="n">state</span><span class="o">.</span><span class="n">command_queue</span>
+            <span class="k">else</span> <span class="n">web</span><span class="o">.</span><span class="n">HTTPOk</span><span class="o">.</span><span class="n">status_code</span>
+        <span class="p">)</span>
+
     <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">poll_commands</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">web</span><span class="o">.</span><span class="n">Request</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">web</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""Endpoint for the device to poll for commands (GET/POST)."""</span>
         <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">serve_command_poll</span><span class="p">()</span>
-        <span class="k">return</span> <span class="n">web</span><span class="o">.</span><span class="n">json_response</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">model_dump</span><span class="p">())</span>
+        <span class="k">return</span> <span class="n">web</span><span class="o">.</span><span class="n">json_response</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">model_dump</span><span class="p">(),</span> <span class="n">status</span><span class="o">=</span><span class="n">_commands_response_code</span><span class="p">())</span>
 
     <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">datapoint</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">web</span><span class="o">.</span><span class="n">Request</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">web</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""Endpoint for the device to push encrypted data to."""</span>
         <span class="n">payload</span> <span class="o">=</span> <span class="k">await</span> <span class="n">_parse_json_model</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">EncPayload</span><span class="p">)</span>
-        <span class="c1"># Read the keys only after the body arrived: a rekey can reset them</span>
-        <span class="c1"># while the body is still in flight, and nothing may yield between</span>
-        <span class="c1"># this check and the decryption.</span>
+        <span class="c1"># Read the keys only after the body arrived: a session reset can</span>
+        <span class="c1"># clear them while the body is still in flight, and nothing may</span>
+        <span class="c1"># yield between this check and the decryption.</span>
         <span class="n">dev_key</span><span class="p">,</span> <span class="n">dev_iv</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">dev_crypto_key</span><span class="p">,</span> <span class="n">state</span><span class="o">.</span><span class="n">dev_iv_seed</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">dev_key</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">dev_iv</span><span class="p">:</span>
             <span class="k">raise</span> <span class="n">web</span><span class="o">.</span><span class="n">HTTPServiceUnavailable</span><span class="p">(</span><span class="n">text</span><span class="o">=</span><span class="s2">"Keys not initialized"</span><span class="p">)</span>
-        <span class="n">decrypted_bytes</span><span class="p">,</span> <span class="n">new_iv</span> <span class="o">=</span> <span class="n">protocol</span><span class="o">.</span><span class="n">decrypt_payload</span><span class="p">(</span><span class="n">payload</span><span class="o">.</span><span class="n">enc</span><span class="p">,</span> <span class="n">dev_key</span><span class="p">,</span> <span class="n">dev_iv</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">decrypted_bytes</span><span class="p">,</span> <span class="n">new_iv</span> <span class="o">=</span> <span class="n">protocol</span><span class="o">.</span><span class="n">decrypt_payload</span><span class="p">(</span>
+                <span class="n">payload</span><span class="o">.</span><span class="n">enc</span><span class="p">,</span> <span class="n">dev_key</span><span class="p">,</span> <span class="n">dev_iv</span>
+            <span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="c1"># The device→server stream is chained CBC: the next IV derives</span>
+            <span class="c1"># from *this ciphertext*. Decryption failures (stale keys,</span>
+            <span class="c1"># corrupted frames) must still advance the chain or every</span>
+            <span class="c1"># subsequent datapoint also fails until the next key exchange.</span>
+            <span class="n">state</span><span class="o">.</span><span class="n">dev_iv_seed</span> <span class="o">=</span> <span class="n">rotate_iv_from_ciphertext</span><span class="p">(</span><span class="n">payload</span><span class="o">.</span><span class="n">enc</span><span class="p">)</span>
+            <span class="n">state</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"datapoint_decrypt_failed"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"cipher"</span><span class="p">:</span> <span class="n">payload</span><span class="o">.</span><span class="n">enc</span><span class="p">[:</span><span class="mi">32</span><span class="p">]})</span>
+            <span class="k">return</span> <span class="n">web</span><span class="o">.</span><span class="n">Response</span><span class="p">(</span><span class="n">status</span><span class="o">=</span><span class="mi">200</span><span class="p">)</span>
         <span class="n">state</span><span class="o">.</span><span class="n">dev_iv_seed</span> <span class="o">=</span> <span class="n">new_iv</span>
 
         <span class="k">try</span><span class="p">:</span>
@@ -453,7 +500,7 @@
 
         <span class="n">state</span><span class="o">.</span><span class="n">log_telemetry</span><span class="p">(</span><span class="s2">"device_datapoint_received"</span><span class="p">,</span> <span class="n">decoded_json</span><span class="p">)</span>
         <span class="k">await</span> <span class="n">state</span><span class="o">.</span><span class="n">handle_datapoint</span><span class="p">(</span><span class="n">decoded_json</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">web</span><span class="o">.</span><span class="n">json_response</span><span class="p">({})</span>
+        <span class="k">return</span> <span class="n">web</span><span class="o">.</span><span class="n">json_response</span><span class="p">({},</span> <span class="n">status</span><span class="o">=</span><span class="n">_commands_response_code</span><span class="p">())</span>
 
     <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">register</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">web</span><span class="o">.</span><span class="n">Request</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">web</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
         <span class="k">try</span><span class="p">:</span>
@@ -477,18 +524,40 @@
     <span class="n">app</span><span class="o">.</span><span class="n">router</span><span class="o">.</span><span class="n">add_get</span><span class="p">(</span><span class="s2">"/debug_queue"</span><span class="p">,</span> <span class="n">debug_queue</span><span class="p">)</span>
     <span class="n">app</span><span class="o">.</span><span class="n">router</span><span class="o">.</span><span class="n">add_get</span><span class="p">(</span><span class="s2">"/monitor"</span><span class="p">,</span> <span class="n">monitor</span><span class="p">)</span>
     <span class="n">app</span><span class="o">.</span><span class="n">router</span><span class="o">.</span><span class="n">add_post</span><span class="p">(</span><span class="s2">"/local_lan/key_exchange.json"</span><span class="p">,</span> <span class="n">key_exchange</span><span class="p">)</span>
-    <span class="n">app</span><span class="o">.</span><span class="n">router</span><span class="o">.</span><span class="n">add_get</span><span class="p">(</span><span class="s2">"/local_lan/commands.json"</span><span class="p">,</span> <span class="n">poll_commands</span><span class="p">)</span>
-    <span class="n">app</span><span class="o">.</span><span class="n">router</span><span class="o">.</span><span class="n">add_post</span><span class="p">(</span><span class="s2">"/local_lan/commands.json"</span><span class="p">,</span> <span class="n">poll_commands</span><span class="p">)</span>
+    <span class="c1"># aioecam accepts any method on commands.json — the machine polls with</span>
+    <span class="c1"># GET/POST, and any other method still counts as a liveness signal.</span>
+    <span class="n">app</span><span class="o">.</span><span class="n">router</span><span class="o">.</span><span class="n">add_route</span><span class="p">(</span><span class="s2">"*"</span><span class="p">,</span> <span class="s2">"/local_lan/commands.json"</span><span class="p">,</span> <span class="n">poll_commands</span><span class="p">)</span>
     <span class="n">app</span><span class="o">.</span><span class="n">router</span><span class="o">.</span><span class="n">add_post</span><span class="p">(</span><span class="s2">"/local_lan/property/datapoint.json"</span><span class="p">,</span> <span class="n">datapoint</span><span class="p">)</span>
+    <span class="c1"># The machine POSTs datapoint acks here too (app: AckHandler, aioecam</span>
+    <span class="c1"># routes it to the same handler). Without the route, ack pushes get a</span>
+    <span class="c1"># silent 404.</span>
+    <span class="n">app</span><span class="o">.</span><span class="n">router</span><span class="o">.</span><span class="n">add_post</span><span class="p">(</span><span class="s2">"/local_lan/property/datapoint/ack.json"</span><span class="p">,</span> <span class="n">datapoint</span><span class="p">)</span>
     <span class="n">app</span><span class="o">.</span><span class="n">router</span><span class="o">.</span><span class="n">add_get</span><span class="p">(</span><span class="s2">"/register"</span><span class="p">,</span> <span class="n">register</span><span class="p">)</span>
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">local_lan_catch_all</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">web</span><span class="o">.</span><span class="n">Request</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">web</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Log any machine request hitting an unrouted local_lan path.</span>
+
+<span class="sd">        aiohttp answers unrouted/unsupported-method requests silently, so a</span>
+<span class="sd">        machine polling an unexpected path would be invisible in the event</span>
+<span class="sd">        buffer — this makes the whole machine-side request surface audible.</span>
+<span class="sd">        """</span>
+        <span class="n">state</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+            <span class="s2">"local_lan_unhandled"</span><span class="p">,</span>
+            <span class="p">{</span><span class="s2">"method"</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">method</span><span class="p">,</span> <span class="s2">"path"</span><span class="p">:</span> <span class="n">request</span><span class="o">.</span><span class="n">path</span><span class="p">},</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">web</span><span class="o">.</span><span class="n">Response</span><span class="p">(</span><span class="n">status</span><span class="o">=</span><span class="mi">404</span><span class="p">)</span>
+
+    <span class="n">app</span><span class="o">.</span><span class="n">router</span><span class="o">.</span><span class="n">add_route</span><span class="p">(</span><span class="s2">"*"</span><span class="p">,</span> <span class="s2">"/local_lan/{tail:.*}"</span><span class="p">,</span> <span class="n">local_lan_catch_all</span><span class="p">)</span>
 
     <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">on_startup</span><span class="p">(</span><span class="n">app_</span><span class="p">:</span> <span class="n">web</span><span class="o">.</span><span class="n">Application</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">if</span> <span class="n">settings</span><span class="o">.</span><span class="n">enable_nudger_job</span><span class="p">:</span>
             <span class="n">jobs</span><span class="o">.</span><span class="n">start</span><span class="p">(</span><span class="n">nudger_job</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">adapter</span><span class="p">,</span> <span class="n">settings</span><span class="p">,</span> <span class="n">stop_event</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="s2">"nudger"</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">settings</span><span class="o">.</span><span class="n">enable_monitor_job</span><span class="p">:</span>
             <span class="n">jobs</span><span class="o">.</span><span class="n">start</span><span class="p">(</span><span class="n">monitor_job</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">settings</span><span class="p">,</span> <span class="n">stop_event</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="s2">"monitor"</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">settings</span><span class="o">.</span><span class="n">enable_rekey_job</span><span class="p">:</span>
-            <span class="n">jobs</span><span class="o">.</span><span class="n">start</span><span class="p">(</span><span class="n">rekey_job</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">adapter</span><span class="p">,</span> <span class="n">settings</span><span class="p">,</span> <span class="n">stop_event</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="s2">"rekey"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">settings</span><span class="o">.</span><span class="n">enable_session_job</span><span class="p">:</span>
+            <span class="n">jobs</span><span class="o">.</span><span class="n">start</span><span class="p">(</span>
+                <span class="n">session_job</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">adapter</span><span class="p">,</span> <span class="n">settings</span><span class="p">,</span> <span class="n">stop_event</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="s2">"session"</span>
+            <span class="p">)</span>
 
     <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">on_cleanup</span><span class="p">(</span><span class="n">app_</span><span class="p">:</span> <span class="n">web</span><span class="o">.</span><span class="n">Application</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">stop_event</span><span class="o">.</span><span class="n">set</span><span class="p">()</span>
@@ -509,7 +578,7 @@
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright 2026, Midian Tekle Elfu.</p>
+    <p>&#169; Copyright 2026, Lodzen.</p>
   </div>
 
   Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a

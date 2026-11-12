@@ -77,6 +77,7 @@
 <span></span><span class="sd">"""</span>
 <span class="sd">This module provides extractor functions that pull data from a raw monitor frame.</span>
 <span class="sd">"""</span>
+
 <span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">base64</span>
@@ -112,7 +113,7 @@
     <span class="n">warnings</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="n">errors</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="n">frame</span><span class="p">:</span> <span class="n">MonitorFrame</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-    
+
     <span class="c1"># --- Step 1: Decode the raw bytes into a MonitorFrame ---</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="n">frame</span> <span class="o">=</span> <span class="n">MonitorFrame</span><span class="o">.</span><span class="n">from_b64</span><span class="p">(</span><span class="n">raw_b64</span><span class="p">)</span>
@@ -155,7 +156,7 @@
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright 2026, Midian Tekle Elfu.</p>
+    <p>&#169; Copyright 2026, Lodzen.</p>
   </div>
 
   Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a

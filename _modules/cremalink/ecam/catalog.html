@@ -338,9 +338,10 @@
         <span class="n">width</span> <span class="o">=</span> <span class="mi">2</span> <span class="k">if</span> <span class="n">tag</span> <span class="ow">in</span> <span class="n">WIDE_TAGS</span> <span class="k">else</span> <span class="mi">1</span>
         <span class="k">if</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">+</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">width</span> <span class="o">&gt;</span> <span class="n">end</span><span class="p">:</span>
             <span class="k">return</span> <span class="kc">None</span>
-        <span class="n">out</span><span class="p">[</span><span class="n">tag</span><span class="p">]</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span>
-            <span class="nb">int</span><span class="o">.</span><span class="n">from_bytes</span><span class="p">(</span><span class="n">payload</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">n</span> <span class="o">*</span> <span class="n">width</span> <span class="p">:</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">+</span> <span class="p">(</span><span class="n">n</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">width</span><span class="p">],</span> <span class="s2">"big"</span><span class="p">)</span>
-            <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+        <span class="n">out</span><span class="p">[</span><span class="n">tag</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="nb">int</span><span class="o">.</span><span class="n">from_bytes</span><span class="p">(</span><span class="n">payload</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span> <span class="p">:</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">width</span><span class="p">],</span> <span class="s2">"big"</span><span class="p">),</span>
+            <span class="nb">int</span><span class="o">.</span><span class="n">from_bytes</span><span class="p">(</span><span class="n">payload</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">width</span> <span class="p">:</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">+</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">width</span><span class="p">],</span> <span class="s2">"big"</span><span class="p">),</span>
+            <span class="nb">int</span><span class="o">.</span><span class="n">from_bytes</span><span class="p">(</span><span class="n">payload</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">+</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">width</span> <span class="p">:</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">+</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">width</span><span class="p">],</span> <span class="s2">"big"</span><span class="p">),</span>
         <span class="p">)</span>
         <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span> <span class="o">+</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">width</span>
     <span class="k">return</span> <span class="n">out</span></div>
@@ -638,7 +639,11 @@
         <span class="n">source</span><span class="o">=</span><span class="s2">"model_table"</span><span class="p">,</span>
         <span class="n">beverages</span><span class="o">=</span><span class="n">beverages</span><span class="p">,</span>
         <span class="n">priority_lists</span><span class="o">=</span><span class="p">{},</span>
-        <span class="n">names</span><span class="o">=</span><span class="p">{</span><span class="s2">"beverages"</span><span class="p">:</span> <span class="p">{</span><span class="n">b</span><span class="o">.</span><span class="n">bev_id</span><span class="p">:</span> <span class="n">b</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">beverages</span><span class="o">.</span><span class="n">values</span><span class="p">()}},</span>
+        <span class="n">names</span><span class="o">=</span><span class="p">{</span>
+            <span class="s2">"beverages"</span><span class="p">:</span> <span class="p">{</span>
+                <span class="n">b</span><span class="o">.</span><span class="n">bev_id</span><span class="p">:</span> <span class="n">b</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">beverages</span><span class="o">.</span><span class="n">values</span><span class="p">()</span> <span class="k">if</span> <span class="n">b</span><span class="o">.</span><span class="n">name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="p">}</span>
+        <span class="p">},</span>
         <span class="n">stats</span><span class="o">=</span><span class="p">{</span>
             <span class="s2">"model"</span><span class="p">:</span> <span class="n">model</span><span class="p">,</span>
             <span class="s2">"source_type"</span><span class="p">:</span> <span class="n">declaration</span><span class="p">[</span><span class="s2">"source_type"</span><span class="p">],</span>
@@ -674,7 +679,7 @@
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright 2026, Midian Tekle Elfu.</p>
+    <p>&#169; Copyright 2026, Lodzen.</p>
   </div>
 
   Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a

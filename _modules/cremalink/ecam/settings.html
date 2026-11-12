@@ -130,6 +130,104 @@
 <span class="p">}</span>
 
 
+<div class="viewcode-block" id="BitSetting">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.settings.html#cremalink.ecam.BitSetting">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">BitSetting</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""A boolean flag inside a shared parameter word (``0x90`` write).</span>
+
+<span class="sd">    ``inverted=True`` means the set bit carries the OFF semantics (the</span>
+<span class="sd">    APK's ``Parameter.f()`` autostart: bit set = autostart disabled).</span>
+<span class="sd">    """</span>
+
+    <span class="n">key</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">param_id</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">mask</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">capability</span><span class="p">:</span> <span class="nb">str</span>  <span class="c1"># device-map `capabilities` flag gating the HA entity</span>
+    <span class="n">datapoint_hint</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">""</span>  <span class="c1"># substring of the republished backing property</span>
+    <span class="n">inverted</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span></div>
+
+
+
+<span class="c1">#: Param ``0x003F`` (``d284_mchn_sett_user_conf``) bits — decoded from the</span>
+<span class="c1">#: APK's ``it/delonghi/ecam/model/Parameter.java`` (protocol.md §14.8):</span>
+<span class="c1">#: ``f()`` autostart ``0x01`` (inverted), ``g()`` beep ``0x04``,</span>
+<span class="c1">#: ``h()`` cup light ``0x08``, ``j()`` energy saving ``0x10``,</span>
+<span class="c1">#: ``i()`` cup warmer ``0x20``. Live value ``0x1D`` = beep+energy ON.</span>
+<span class="n">SETTING_BIT_MAPS</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">BitSetting</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">"beep"</span><span class="p">:</span> <span class="n">BitSetting</span><span class="p">(</span>
+        <span class="n">key</span><span class="o">=</span><span class="s2">"beep"</span><span class="p">,</span>
+        <span class="n">param_id</span><span class="o">=</span><span class="mh">0x003F</span><span class="p">,</span>
+        <span class="n">mask</span><span class="o">=</span><span class="mh">0x04</span><span class="p">,</span>
+        <span class="n">capability</span><span class="o">=</span><span class="s2">"buzzer_settings"</span><span class="p">,</span>
+        <span class="n">datapoint_hint</span><span class="o">=</span><span class="s2">"user_conf"</span><span class="p">,</span>
+    <span class="p">),</span>
+    <span class="s2">"energy_saving"</span><span class="p">:</span> <span class="n">BitSetting</span><span class="p">(</span>
+        <span class="n">key</span><span class="o">=</span><span class="s2">"energy_saving"</span><span class="p">,</span>
+        <span class="n">param_id</span><span class="o">=</span><span class="mh">0x003F</span><span class="p">,</span>
+        <span class="n">mask</span><span class="o">=</span><span class="mh">0x10</span><span class="p">,</span>
+        <span class="n">capability</span><span class="o">=</span><span class="s2">"energy_saving_settings"</span><span class="p">,</span>
+        <span class="n">datapoint_hint</span><span class="o">=</span><span class="s2">"user_conf"</span><span class="p">,</span>
+    <span class="p">),</span>
+    <span class="s2">"cup_light"</span><span class="p">:</span> <span class="n">BitSetting</span><span class="p">(</span>
+        <span class="n">key</span><span class="o">=</span><span class="s2">"cup_light"</span><span class="p">,</span>
+        <span class="n">param_id</span><span class="o">=</span><span class="mh">0x003F</span><span class="p">,</span>
+        <span class="n">mask</span><span class="o">=</span><span class="mh">0x08</span><span class="p">,</span>
+        <span class="n">capability</span><span class="o">=</span><span class="s2">"cup_light_settings"</span><span class="p">,</span>
+        <span class="n">datapoint_hint</span><span class="o">=</span><span class="s2">"user_conf"</span><span class="p">,</span>
+    <span class="p">),</span>
+    <span class="s2">"cup_warmer"</span><span class="p">:</span> <span class="n">BitSetting</span><span class="p">(</span>
+        <span class="n">key</span><span class="o">=</span><span class="s2">"cup_warmer"</span><span class="p">,</span>
+        <span class="n">param_id</span><span class="o">=</span><span class="mh">0x003F</span><span class="p">,</span>
+        <span class="n">mask</span><span class="o">=</span><span class="mh">0x20</span><span class="p">,</span>
+        <span class="n">capability</span><span class="o">=</span><span class="s2">"cup_warmer_settings"</span><span class="p">,</span>
+        <span class="n">datapoint_hint</span><span class="o">=</span><span class="s2">"user_conf"</span><span class="p">,</span>
+    <span class="p">),</span>
+    <span class="s2">"autostart"</span><span class="p">:</span> <span class="n">BitSetting</span><span class="p">(</span>
+        <span class="n">key</span><span class="o">=</span><span class="s2">"autostart"</span><span class="p">,</span>
+        <span class="n">param_id</span><span class="o">=</span><span class="mh">0x003F</span><span class="p">,</span>
+        <span class="n">mask</span><span class="o">=</span><span class="mh">0x01</span><span class="p">,</span>
+        <span class="n">capability</span><span class="o">=</span><span class="s2">"auto_start_settings"</span><span class="p">,</span>
+        <span class="n">datapoint_hint</span><span class="o">=</span><span class="s2">"user_conf"</span><span class="p">,</span>
+        <span class="n">inverted</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">),</span>
+<span class="p">}</span>
+
+
+<div class="viewcode-block" id="settings_bits">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.settings.html#cremalink.ecam.settings_bits">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">settings_bits</span><span class="p">(</span><span class="n">param_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">param_raw</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bool</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Decode a param word into ``{key: on/off}`` for its bit settings.</span>
+
+<span class="sd">    Only settings backed by ``param_id`` are decoded — inversion-aware</span>
+<span class="sd">    (autostart's set bit means OFF).</span>
+<span class="sd">    """</span>
+    <span class="n">out</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">setting</span> <span class="ow">in</span> <span class="n">SETTING_BIT_MAPS</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">setting</span><span class="o">.</span><span class="n">param_id</span> <span class="o">!=</span> <span class="n">param_id</span><span class="p">:</span>
+            <span class="k">continue</span>
+        <span class="n">on</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">param_raw</span> <span class="o">&amp;</span> <span class="n">setting</span><span class="o">.</span><span class="n">mask</span><span class="p">)</span>
+        <span class="n">out</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="ow">not</span> <span class="n">on</span> <span class="k">if</span> <span class="n">setting</span><span class="o">.</span><span class="n">inverted</span> <span class="k">else</span> <span class="n">on</span>
+    <span class="k">return</span> <span class="n">out</span></div>
+
+
+
+<div class="viewcode-block" id="merge_setting_bit">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.settings.html#cremalink.ecam.merge_setting_bit">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">merge_setting_bit</span><span class="p">(</span><span class="n">param_raw</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">setting</span><span class="p">:</span> <span class="n">BitSetting</span><span class="p">,</span> <span class="n">on</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Return ``param_raw`` with ``setting``'s flag set to ``on``.</span>
+
+<span class="sd">    ``on`` is the logical state (autostart ``on=True`` clears its inverted</span>
+<span class="sd">    bit); every unrelated bit is preserved — the merged u32 is what goes</span>
+<span class="sd">    on the wire in the ``0x90`` write.</span>
+<span class="sd">    """</span>
+    <span class="n">target</span> <span class="o">=</span> <span class="n">on</span> <span class="o">!=</span> <span class="n">setting</span><span class="o">.</span><span class="n">inverted</span>
+    <span class="k">if</span> <span class="n">target</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">(</span><span class="n">param_raw</span> <span class="o">|</span> <span class="n">setting</span><span class="o">.</span><span class="n">mask</span><span class="p">)</span> <span class="o">&amp;</span> <span class="mh">0xFFFFFFFF</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">param_raw</span> <span class="o">&amp;</span> <span class="o">~</span><span class="n">setting</span><span class="o">.</span><span class="n">mask</span><span class="p">)</span> <span class="o">&amp;</span> <span class="mh">0xFFFFFFFF</span></div>
+
+
+
 <div class="viewcode-block" id="parse_settings">
 <a class="viewcode-back" href="../../../api/cremalink.ecam.settings.html#cremalink.ecam.parse_settings">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">parse_settings</span><span class="p">(</span><span class="n">blob</span><span class="p">:</span> <span class="nb">bytes</span> <span class="o">|</span> <span class="nb">bytearray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
@@ -163,7 +261,7 @@
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright 2026, Midian Tekle Elfu.</p>
+    <p>&#169; Copyright 2026, Lodzen.</p>
   </div>
 
   Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a

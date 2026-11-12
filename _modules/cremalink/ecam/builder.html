@@ -352,10 +352,16 @@
 <div class="viewcode-block" id="build_read_param">
 <a class="viewcode-back" href="../../../api/cremalink.ecam.builder.html#cremalink.ecam.build_read_param">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">build_read_param</span><span class="p">(</span><span class="n">param_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">profile</span><span class="p">:</span> <span class="n">MachineProfile</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">"""``0D 07 95 F0 &lt;param:2B&gt;`` — single parameter read (captured)."""</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">param_id</span> <span class="o">&lt;=</span> <span class="mh">0xFFFF</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"param_id out of range: </span><span class="si">{</span><span class="n">param_id</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">build_read</span><span class="p">(</span><span class="n">REQ_READ_PARAM</span><span class="p">,</span> <span class="n">param_id</span><span class="o">.</span><span class="n">to_bytes</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s2">"big"</span><span class="p">),</span> <span class="n">profile</span><span class="p">)</span></div>
+<span class="w">    </span><span class="sd">"""``0D 08 95 &lt;flag&gt; &lt;param:2B&gt; &lt;qty=1&gt;`` — single parameter read.</span>
+
+<span class="sd">    The app's ``buildParamRead`` (protocol.md §8) always carries the qty</span>
+<span class="sd">    byte; the legacy qty-less len-7 form is only *tolerated* by the</span>
+<span class="sd">    machine (answered sporadically — see §14.8's 2026-10-14 captures</span>
+<span class="sd">    where len-7 reads were dropped while ``0D 08`` app reads answered).</span>
+<span class="sd">    Delegates to :func:`build_read_block` with ``count=1``, which emits</span>
+<span class="sd">    the identical wire frame.</span>
+<span class="sd">    """</span>
+    <span class="k">return</span> <span class="n">build_read_block</span><span class="p">(</span><span class="n">param_id</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">profile</span><span class="p">)</span></div>
 
 
 
@@ -364,7 +370,7 @@
 <span class="k">def</span><span class="w"> </span><span class="nf">build_read_params</span><span class="p">(</span>
     <span class="n">first_param</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">last_param</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">profile</span><span class="p">:</span> <span class="n">MachineProfile</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">"""``0D 09 95 F0 &lt;first:2B&gt; &lt;last:2B&gt;`` — param range read (captured)."""</span>
+<span class="w">    </span><span class="sd">"""``0D 09 95 &lt;flag&gt; &lt;first:2B&gt; &lt;last:2B&gt;`` — param range read (captured)."""</span>
     <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="p">(</span><span class="n">first_param</span><span class="p">,</span> <span class="n">last_param</span><span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">p</span> <span class="o">&lt;=</span> <span class="mh">0xFFFF</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"param id out of range: </span><span class="si">{</span><span class="n">p</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
@@ -372,6 +378,7 @@
         <span class="n">REQ_READ_PARAM</span><span class="p">,</span>
         <span class="n">first_param</span><span class="o">.</span><span class="n">to_bytes</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s2">"big"</span><span class="p">)</span> <span class="o">+</span> <span class="n">last_param</span><span class="o">.</span><span class="n">to_bytes</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s2">"big"</span><span class="p">),</span>
         <span class="n">profile</span><span class="p">,</span>
+        <span class="n">flag</span><span class="o">=</span><span class="mh">0xF0</span> <span class="k">if</span> <span class="n">first_param</span> <span class="o">&gt;=</span> <span class="mi">1000</span> <span class="k">else</span> <span class="mh">0x0F</span><span class="p">,</span>
     <span class="p">)</span></div>
 
 
@@ -495,6 +502,24 @@
 
 
 
+<div class="viewcode-block" id="build_handshake_blob">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.builder.html#cremalink.ecam.build_handshake_blob">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">build_handshake_blob</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""``45 DA 37 88 34 EB AF FF FF FA`` + CRC — non-striker session</span>
+<span class="sd">    handshake blob (APK ``s0()``/``buildHandshakeBlob``).</span>
+
+<span class="sd">    No ``0x0D`` header — the CRC covers the 10 payload bytes exactly</span>
+<span class="sd">    like the app's ``crc16`` (which iterates ``len-2``). The app's</span>
+<span class="sd">    connect sequence is ``device_connected`` → this blob → traffic;</span>
+<span class="sd">    without it the machine served property republishes and ``0xA2``</span>
+<span class="sd">    but ignored session commands (``0x95`` silent, ``0x90`` acked-not-</span>
+<span class="sd">    committed, ``0xA9`` unacked — observed 2026-10-14/25, §14.8).</span>
+<span class="sd">    """</span>
+    <span class="n">blob</span> <span class="o">=</span> <span class="sa">b</span><span class="s2">"</span><span class="se">\x45\xda\x37\x88\x34\xeb\xaf\xff\xff\xfa</span><span class="s2">"</span>
+    <span class="k">return</span> <span class="n">blob</span> <span class="o">+</span> <span class="n">crc16_ccitt</span><span class="p">(</span><span class="n">blob</span><span class="p">)</span></div>
+
+
+
 <div class="viewcode-block" id="build_monitor_request">
 <a class="viewcode-back" href="../../../api/cremalink.ecam.builder.html#cremalink.ecam.build_monitor_request">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">build_monitor_request</span><span class="p">(</span><span class="n">profile</span><span class="p">:</span> <span class="n">MachineProfile</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
@@ -541,15 +566,18 @@
     <span class="o">*</span><span class="p">,</span>
     <span class="n">timestamp</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">app_id</span><span class="p">:</span> <span class="nb">bytes</span> <span class="o">|</span> <span class="nb">bytearray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">raw</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">"""Base64-encode ``frame + &lt;ts:4B BE&gt; [+ &lt;app_id:4B&gt;]`` for the wire.</span>
 
 <span class="sd">    The timestamp is never CRC-covered; the striker app-id trailer follows</span>
-<span class="sd">    it (FR-004/005/007).</span>
+<span class="sd">    it (FR-004/005/007). ``raw=True`` skips frame validation — the</span>
+<span class="sd">    non-striker ``s0()`` handshake blob is a valid ``data_request``</span>
+<span class="sd">    payload that carries no ``0x0D`` header (§14.8).</span>
 <span class="sd">    """</span>
     <span class="n">_require_profile</span><span class="p">(</span><span class="n">profile</span><span class="p">)</span>
     <span class="n">frame_b</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">(</span><span class="n">frame</span><span class="p">)</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">verify_frame</span><span class="p">(</span><span class="n">frame_b</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">raw</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">verify_frame</span><span class="p">(</span><span class="n">frame_b</span><span class="p">):</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"encode_for_transport given an invalid frame"</span><span class="p">)</span>
     <span class="n">ts</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span> <span class="k">if</span> <span class="n">timestamp</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">int</span><span class="p">(</span><span class="n">timestamp</span><span class="p">)</span>
     <span class="n">payload</span> <span class="o">=</span> <span class="n">frame_b</span> <span class="o">+</span> <span class="n">ts</span><span class="o">.</span><span class="n">to_bytes</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="s2">"big"</span><span class="p">)</span>
@@ -571,7 +599,7 @@
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright 2026, Midian Tekle Elfu.</p>
+    <p>&#169; Copyright 2026, Lodzen.</p>
   </div>
 
   Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a

@@ -133,13 +133,21 @@ to send data pushes.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="cremalink.local_server_app.device_adapter.DeviceAdapter.register_with_device">
-<span class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">register_with_device</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="cremalink.local_server_app.state.html#cremalink.local_server_app.state.LocalServerState" title="cremalink.local_server_app.state.LocalServerState"><span class="pre">LocalServerState</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/cremalink/local_server_app/device_adapter.html#DeviceAdapter.register_with_device"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cremalink.local_server_app.device_adapter.DeviceAdapter.register_with_device" title="Link to this definition"></a></dt>
-<dd><p>Sends a registration request to the coffee machine.</p>
+<span class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">register_with_device</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="cremalink.local_server_app.state.html#cremalink.local_server_app.state.LocalServerState" title="cremalink.local_server_app.state.LocalServerState"><span class="pre">LocalServerState</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">method</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../_modules/cremalink/local_server_app/device_adapter.html#DeviceAdapter.register_with_device"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cremalink.local_server_app.device_adapter.DeviceAdapter.register_with_device" title="Link to this definition"></a></dt>
+<dd><p>Sends a <code class="docutils literal notranslate"><span class="pre">local_reg</span></code> request to the coffee machine.</p>
 <p>This tells the device to send its data updates (like monitor status)
-to this server’s <cite>/local_lan</cite> endpoint.</p>
+to this server’s <code class="docutils literal notranslate"><span class="pre">/local_lan</span></code> endpoint. The HTTP method is
+load-bearing (lodzen/cremalink#4, verified against the Coffee Link
+app’s <code class="docutils literal notranslate"><span class="pre">AylaLanModule.sendLocalRegistration</span></code>): a live session gets
+a keep-alive <code class="docutils literal notranslate"><span class="pre">PUT</span></code> (never re-keys), while starting a session needs
+<code class="docutils literal notranslate"><span class="pre">POST</span></code>, which always triggers a key exchange. When <code class="docutils literal notranslate"><span class="pre">method</span></code> is
+omitted it is chosen from <code class="xref py py-meth docutils literal notranslate"><span class="pre">LocalServerState.session_live()</span></code>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>state</strong> – The current server state, containing device IP and scheme.</p>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>state</strong> – The current server state, containing device IP and scheme.</p></li>
+<li><p><strong>method</strong> – <code class="docutils literal notranslate"><span class="pre">&quot;PUT&quot;</span></code> or <code class="docutils literal notranslate"><span class="pre">&quot;POST&quot;</span></code>; <code class="docutils literal notranslate"><span class="pre">None</span></code> picks automatically.</p></li>
+</ul>
 </dd>
 <dt class="field-even">Raises<span class="colon">:</span></dt>
 <dd class="field-even"><ul class="simple">
@@ -165,7 +173,7 @@ to this server’s <cite>/local_lan</cite> endpoint.</p>
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright 2026, Midian Tekle Elfu.</p>
+    <p>&#169; Copyright 2026, Lodzen.</p>
   </div>
 
   Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a

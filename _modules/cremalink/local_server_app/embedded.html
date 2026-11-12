@@ -121,7 +121,9 @@
 
 <span class="c1">#: Default port, matching the standalone server/add-on's historical default.</span>
 <span class="n">DEFAULT_PORT</span> <span class="o">=</span> <span class="mi">10280</span>
-<span class="n">DEFAULT_REKEY_INTERVAL_SECONDS</span> <span class="o">=</span> <span class="mf">60.0</span>
+<span class="c1">#: LAN session keep-alive cadence (lodzen/cremalink#4): the app polls</span>
+<span class="c1">#: `local_reg` every ~10 s; 20–25 s held a session 15 min in field tests.</span>
+<span class="n">DEFAULT_SESSION_KEEPALIVE_SECONDS</span> <span class="o">=</span> <span class="mf">20.0</span>
 <span class="c1">#: How many ports past the preferred one to try before giving up (FR-007).</span>
 <span class="n">DEFAULT_PORT_FALLBACK_RANGE</span> <span class="o">=</span> <span class="mi">50</span>
 <span class="c1">#: Bound on how long stop() can take waiting for in-flight connections to</span>
@@ -195,7 +197,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">device_map_path</span> <span class="o">=</span> <span class="n">device_map_path</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">monitor_poll_interval</span> <span class="o">=</span> <span class="n">monitor_poll_interval</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">nudger_poll_interval</span> <span class="o">=</span> <span class="n">nudger_poll_interval</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">rekey_interval_seconds</span> <span class="o">=</span> <span class="n">DEFAULT_REKEY_INTERVAL_SECONDS</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">session_keepalive_seconds</span> <span class="o">=</span> <span class="n">DEFAULT_SESSION_KEEPALIVE_SECONDS</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_event_logger</span> <span class="o">=</span> <span class="n">create_logger</span><span class="p">(</span>
             <span class="sa">f</span><span class="s2">"cremalink.embedded.</span><span class="si">{</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()</span><span class="o">.</span><span class="n">hex</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
             <span class="mi">200</span><span class="p">,</span>
@@ -252,7 +254,7 @@
                 <span class="n">advertised_ip</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">advertised_ip</span><span class="p">,</span>
                 <span class="n">monitor_poll_interval</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">monitor_poll_interval</span><span class="p">,</span>
                 <span class="n">nudger_poll_interval</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">nudger_poll_interval</span><span class="p">,</span>
-                <span class="n">rekey_interval_seconds</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">rekey_interval_seconds</span><span class="p">,</span>
+                <span class="n">session_keepalive_interval_seconds</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">session_keepalive_seconds</span><span class="p">,</span>
             <span class="p">)</span>
             <span class="n">app</span> <span class="o">=</span> <span class="n">create_app</span><span class="p">(</span><span class="n">settings</span><span class="o">=</span><span class="n">settings</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_event_logger</span><span class="p">)</span>
             <span class="c1"># aiohttp reports unexpected handler errors through ``logger``;</span>
@@ -390,7 +392,7 @@
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright 2026, Midian Tekle Elfu.</p>
+    <p>&#169; Copyright 2026, Lodzen.</p>
   </div>
 
   Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a

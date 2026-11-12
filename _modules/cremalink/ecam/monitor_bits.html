@@ -163,9 +163,7 @@
 <span class="sd">    than ``False`` — absent data is not a cleared bit.</span>
 <span class="sd">    """</span>
     <span class="k">return</span> <span class="p">{</span>
-        <span class="n">bit</span><span class="o">.</span><span class="n">key</span><span class="p">:</span> <span class="p">(</span>
-            <span class="nb">bool</span><span class="p">(</span><span class="n">word</span><span class="p">[</span><span class="n">n</span> <span class="o">//</span> <span class="mi">8</span><span class="p">]</span> <span class="o">&gt;&gt;</span> <span class="p">(</span><span class="n">n</span> <span class="o">%</span> <span class="mi">8</span><span class="p">)</span> <span class="o">&amp;</span> <span class="mi">1</span><span class="p">)</span> <span class="k">if</span> <span class="n">n</span> <span class="o">//</span> <span class="mi">8</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">word</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span>
-        <span class="p">)</span>
+        <span class="n">bit</span><span class="o">.</span><span class="n">key</span><span class="p">:</span> <span class="p">(</span><span class="nb">bool</span><span class="p">(</span><span class="n">word</span><span class="p">[</span><span class="n">n</span> <span class="o">//</span> <span class="mi">8</span><span class="p">]</span> <span class="o">&gt;&gt;</span> <span class="p">(</span><span class="n">n</span> <span class="o">%</span> <span class="mi">8</span><span class="p">)</span> <span class="o">&amp;</span> <span class="mi">1</span><span class="p">)</span> <span class="k">if</span> <span class="n">n</span> <span class="o">//</span> <span class="mi">8</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">word</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">n</span><span class="p">,</span> <span class="n">bit</span> <span class="ow">in</span> <span class="n">table</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
     <span class="p">}</span></div>
 
@@ -178,7 +176,7 @@
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright 2026, Midian Tekle Elfu.</p>
+    <p>&#169; Copyright 2026, Lodzen.</p>
   </div>
 
   Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a

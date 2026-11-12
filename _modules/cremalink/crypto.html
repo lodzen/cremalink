@@ -223,7 +223,7 @@
 <span class="sd">    """</span>
     <span class="n">decoded_hex</span> <span class="o">=</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64decode</span><span class="p">(</span><span class="n">enc</span><span class="p">)</span><span class="o">.</span><span class="n">hex</span><span class="p">()</span>
     <span class="c1"># The last 16 bytes are the last 32 characters of the hex string.</span>
-    <span class="k">return</span> <span class="nb">bytearray</span><span class="o">.</span><span class="n">fromhex</span><span class="p">(</span><span class="n">decoded_hex</span><span class="p">[</span><span class="o">-</span><span class="mi">32</span><span class="p">:])</span></div>
+    <span class="k">return</span> <span class="nb">bytes</span><span class="o">.</span><span class="n">fromhex</span><span class="p">(</span><span class="n">decoded_hex</span><span class="p">[</span><span class="o">-</span><span class="mi">32</span><span class="p">:])</span></div>
 
 
 
@@ -246,7 +246,7 @@
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright 2026, Midian Tekle Elfu.</p>
+    <p>&#169; Copyright 2026, Lodzen.</p>
   </div>
 
   Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a

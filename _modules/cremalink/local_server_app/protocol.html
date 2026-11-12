@@ -79,13 +79,17 @@
 <span class="sd">with the De'Longhi device over the local network. It handles session key</span>
 <span class="sd">derivation, payload encryption/decryption, and message signing.</span>
 <span class="sd">"""</span>
+
 <span class="kn">import</span><span class="w"> </span><span class="nn">base64</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tuple</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">cremalink.crypto</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
-    <span class="n">aes_decrypt</span><span class="p">,</span> <span class="n">aes_encrypt</span><span class="p">,</span> <span class="n">extract_bits</span><span class="p">,</span> <span class="n">hmac_for_key_and_data</span><span class="p">,</span>
-    <span class="n">rotate_iv_from_ciphertext</span>
+    <span class="n">aes_decrypt</span><span class="p">,</span>
+    <span class="n">aes_encrypt</span><span class="p">,</span>
+    <span class="n">extract_bits</span><span class="p">,</span>
+    <span class="n">hmac_for_key_and_data</span><span class="p">,</span>
+    <span class="n">rotate_iv_from_ciphertext</span><span class="p">,</span>
 <span class="p">)</span>
 
 
@@ -147,7 +151,9 @@
     <span class="n">lastbyte</span> <span class="o">=</span> <span class="sa">b</span><span class="s2">"</span><span class="se">\x32</span><span class="s2">"</span>
     <span class="n">concat</span> <span class="o">=</span> <span class="n">rnd_1s</span> <span class="o">+</span> <span class="n">rnd_2s</span> <span class="o">+</span> <span class="n">time_1s</span> <span class="o">+</span> <span class="n">time_2s</span> <span class="o">+</span> <span class="n">lastbyte</span>
     <span class="n">app_iv_seed</span> <span class="o">=</span> <span class="n">extract_bits</span><span class="p">(</span>
-        <span class="n">hmac_for_key_and_data</span><span class="p">(</span><span class="n">lan_key_bytes</span><span class="p">,</span> <span class="n">hmac_for_key_and_data</span><span class="p">(</span><span class="n">lan_key_bytes</span><span class="p">,</span> <span class="n">concat</span><span class="p">)</span> <span class="o">+</span> <span class="n">concat</span><span class="p">),</span>
+        <span class="n">hmac_for_key_and_data</span><span class="p">(</span>
+            <span class="n">lan_key_bytes</span><span class="p">,</span> <span class="n">hmac_for_key_and_data</span><span class="p">(</span><span class="n">lan_key_bytes</span><span class="p">,</span> <span class="n">concat</span><span class="p">)</span> <span class="o">+</span> <span class="n">concat</span>
+        <span class="p">),</span>
         <span class="mi">0</span><span class="p">,</span>
         <span class="mi">16</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span>  <span class="c1"># Extract 16 bytes (32 hex chars)</span>
     <span class="p">)</span>
@@ -166,18 +172,28 @@
     <span class="n">lastbyte</span> <span class="o">=</span> <span class="sa">b</span><span class="s2">"</span><span class="se">\x32</span><span class="s2">"</span>
     <span class="n">concat</span> <span class="o">=</span> <span class="n">rnd_2s</span> <span class="o">+</span> <span class="n">rnd_1s</span> <span class="o">+</span> <span class="n">time_2s</span> <span class="o">+</span> <span class="n">time_1s</span> <span class="o">+</span> <span class="n">lastbyte</span>
     <span class="n">dev_iv_seed</span> <span class="o">=</span> <span class="n">extract_bits</span><span class="p">(</span>
-        <span class="n">hmac_for_key_and_data</span><span class="p">(</span><span class="n">lan_key_bytes</span><span class="p">,</span> <span class="n">hmac_for_key_and_data</span><span class="p">(</span><span class="n">lan_key_bytes</span><span class="p">,</span> <span class="n">concat</span><span class="p">)</span> <span class="o">+</span> <span class="n">concat</span><span class="p">),</span>
+        <span class="n">hmac_for_key_and_data</span><span class="p">(</span>
+            <span class="n">lan_key_bytes</span><span class="p">,</span> <span class="n">hmac_for_key_and_data</span><span class="p">(</span><span class="n">lan_key_bytes</span><span class="p">,</span> <span class="n">concat</span><span class="p">)</span> <span class="o">+</span> <span class="n">concat</span>
+        <span class="p">),</span>
         <span class="mi">0</span><span class="p">,</span>
         <span class="mi">16</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span>  <span class="c1"># Extract 16 bytes (32 hex chars)</span>
     <span class="p">)</span>
 
-    <span class="k">return</span> <span class="n">app_sign_key</span><span class="p">,</span> <span class="n">app_crypto_key</span><span class="p">,</span> <span class="n">app_iv_seed</span><span class="p">,</span> <span class="n">dev_crypto_key</span><span class="p">,</span> <span class="n">dev_iv_seed</span></div>
+    <span class="k">return</span> <span class="p">(</span>
+        <span class="n">app_sign_key</span><span class="p">,</span>
+        <span class="n">app_crypto_key</span><span class="p">,</span>
+        <span class="nb">bytes</span><span class="p">(</span><span class="n">app_iv_seed</span><span class="p">),</span>
+        <span class="n">dev_crypto_key</span><span class="p">,</span>
+        <span class="nb">bytes</span><span class="p">(</span><span class="n">dev_iv_seed</span><span class="p">),</span>
+    <span class="p">)</span></div>
 
 
 
 <div class="viewcode-block" id="encrypt_payload">
 <a class="viewcode-back" href="../../../api/cremalink.local_server_app.protocol.html#cremalink.local_server_app.protocol.encrypt_payload">[docs]</a>
-<span class="k">def</span><span class="w"> </span><span class="nf">encrypt_payload</span><span class="p">(</span><span class="n">payload</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">crypto_key</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span> <span class="n">iv_seed</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">]:</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">encrypt_payload</span><span class="p">(</span>
+    <span class="n">payload</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">crypto_key</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span> <span class="n">iv_seed</span><span class="p">:</span> <span class="nb">bytes</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Encrypts a payload string using AES-CBC and returns the new IV.</span>
 
@@ -215,7 +231,9 @@
 <span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Signs a payload string using HMAC-SHA256 and returns the base64-encoded signature.</span>
 <span class="sd">    """</span>
-    <span class="k">return</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64encode</span><span class="p">(</span><span class="n">hmac_for_key_and_data</span><span class="p">(</span><span class="n">sign_key</span><span class="p">,</span> <span class="n">payload</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">"utf-8"</span><span class="p">)))</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">"utf-8"</span><span class="p">)</span></div>
+    <span class="k">return</span> <span class="n">base64</span><span class="o">.</span><span class="n">b64encode</span><span class="p">(</span>
+        <span class="n">hmac_for_key_and_data</span><span class="p">(</span><span class="n">sign_key</span><span class="p">,</span> <span class="n">payload</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">"utf-8"</span><span class="p">))</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">"utf-8"</span><span class="p">)</span></div>
 
 
 
@@ -236,7 +254,7 @@
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright 2026, Midian Tekle Elfu.</p>
+    <p>&#169; Copyright 2026, Lodzen.</p>
   </div>
 
   Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a

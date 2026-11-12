@@ -81,6 +81,7 @@
 <span class="sd">"""</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">cremalink.local_server_app.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">ServerSettings</span>
@@ -125,25 +126,37 @@
     <span class="n">settings</span><span class="p">:</span> <span class="n">ServerSettings</span><span class="p">,</span>
     <span class="n">stop_event</span><span class="p">:</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Event</span><span class="p">,</span>
 <span class="p">):</span>
-<span class="w">    </span><span class="sd">"""</span>
-<span class="sd">    Periodically "nudges" the device by sending a registration request.</span>
+<span class="w">    </span><span class="sd">"""Notifies a live session about pending commands (``PUT local_reg``).</span>
 
-<span class="sd">    This is a key part of the protocol. The device often needs to be prompted</span>
-<span class="sd">    to send data. This job ensures that registration is maintained, especially</span>
-<span class="sd">    if there are pending commands in the queue.</span>
+<span class="sd">    ``notify: 1`` makes the machine poll ``commands.json`` promptly, which is</span>
+<span class="sd">    what drains the outgoing queue. While the session is down, registration</span>
+<span class="sd">    retries are throttled to the register-timeout cadence — ``POST`` is what</span>
+<span class="sd">    actually opens a session (key exchange), ``PUT`` alone cannot re-key a</span>
+<span class="sd">    live or half-dead one (lodzen/cremalink#4).</span>
 <span class="sd">    """</span>
     <span class="n">interval</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">nudger_poll_interval</span>
     <span class="k">while</span> <span class="ow">not</span> <span class="n">stop_event</span><span class="o">.</span><span class="n">is_set</span><span class="p">():</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="c1"># Nudge if there are commands waiting or if we aren't registered.</span>
+            <span class="c1"># Nudge (PUT, notify) when the live session has commands waiting.</span>
+            <span class="c1"># A dead session is re-registered (POST, new key exchange) by the</span>
+            <span class="c1"># session job — here it is only retried at register-timeout</span>
+            <span class="c1"># cadence so a dead machine isn't spammed every tick.</span>
             <span class="k">async</span> <span class="k">with</span> <span class="n">st</span><span class="o">.</span><span class="n">lock</span><span class="p">:</span>
-                <span class="n">should_nudge</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">st</span><span class="o">.</span><span class="n">command_queue</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">st</span><span class="o">.</span><span class="n">registered</span>
+                <span class="n">pending</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">st</span><span class="o">.</span><span class="n">command_queue</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span>
+                <span class="n">live</span> <span class="o">=</span> <span class="n">st</span><span class="o">.</span><span class="n">session_live</span><span class="p">()</span>
+                <span class="n">retry_due</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="n">st</span><span class="o">.</span><span class="n">last_register_attempt_at</span> <span class="ow">is</span> <span class="kc">None</span>
+                    <span class="ow">or</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span> <span class="o">-</span> <span class="n">st</span><span class="o">.</span><span class="n">last_register_attempt_at</span>
+                    <span class="o">&gt;=</span> <span class="n">settings</span><span class="o">.</span><span class="n">session_register_timeout_seconds</span>
+                <span class="p">)</span>
+                <span class="n">should_nudge</span> <span class="o">=</span> <span class="p">(</span><span class="n">live</span> <span class="ow">and</span> <span class="n">pending</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="ow">not</span> <span class="n">st</span><span class="o">.</span><span class="n">registered</span> <span class="ow">and</span> <span class="n">retry_due</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">should_nudge</span><span class="p">:</span>
                 <span class="k">await</span> <span class="n">adapter</span><span class="o">.</span><span class="n">register_with_device</span><span class="p">(</span><span class="n">st</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
             <span class="n">st</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"local_reg_nudge_failed"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"error"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">)})</span>
-            <span class="c1"># If nudging fails, it might be a key issue, so trigger a rekey.</span>
-            <span class="k">await</span> <span class="n">st</span><span class="o">.</span><span class="n">rekey</span><span class="p">()</span>
+            <span class="c1"># The session is unreachable — drop registration so the next</span>
+            <span class="c1"># register goes out as a session-creating POST.</span>
+            <span class="k">await</span> <span class="n">st</span><span class="o">.</span><span class="n">set_registered</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
 
         <span class="k">try</span><span class="p">:</span>
             <span class="c1"># Wait for the specified interval or until the stop event is set.</span>
@@ -187,35 +200,86 @@
 
 
 
-<div class="viewcode-block" id="rekey_job">
-<a class="viewcode-back" href="../../../api/cremalink.local_server_app.jobs.html#cremalink.local_server_app.jobs.rekey_job">[docs]</a>
-<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">rekey_job</span><span class="p">(</span>
+<div class="viewcode-block" id="session_job">
+<a class="viewcode-back" href="../../../api/cremalink.local_server_app.jobs.html#cremalink.local_server_app.jobs.session_job">[docs]</a>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">session_job</span><span class="p">(</span>
     <span class="n">state</span><span class="p">:</span> <span class="n">LocalServerState</span><span class="p">,</span>
     <span class="n">adapter</span><span class="p">:</span> <span class="n">DeviceAdapter</span><span class="p">,</span>
     <span class="n">settings</span><span class="p">:</span> <span class="n">ServerSettings</span><span class="p">,</span>
     <span class="n">stop_event</span><span class="p">:</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Event</span><span class="p">,</span>
 <span class="p">):</span>
-<span class="w">    </span><span class="sd">"""</span>
-<span class="sd">    Periodically triggers a full cryptographic re-keying process.</span>
+<span class="w">    </span><span class="sd">"""Maintains the LAN session (lodzen/cremalink#4).</span>
 
-<span class="sd">    This enhances security by ensuring session keys are not long-lived.</span>
+<span class="sd">    - Live session → keep-alive ``PUT local_reg`` (``notify: 1``), then</span>
+<span class="sd">      verify the machine still polls ``commands.json``; a silent machine</span>
+<span class="sd">      marks the session dead and the next tick re-registers.</span>
+<span class="sd">    - Dead session → ``POST local_reg`` starts a new session and always</span>
+<span class="sd">      triggers a key exchange; keys are only replaced inside</span>
+<span class="sd">      :meth:`LocalServerState.init_crypto`, never wiped beforehand —</span>
+<span class="sd">      a preemptive wipe plus a no-rekey ``PUT`` is what produced the</span>
+<span class="sd">      hollow sessions this job replaces.</span>
 <span class="sd">    """</span>
-    <span class="n">interval</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">rekey_interval_seconds</span>
+    <span class="n">interval</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">session_keepalive_interval_seconds</span>
     <span class="k">while</span> <span class="ow">not</span> <span class="n">stop_event</span><span class="o">.</span><span class="n">is_set</span><span class="p">():</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="c1"># Wait for the rekey interval.</span>
-            <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">wait_for</span><span class="p">(</span><span class="n">stop_event</span><span class="o">.</span><span class="n">wait</span><span class="p">(),</span> <span class="n">timeout</span><span class="o">=</span><span class="n">interval</span><span class="p">)</span>
-            <span class="k">break</span>
-        <span class="k">except</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TimeoutError</span><span class="p">:</span>
-            <span class="c1"># Interval elapsed, proceed with re-keying.</span>
-            <span class="k">pass</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">state</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"rekey_triggered"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"interval"</span><span class="p">:</span> <span class="n">interval</span><span class="p">})</span>
-            <span class="c1"># Reset keys and re-register with the device.</span>
-            <span class="k">await</span> <span class="n">state</span><span class="o">.</span><span class="n">rekey</span><span class="p">()</span>
-            <span class="k">await</span> <span class="n">adapter</span><span class="o">.</span><span class="n">register_with_device</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">state</span><span class="o">.</span><span class="n">is_configured</span><span class="p">():</span>
+                <span class="k">pass</span>
+            <span class="k">elif</span> <span class="ow">not</span> <span class="n">state</span><span class="o">.</span><span class="n">session_live</span><span class="p">():</span>
+                <span class="k">await</span> <span class="n">state</span><span class="o">.</span><span class="n">rekey</span><span class="p">()</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="k">await</span> <span class="n">adapter</span><span class="o">.</span><span class="n">register_with_device</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">"POST"</span><span class="p">)</span>
+                <span class="k">except</span> <span class="p">(</span><span class="ne">ConnectionError</span><span class="p">,</span> <span class="ne">TimeoutError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">)</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+                    <span class="n">state</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"session_register_failed"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"error"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">)})</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">exchanged</span> <span class="o">=</span> <span class="k">await</span> <span class="n">state</span><span class="o">.</span><span class="n">wait_for_key_exchange</span><span class="p">(</span>
+                        <span class="n">settings</span><span class="o">.</span><span class="n">session_register_timeout_seconds</span>
+                    <span class="p">)</span>
+                    <span class="n">state</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+                        <span class="s2">"session_registered"</span><span class="p">,</span>
+                        <span class="p">{</span><span class="s2">"method"</span><span class="p">:</span> <span class="s2">"POST"</span><span class="p">,</span> <span class="s2">"key_exchanged"</span><span class="p">:</span> <span class="n">exchanged</span><span class="p">},</span>
+                    <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="k">await</span> <span class="n">adapter</span><span class="o">.</span><span class="n">register_with_device</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">"PUT"</span><span class="p">)</span>
+                <span class="k">except</span> <span class="p">(</span><span class="ne">ConnectionError</span><span class="p">,</span> <span class="ne">TimeoutError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">)</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+                    <span class="n">state</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"session_keepalive_failed"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"error"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">)})</span>
+                    <span class="k">await</span> <span class="n">state</span><span class="o">.</span><span class="n">set_registered</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># A quiet machine is not a dead one (§14.9): standby</span>
+                    <span class="c1"># machines may not poll commands.json for long stretches</span>
+                    <span class="c1"># while still answering local_reg — the app marks</span>
+                    <span class="c1"># sessions dead on transport errors only. Silence is</span>
+                    <span class="c1"># logged for diagnostics; only a very long silence</span>
+                    <span class="c1"># (session_silence_reset_seconds) allows one re-POST as a</span>
+                    <span class="c1"># backstop for sessions that died machine-side.</span>
+                    <span class="n">anchors</span> <span class="o">=</span> <span class="p">[</span>
+                        <span class="n">t</span>
+                        <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="p">(</span>
+                            <span class="n">state</span><span class="o">.</span><span class="n">last_commands_poll_at</span><span class="p">,</span>
+                            <span class="n">state</span><span class="o">.</span><span class="n">last_key_exchange_at</span><span class="p">,</span>
+                        <span class="p">)</span>
+                        <span class="k">if</span> <span class="n">t</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+                    <span class="p">]</span>
+                    <span class="n">silent_for</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span> <span class="o">-</span> <span class="nb">max</span><span class="p">(</span><span class="n">anchors</span><span class="p">)</span> <span class="k">if</span> <span class="n">anchors</span> <span class="k">else</span> <span class="mf">0.0</span>
+                    <span class="k">if</span> <span class="n">silent_for</span> <span class="o">&gt;=</span> <span class="n">settings</span><span class="o">.</span><span class="n">session_silence_reset_seconds</span><span class="p">:</span>
+                        <span class="n">state</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+                            <span class="s2">"session_silence_reset"</span><span class="p">,</span>
+                            <span class="p">{</span><span class="s2">"silent_seconds"</span><span class="p">:</span> <span class="nb">round</span><span class="p">(</span><span class="n">silent_for</span><span class="p">)},</span>
+                        <span class="p">)</span>
+                        <span class="k">await</span> <span class="n">state</span><span class="o">.</span><span class="n">set_registered</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+                    <span class="k">elif</span> <span class="n">silent_for</span> <span class="o">&gt;=</span> <span class="n">settings</span><span class="o">.</span><span class="n">session_probe_timeout_seconds</span><span class="p">:</span>
+                        <span class="n">state</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+                            <span class="s2">"session_keepalive_no_poll"</span><span class="p">,</span>
+                            <span class="p">{</span><span class="s2">"silent_seconds"</span><span class="p">:</span> <span class="nb">round</span><span class="p">(</span><span class="n">silent_for</span><span class="p">)},</span>
+                            <span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">,</span>
+                        <span class="p">)</span>
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-            <span class="n">state</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"rekey_failed"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"error"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">)})</span></div>
+            <span class="n">state</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"session_job_failed"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"error"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">)})</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">wait_for</span><span class="p">(</span><span class="n">stop_event</span><span class="o">.</span><span class="n">wait</span><span class="p">(),</span> <span class="n">timeout</span><span class="o">=</span><span class="n">interval</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TimeoutError</span><span class="p">:</span>
+            <span class="k">continue</span></div>
 
 </pre></div>
 
@@ -226,7 +290,7 @@
   <hr/>
 
   <div role="contentinfo">
-    <p>&#169; Copyright 2026, Midian Tekle Elfu.</p>
+    <p>&#169; Copyright 2026, Lodzen.</p>
   </div>
 
   Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
