@@ -138,6 +138,21 @@ class Device:
     #: register that only changes on a profile switch.
     profile_poll_seconds: float = 30.0
     _profile_polled_at: float = field(default=0.0, init=False, repr=False)
+    #: App-id registration (``app_device_connected``, striker machines):
+    #: the machine drops a registration ~300 s after the last refresh, so
+    #: a registration older than this is renewed instead of refreshed.
+    app_id_refresh_seconds: float = 240.0
+    #: How long to wait for the machine to confirm a registration, and the
+    #: poll interval while waiting.
+    app_id_confirm_seconds: float = 10.0
+    app_id_confirm_poll: float = 1.0
+    #: Shorter wait when the cloud already shows our id: a machine that
+    #: still holds it republishes nothing, so the wait only costs time
+    #: (seen live: no answer within 10 s). Real confirmations took 3–5 s.
+    app_id_confirm_own_seconds: float = 5.0
+    # Unix time of the last registration/refresh this instance sent for a
+    # registration it saw confirmed (0 = none).
+    _app_id_refreshed_at: float = field(default=0.0, init=False, repr=False)
 
     @classmethod
     def from_map(
@@ -402,20 +417,108 @@ class Device:
             return None
 
     def _ensure_app_id(self) -> str | None:
-        """Check the app_id matches the cremalink app id and try to set it"""
-        app_id = self.get_property(self.property_map.get("app_id", "app_id")) or {}
-        value = app_id.get("value")
-        if value == "0":
-            self._register_app_id(APP_ID_HEX)
-            # sleep for a bit to allow the app id to get set
-            time.sleep(7)
-            return APP_ID_HEX
-        elif value == hex_to_signed_decimal(APP_ID_HEX):
+        """Return the app id to send with, registering our own when needed.
+
+        The cloud copy of ``app_id`` cannot prove a live registration. When
+        the machine drops a registration but its reset to ``0`` never
+        reaches the cloud (seen during a cloud outage), the property keeps
+        showing our id for hours. Trusting it and only refreshing leaves
+        every later command ignored until another app registers.
+
+        So only a registration this instance saw confirmed, and refreshed
+        within ``app_id_refresh_seconds``, is refreshed. Anything else
+        registers again and waits for the machine to confirm. Without a
+        confirmation, an id held by another app is used as before;
+        otherwise ``None`` is returned and callers raise.
+        """
+        own = hex_to_signed_decimal(APP_ID_HEX)
+        value, _ = self._app_id_property()
+        now = time.time()
+        if (
+            value == own
+            and self._app_id_refreshed_at
+            and now - self._app_id_refreshed_at < self.app_id_refresh_seconds
+        ):
             self._refresh_app_id()
+            self._app_id_refreshed_at = now
             return APP_ID_HEX
-        if not isinstance(value, str):
+
+        self._app_id_refreshed_at = 0.0
+        timeout = (
+            self.app_id_confirm_own_seconds
+            if value == own
+            else self.app_id_confirm_seconds
+        )
+        if self._register_and_confirm(timeout):
+            self._app_id_refreshed_at = time.time()
+            return APP_ID_HEX
+
+        value, _ = self._app_id_property()
+        if value == own:
+            # The machine still holds our id and republishes nothing for an
+            # unchanged value (e.g. after a restart of this process). The
+            # registration was renewed anyway; use our id.
+            logger.info("app id registration renewed without machine echo")
+            self._app_id_refreshed_at = time.time()
+            return APP_ID_HEX
+        if isinstance(value, str) and value != "0":
+            try:
+                foreign = signed_decimal_to_hex(value)
+            except ValueError:
+                return None
+            logger.warning(
+                "app id registration not confirmed; another app holds the "
+                "machine, sending with its id"
+            )
+            return foreign
+        logger.warning("app id registration not confirmed by the machine")
+        return None
+
+    def _register_and_confirm(self, timeout: float) -> bool:
+        """Register our app id and wait up to ``timeout`` s for the machine.
+
+        Confirmed once ``app_id`` shows our id and either it or the monitor
+        property was republished after the registration (the machine
+        answers a registration with a fresh monitor frame within seconds).
+        """
+        own = hex_to_signed_decimal(APP_ID_HEX)
+        monitor = self.resolve_property("monitor", "monitor")
+        _, app_id_seen = self._app_id_property()
+        monitor_seen = self._property_updated_at(monitor)
+        self._register_app_id(APP_ID_HEX)
+        deadline = time.monotonic() + timeout
+        while True:
+            value, app_id_updated = self._app_id_property()
+            if value == own and (
+                app_id_updated != app_id_seen
+                or self._property_updated_at(monitor) != monitor_seen
+            ):
+                return True
+            if time.monotonic() >= deadline:
+                return False
+            time.sleep(self.app_id_confirm_poll)
+
+    def _property_entry(self, name: str) -> dict[str, Any] | None:
+        """The raw property dict (``value``, ``data_updated_at``) or None."""
+        try:
+            entry = self.transport.get_property(name)
+        except (OSError, ValueError, RuntimeError) as err:
+            logger.debug("get_property(%s) failed: %s", name, err)
             return None
-        return signed_decimal_to_hex(value)
+        while isinstance(entry, dict) and isinstance(entry.get("property"), dict):
+            entry = entry["property"]
+        return entry if isinstance(entry, dict) else None
+
+    def _app_id_property(self) -> tuple[Any, Any]:
+        """``(value, data_updated_at)`` of the ``app_id`` property."""
+        entry = self._property_entry(self.property_map.get("app_id", "app_id"))
+        if entry is None:
+            return None, None
+        return entry.get("value"), entry.get("data_updated_at")
+
+    def _property_updated_at(self, name: str) -> Any:
+        entry = self._property_entry(name)
+        return entry.get("data_updated_at") if entry else None
 
     def _register_app_id(self, app_id_hex: str) -> Any:
         """
