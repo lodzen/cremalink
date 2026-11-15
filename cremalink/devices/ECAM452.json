@@ -187,19 +187,19 @@
       "preground_door_opened",
       "beans_empty_hopper_2",
       "bean_hopper_absent",
-      "grinding_unit_2_problem"
+      "grinding_unit_2_problem",
+      "tank_too_full",
+      "coffee_jug_present"
     ],
     "disabled_by_default": [
       "water_spout",
       "motor_up",
       "motor_down",
       "knob",
-      "coffee_jug_present",
       "door_opened",
       "heater_probe_failure",
       "infuser_motor_not_working",
-      "steamer_probe_failure",
-      "tank_too_full"
+      "steamer_probe_failure"
     ]
   },
   "monitor_profile": {
