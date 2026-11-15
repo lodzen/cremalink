@@ -663,10 +663,36 @@ class Device:
 
     # --- response mailbox ---
     def _pop_response_frame(self) -> bytes | None:
-        pop = getattr(self.transport, "pop_response", None)
+        pop = self._mailbox()
         if pop is None:
             return None
-        return pop()
+        try:
+            return pop()
+        except NotImplementedError:
+            return None
+
+    def _transport_capability(
+        self, method: str, flag: str
+    ) -> Callable[..., Any] | None:
+        """The transport's optional ``method``, or ``None`` when unsupported.
+
+        ``DeviceTransport`` declares every optional member, so presence alone
+        proves nothing; a transport opts out with a ``supports_*`` flag
+        (``CloudTransport``: no response mailbox, no property requests).
+        """
+        if getattr(self.transport, flag, True) is False:
+            return None
+        return getattr(self.transport, method, None)
+
+    def _mailbox(self) -> Callable[[], bytes | None] | None:
+        """``pop_response`` when the transport has a response mailbox."""
+        return self._transport_capability("pop_response", "supports_mailbox")
+
+    def _property_requester(self) -> Callable[[str], Any] | None:
+        """``request_property`` when the transport can trigger republishes."""
+        return self._transport_capability(
+            "request_property", "supports_property_requests"
+        )
 
     def _wait_answer(
         self, request_id: int, *, timeout: float | None = None
@@ -675,7 +701,10 @@ class Device:
 
         Frames echoing a different request id are stale and dropped; a
         ``0xE1`` frame raises ``TimeoutError`` (machine-side abort).
+        Transports without a mailbox (cloud) return ``None`` at once.
         """
+        if self._mailbox() is None:
+            return None
         deadline = time.monotonic() + (
             self.response_timeout if timeout is None else timeout
         )
@@ -770,7 +799,7 @@ class Device:
         Returns ``{name: raw_value}`` — only names the machine actually
         republished appear in the result.
         """
-        request = getattr(self.transport, "request_property", None)
+        request = self._property_requester()
         props: dict[str, Any] = {}
         missing = list(names)
         if request is None:
@@ -913,7 +942,7 @@ class Device:
             )
         except (OSError, ValueError, RuntimeError) as err:
             logger.debug("recipe republish trigger failed: %s", err)
-        request = getattr(self.transport, "request_property", None)
+        request = self._property_requester()
         if request is not None and self._machine_reachable():
             try:
                 self._upstream_call(request, name)
@@ -1134,7 +1163,7 @@ class Device:
             )
         except (OSError, ValueError, RuntimeError) as err:
             logger.debug("bean recipe republish trigger failed: %s", err)
-        request = getattr(self.transport, "request_property", None)
+        request = self._property_requester()
         if request is not None:
             try:
                 request(name)
@@ -1435,7 +1464,7 @@ class Device:
             report.breakdowns = ecam_statistics.resolve_cloud_breakdowns(props)
             return report
 
-        if getattr(self.transport, "pop_response", None) is None:
+        if self._mailbox() is None:
             raise NotImplementedError(
                 "native 0xA2 statistics require a transport with "
                 "pop_response (LAN); this transport does not provide one"
@@ -1523,11 +1552,14 @@ class Device:
                 status = getattr(self.get_monitor(), "status_name", None)
             except (OSError, ValueError, RuntimeError) as err:
                 logger.debug("monitor status probe failed: %s", err)
-        if status in ("standby", "sleeping", "off"):
+        if status in _STANDBY_STATUS_NAMES:
             self.wake()
         striker = (
             self._profile().session != ecam_profiles_mod.SESSION_DEVICE_CONNECTED_TS
         )
+        republished = [n for n in self.settings_datapoints if "sett_profile" in n]
+        if striker and self._mailbox() is None and republished:
+            return self._select_profile_via_republish(index, republished)
         attempts = 1 if striker else 3
         for attempt in range(attempts):
             self._send_gated(ecam_builder.build_profile_select(index, self._profile()))
@@ -1553,6 +1585,33 @@ class Device:
             return False
         self.current_profile = index
         return True
+
+    def _select_profile_via_republish(self, index: int, names: list[str]) -> bool:
+        """Striker over the cloud: no ``0xA9`` ack arrives, so confirm the
+        switch through the republished ``0x03EE`` register (0-based)."""
+        self._send_gated(ecam_builder.build_profile_select(index, self._profile()))
+        deadline = time.monotonic() + self.write_confirm_seconds
+        poll = max(self.response_poll, 1.0)
+        last_read: float | None = None
+        while True:
+            now = time.monotonic()
+            if last_read is None or now - last_read >= 3.0:
+                last_read = now
+                try:
+                    self.send_frame(
+                        ecam_builder.build_read_param(
+                            self.PARAM_CURRENT_PROFILE, self._profile()
+                        )
+                    )
+                except (ConnectionError, OSError, RuntimeError) as err:
+                    logger.debug("profile read-back request failed: %s", err)
+            raw = self._republished_param(self.PARAM_CURRENT_PROFILE, names)
+            if raw is not None and raw + 1 == index:
+                self.current_profile = index
+                return True
+            if now >= deadline:
+                return False
+            time.sleep(poll)
 
     @property
     def selected_profile(self) -> int | None:
@@ -1613,7 +1672,7 @@ class Device:
                     return self.current_profile
                 self.current_profile = raw + 1
                 return self.current_profile
-        if getattr(self.transport, "pop_response", None) is None:
+        if self._mailbox() is None:
             return None  # transports without a mailbox cannot answer 0x95
         self._profile_polled_at = now
         try:
@@ -1750,8 +1809,10 @@ class Device:
             ),
             None,
         )
-        request = getattr(self.transport, "request_property", None)
+        request = self._property_requester()
         deadline = time.monotonic() + self.write_confirm_seconds
+        # Over the cloud each poll is an HTTP GET; don't hammer it.
+        poll = self.response_poll if self._mailbox() else max(self.response_poll, 1.0)
         last_request: float | None = None
         acked = False
         seen: int | None = None
@@ -1778,8 +1839,12 @@ class Device:
                     return "confirmed"
                 continue
             now = time.monotonic()
-            if datapoint and request is not None:
-                if last_request is None or now - last_request >= 3.0:
+            if datapoint:
+                # Cloud: no request_property; the 0x95 read sent after the
+                # write makes the machine republish the backing property.
+                if request is not None and (
+                    last_request is None or now - last_request >= 3.0
+                ):
                     last_request = now
                     try:
                         request(datapoint)
@@ -1796,7 +1861,10 @@ class Device:
                     return "confirmed"
             if now >= deadline:
                 break
-            self._wait_datapoint(deadline - time.monotonic())
+            if getattr(self.transport, "wait_datapoint", None) is not None:
+                self._wait_datapoint(deadline - time.monotonic())
+            else:
+                time.sleep(poll)
         logger.debug(
             "param write (%s=%s) unconfirmed: acked=%s last_seen=%s",
             key,
@@ -1828,7 +1896,7 @@ class Device:
             None,
         )
         if datapoint:
-            request = getattr(self.transport, "request_property", None)
+            request = self._property_requester()
             if request is not None and self._machine_reachable():
                 try:
                     self._upstream_call(request, datapoint)
