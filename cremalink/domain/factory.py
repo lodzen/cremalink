@@ -9,6 +9,7 @@ the setup of the appropriate communication transport (`LocalTransport` or
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 
 from cremalink.domain.device import Device
 from cremalink.transports.cloud.transport import CloudTransport
@@ -73,6 +74,7 @@ def create_cloud_device(
     access_token: str,
     device_map_path: str | None = None,
     event_logger: logging.Logger | None = None,
+    token_refresher: Callable[[], str] | None = None,
 ) -> Device:
     """
     Creates a `Device` instance configured for cloud-based communication.
@@ -89,7 +91,10 @@ def create_cloud_device(
         A `Device` instance configured with a `CloudTransport`.
     """
     transport = CloudTransport(
-        dsn=dsn, access_token=access_token, device_map_path=device_map_path
+        dsn=dsn,
+        access_token=access_token,
+        device_map_path=device_map_path,
+        token_refresher=token_refresher,
     )
     # After transport initialization, some device attributes might be populated.
     # We pass these to the Device constructor.
