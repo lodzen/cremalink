@@ -92,7 +92,7 @@
       "beverage_id": 1,
       "name": "Espresso",
       "profile_slot": 1,
-      "recipe": "01007e1b0302020400"
+      "recipe": ""
     },
     "espresso_macchiato": {
       "accessory": 2,
