@@ -167,8 +167,11 @@ class Device:
     #: Post-write confirmation window — longer than ``response_timeout``
     #: because the machine can commit ``0x90`` writes sluggishly under
     #: load (the app's own re-read waits ~2 s; we budget generously and
-    #: poll the republished property meanwhile).
-    write_confirm_seconds: float = 15.0
+    #: poll the republished property meanwhile). Over the cloud the
+    #: republished value of a committed write took up to ~21 s to show
+    #: (ECAM452), so a shorter window reported accepted writes as failed
+    #: and resent them. A confirmed write still returns as soon as seen.
+    write_confirm_seconds: float = 45.0
     # Internal per-device session/response state (never shared).
     _session_gate: SessionGate | None = field(default=None, init=False, repr=False)
     # Last 0xA9-acknowledged profile index (0 = none acked yet).
