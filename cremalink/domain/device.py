@@ -1658,17 +1658,21 @@ class Device:
         if republished:
             # Over the cloud the machine answers the 0x95 read into a named
             # property (striker: ``d286_mach_sett_profile``), not a mailbox.
-            # Ask for a fresh answer, then use the last republished one.
+            # Routine polls only read the last republished value: an active
+            # read needs a live session, so polling it every cycle kept a
+            # handshake and registration going every few minutes, even in
+            # standby. Only a forced refresh asks the machine again.
             self._profile_polled_at = now
-            try:
-                self._session().ensure_fresh()
-                self.send_frame(
-                    ecam_builder.build_read_param(
-                        self.PARAM_CURRENT_PROFILE, self._profile()
+            if force:
+                try:
+                    self._session().ensure_fresh()
+                    self.send_frame(
+                        ecam_builder.build_read_param(
+                            self.PARAM_CURRENT_PROFILE, self._profile()
+                        )
                     )
-                )
-            except (ConnectionError, OSError, RuntimeError) as err:
-                logger.debug("profile read request failed: %s", err)
+                except (ConnectionError, OSError, RuntimeError) as err:
+                    logger.debug("profile read request failed: %s", err)
             raw = self._republished_param(self.PARAM_CURRENT_PROFILE, republished)
             if raw is not None:
                 if not striker and self.current_profile:

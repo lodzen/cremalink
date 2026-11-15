@@ -154,6 +154,13 @@ def test_current_profile_read_from_republished_property():
     assert reads and reads[-1][4:6] == bytes([0x03, 0xEE])
 
 
+def test_routine_profile_poll_sends_nothing_to_the_machine():
+    dev = _device({"d286_mach_sett_profile": _b64(_setting_blob(0x03EE, 2, flag=0xF0))})
+    assert dev.refresh_current_profile() == 3
+    # No read, handshake or registration: the poll only reads the cloud.
+    assert dev.transport.sent == []
+
+
 def test_mailbox_wait_returns_at_once_without_mailbox():
     dev = _device({})
     dev.response_timeout = 5.0
