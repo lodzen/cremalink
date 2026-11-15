@@ -1,6 +1,7 @@
 import base64
 import json
 import os
+import re
 import requests
 import urllib.parse
 from datetime import datetime
@@ -49,6 +50,29 @@ def _get_query_param(url: str, param: str):
     query = urllib.parse.urlparse(url).query
     params = urllib.parse.parse_qs(query)
     return params.get(param, [None])[0]
+
+
+_CONSENT_SIG_RE = re.compile(r"const\s+consentObj2Sig\s*=\s*(['\"])(.*?)\1\s*;")
+
+
+def _extract_consent_signature(page: str) -> str:
+    """
+    Extracts the consent signature from the OIDC consent page.
+
+    The page embeds it as ``const consentObj2Sig = '...';``. The vendor has
+    switched between single and double quotes, so both are accepted.
+
+    Raises:
+        ValueError: If the marker is missing or the signature is empty, which
+            means the page layout changed again or the login context was rejected.
+    """
+    match = _CONSENT_SIG_RE.search(page)
+    if not match or not match.group(2):
+        raise ValueError(
+            "Could not find a consent signature on the consent page "
+            "(page layout changed, or the login context was rejected)."
+        )
+    return match.group(2)
 
 
 def authenticate_cloud(email: str, password: str, language: str = "en") -> CloudToken:
@@ -212,7 +236,7 @@ def authenticate_cloud(email: str, password: str, language: str = "en") -> Cloud
             "signatureTimestamp": user_sig_ts,
         },
     ).text
-    signature = res.split("const consentObj2Sig = '")[1].split("';")[0]
+    signature = _extract_consent_signature(res)
 
     # Step 6: Authorization Continue
     res = requests.get(
