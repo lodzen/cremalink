@@ -226,6 +226,16 @@ class Device:
     # Unix time of the last registration/refresh this instance sent for a
     # registration it saw confirmed (0 = none).
     _app_id_refreshed_at: float = field(default=0.0, init=False, repr=False)
+    #: Inside the refresh window an explicit refresh frame is sent at most
+    #: this often; every frame carrying our id extends the registration too
+    #: (a command sent with an app's id kept that registration alive).
+    app_id_refresh_min_seconds: float = 60.0
+    _app_id_last_refresh_frame: float = field(default=0.0, init=False, repr=False)
+    # Serialises registration and session announces: Home Assistant runs
+    # several executor jobs at once on setup, and each one used to register.
+    _app_id_lock: threading.RLock = field(
+        default_factory=threading.RLock, init=False, repr=False, compare=False
+    )
 
     @classmethod
     def from_map(
@@ -490,6 +500,10 @@ class Device:
             return None
 
     def _ensure_app_id(self) -> str | None:
+        with self._app_id_lock:
+            return self._ensure_app_id_locked()
+
+    def _ensure_app_id_locked(self) -> str | None:
         """Return the app id to send with, registering our own when needed.
 
         The cloud copy of ``app_id`` cannot prove a live registration. When
@@ -512,7 +526,11 @@ class Device:
             and self._app_id_refreshed_at
             and now - self._app_id_refreshed_at < self.app_id_refresh_seconds
         ):
-            self._refresh_app_id()
+            if now - self._app_id_last_refresh_frame >= self.app_id_refresh_min_seconds:
+                self._refresh_app_id()
+                self._app_id_last_refresh_frame = now
+            # The frame that follows carries our id and extends the
+            # registration as well.
             self._app_id_refreshed_at = now
             return APP_ID_HEX
 
@@ -523,7 +541,7 @@ class Device:
             else self.app_id_confirm_seconds
         )
         if self._register_and_confirm(timeout):
-            self._app_id_refreshed_at = time.time()
+            self._app_id_refreshed_at = self._app_id_last_refresh_frame = time.time()
             return APP_ID_HEX
 
         value, _ = self._app_id_property()
@@ -532,7 +550,7 @@ class Device:
             # unchanged value (e.g. after a restart of this process). The
             # registration was renewed anyway; use our id.
             logger.info("app id registration renewed without machine echo")
-            self._app_id_refreshed_at = time.time()
+            self._app_id_refreshed_at = self._app_id_last_refresh_frame = time.time()
             return APP_ID_HEX
         if isinstance(value, str) and value != "0":
             try:
@@ -694,7 +712,8 @@ class Device:
 
     def _send_gated(self, frame: bytes) -> Any:
         """Session-gated write path (0x83/0x84/0x90/0xA9 frames)."""
-        self._session().ensure_fresh()
+        with self._app_id_lock:
+            self._session().ensure_fresh()
         return self.send_frame(frame)
 
     # --- upstream reachability breaker ---

@@ -100,7 +100,42 @@ def test_refreshes_inside_window_after_confirmed_registration():
 
     new = cloud.sent[sent_before:]
     assert all(prop != REGISTER for prop, _ in new)
+    # Within app_id_refresh_min_seconds the command itself keeps the
+    # registration alive: no extra refresh frame.
+    assert not any(p.startswith(bytes.fromhex("0d07840f0302")) for _, p in new)
+
+
+def test_sends_explicit_refresh_after_min_interval(monkeypatch):
+    cloud = FakeCloud("0")
+    dev = _device(cloud)
+    clock = [1_800_000_000.0]
+    monkeypatch.setattr(device_mod.time, "time", lambda: clock[0])
+    dev.send_command("0d07840f02015512")
+    clock[0] += dev.app_id_refresh_min_seconds + 1  # still inside 240 s
+    sent_before = len(cloud.sent)
+
+    dev.send_command("0d07840f02015512")
+
+    new = cloud.sent[sent_before:]
+    assert all(prop != REGISTER for prop, _ in new)
     assert new[0][1].startswith(bytes.fromhex("0d07840f0302"))  # refresh frame
+
+
+def test_parallel_callers_register_once():
+    import threading
+
+    cloud = FakeCloud("0")
+    dev = _device(cloud)
+    threads = [
+        threading.Thread(target=dev.send_command, args=("0d07840f02015512",))
+        for _ in range(4)
+    ]
+    for th in threads:
+        th.start()
+    for th in threads:
+        th.join()
+
+    assert cloud.registrations() == 1
 
 
 def test_registers_again_once_the_refresh_window_has_passed(monkeypatch):
