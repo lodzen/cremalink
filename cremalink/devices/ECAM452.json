@@ -181,6 +181,27 @@
     "recipe_declaration": "STRIKER_BEST",
     "type": "ECAM452.57.G"
   },
+  "monitor_bits": {
+    "exclude": [
+      "choco_tank_present",
+      "preground_door_opened",
+      "beans_empty_hopper_2",
+      "bean_hopper_absent",
+      "grinding_unit_2_problem"
+    ],
+    "disabled_by_default": [
+      "water_spout",
+      "motor_up",
+      "motor_down",
+      "knob",
+      "coffee_jug_present",
+      "door_opened",
+      "heater_probe_failure",
+      "infuser_motor_not_working",
+      "steamer_probe_failure",
+      "tank_too_full"
+    ]
+  },
   "monitor_profile": {
     "enums": {
       "accessory": {
@@ -276,7 +297,6 @@
     "d556_water_hardness",
     "d701_tot_bev_b",
     "d702_tot_bev_other",
-    "d703_tot_bev_w",
     "d704_tot_bev_espressi",
     "d705_tot_id1_espr",
     "d706_tot_id2_coffee",
@@ -294,17 +314,13 @@
     "d718_id16_hotwater",
     "d719_id22_tea",
     "d720_tot_id23_coffee_pot",
-    "d727_id24_cortado",
-    "d728_id25_long_black",
-    "d729_id26_travel_mug",
     "d730_tot_id27_brew_over_ice",
     "d731_tot_mug_hot",
     "d732_tot_mug_cold",
     "d735_iced_bev",
     "d736_mug_bev",
     "d737_mug_iced_bev",
-    "d738_cold_brew_bev",
-    "d825_descale_status"
+    "d738_cold_brew_bev"
   ],
   "statistics_source": "cloud_counters",
   "support": {
