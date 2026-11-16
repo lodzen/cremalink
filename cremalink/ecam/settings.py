@@ -39,7 +39,9 @@ SETTING_OPTION_MAPS: dict[str, WritableSetting] = {
         param_id=0x003E,
         options={0: "15 min", 1: "30 min", 2: "1 h", 3: "3 h"},
         capability="auto_off_settings",
-        datapoint_hint="aoff",
+        # Matches both ``d282_mchn_sett_aoff`` (Soul) and
+        # ``d282_mach_sett_auto_off`` (striker/ECAM452 cloud).
+        datapoint_hint="off",
     ),
     "water_hardness": WritableSetting(
         key="water_hardness",

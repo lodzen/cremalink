@@ -712,6 +712,23 @@ class Device:
             seen += 1
         return entry
 
+    @staticmethod
+    def _is_profile_names_datapoint(name: str) -> bool:
+        """``a4f0`` profile-name blobs: ``dNNN_profiles_*`` (Soul) or
+        ``dNNN_profile_name*`` (striker/ECAM452)."""
+        return "_profiles_" in name or "_profile_name" in name
+
+    def _republished_param(self, param_id: int, names: Collection[str]) -> int | None:
+        """``param_id`` from ``95``-answer blobs republished under ``names``."""
+        for name in names:
+            raw = self._as_blob_bytes(self._named_value(name))
+            if raw is None:
+                continue
+            value = ecam_settings.parse_settings(raw).get(param_id)
+            if value is not None:
+                return value
+        return None
+
     def _named_value(self, name: str) -> Any | None:
         """Latest stored value for a datapoint name, or ``None``."""
         try:
@@ -1450,8 +1467,17 @@ class Device:
 
     # --- profiles ---
     def get_profiles(self) -> list[ecam_profile_parser.ProfileSlot]:
-        """Read the occupied profile slots (``a4f0`` blobs, profile-scoped)."""
-        names = [name for name in self.catalog_datapoints if "_profiles_" in name]
+        """Read the occupied profile slots (``a4f0`` blobs, profile-scoped).
+
+        The blobs are republished as ``dNNN_profiles_*`` (Soul) or
+        ``dNNN_profile_name*`` (striker/ECAM452 over the cloud, which has no
+        response mailbox for the ``0xA4`` fallback).
+        """
+        names = [
+            name
+            for name in self.catalog_datapoints
+            if self._is_profile_names_datapoint(name)
+        ]
         slots: dict[int, ecam_profile_parser.ProfileSlot] = {}
         if names:
             props = self._collect_named_properties(names)
@@ -1566,6 +1592,27 @@ class Device:
             and now - self._profile_polled_at < self.profile_poll_seconds
         ):
             return None
+        republished = [n for n in self.settings_datapoints if "sett_profile" in n]
+        if republished:
+            # Over the cloud the machine answers the 0x95 read into a named
+            # property (striker: ``d286_mach_sett_profile``), not a mailbox.
+            # Ask for a fresh answer, then use the last republished one.
+            self._profile_polled_at = now
+            try:
+                self._session().ensure_fresh()
+                self.send_frame(
+                    ecam_builder.build_read_param(
+                        self.PARAM_CURRENT_PROFILE, self._profile()
+                    )
+                )
+            except (ConnectionError, OSError, RuntimeError) as err:
+                logger.debug("profile read request failed: %s", err)
+            raw = self._republished_param(self.PARAM_CURRENT_PROFILE, republished)
+            if raw is not None:
+                if not striker and self.current_profile:
+                    return self.current_profile
+                self.current_profile = raw + 1
+                return self.current_profile
         if getattr(self.transport, "pop_response", None) is None:
             return None  # transports without a mailbox cannot answer 0x95
         self._profile_polled_at = now
@@ -1970,7 +2017,11 @@ class Device:
         parsed; maps without ``catalog_datapoints`` (striker models) get
         the model-table declaration instead.
         """
-        if not self.catalog_datapoints:
+        if not any(
+            not self._is_profile_names_datapoint(n) for n in self.catalog_datapoints
+        ):
+            # No recipe datapoints (striker models may list only their
+            # profile-name blobs here).
             return self.declared_catalog()
         logger.debug(
             "read_catalog: collecting %d catalogue datapoints "

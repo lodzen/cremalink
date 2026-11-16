@@ -12,7 +12,10 @@
     "time_settings": false,
     "water_hardness_settings": true
   },
-  "catalog_datapoints": [],
+  "catalog_datapoints": [
+    "d051_profile_name1_3",
+    "d052_profile_name4"
+  ],
   "command_map": {
     "americano": {
       "accessory": 2,
@@ -256,12 +259,13 @@
     "monitor": "d302_monitor_machine"
   },
   "settings_datapoints": [
-    "d280_mchn_sett_pin",
-    "d281_mchn_sett_temp",
-    "d282_mchn_sett_aoff",
-    "d283_mchn_sett_water",
-    "d284_mchn_sett_user_conf",
-    "d285_mchn_sett_radio_conf"
+    "d280_mach_sett_pin",
+    "d281_mach_sett_temperature",
+    "d282_mach_sett_auto_off",
+    "d283_mach_sett_water_hard",
+    "d284_mach_sett_user_conf",
+    "d285_mach_sett_radio_conf",
+    "d286_mach_sett_profile"
   ],
   "statistics_datapoints": [
     "d551_cnt_coffee_fondi",
