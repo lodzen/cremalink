@@ -203,3 +203,57 @@ def test_striker_wake_registers_on_stale_own_id():
     assert any(p.startswith(bytes.fromhex("0d06e8f0")) for p in frames)  # handshake
     assert frames[-1].startswith(bytes.fromhex("0d07840f0201"))  # wake
     assert cloud.last_trailer() == APP_ID_HEX
+
+
+class FakeLan(FakeCloud):
+    """LAN transport: ``get_property`` returns the bare value, no timestamps."""
+
+    def __init__(self, app_id: str | None = "0", *, machine_answers: bool = True):
+        super().__init__(app_id, machine_answers=machine_answers)
+        self.reads = 0
+
+    def get_property(self, name):
+        self.reads += 1
+        entry = self.props.get(name)
+        if entry is None:
+            raise OSError("404 Property not found")
+        return entry["value"]
+
+
+def test_lan_bare_values_confirm_through_the_value_change():
+    lan = FakeLan("0")
+    dev = _device(lan)
+
+    dev.send_command("0d07840f02015512")
+    dev.send_command("0d07840f02015512")
+
+    assert lan.registrations() == 1
+    assert lan.last_trailer() == APP_ID_HEX
+
+
+def test_lan_own_id_without_timestamps_uses_own_id():
+    lan = FakeLan(OWN, machine_answers=False)
+    dev = _device(lan)
+
+    dev.send_command("0d07840f02015512")
+
+    assert lan.registrations() == 1
+    assert lan.last_trailer() == APP_ID_HEX
+
+
+def test_unconfirmed_registration_checks_only_a_few_times(monkeypatch):
+    lan = FakeLan("0", machine_answers=False)
+    dev = Device.from_map(lan, device_map_path=str(STRIKER_MAP))
+    clock = [1000.0]
+
+    def sleep(seconds):
+        clock[0] += seconds
+
+    monkeypatch.setattr(device_mod.time, "monotonic", lambda: clock[0])
+    monkeypatch.setattr(device_mod.time, "sleep", sleep)
+
+    with pytest.raises(ConnectionError):
+        dev.send_command("0d07840f02015512")
+
+    # 10 s window with checks every 3 s: a handful of reads, not one per second.
+    assert lan.reads <= 10

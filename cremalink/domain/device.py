@@ -216,9 +216,10 @@ class Device:
     #: a registration older than this is renewed instead of refreshed.
     app_id_refresh_seconds: float = 240.0
     #: How long to wait for the machine to confirm a registration, and the
-    #: poll interval while waiting.
+    #: spacing of the checks while waiting (the app checks once after a few
+    #: seconds; a few spaced reads keep the request count low).
     app_id_confirm_seconds: float = 10.0
-    app_id_confirm_poll: float = 1.0
+    app_id_confirm_poll: float = 3.0
     #: Shorter wait when the cloud already shows our id: a machine that
     #: still holds it republishes nothing, so the wait only costs time
     #: (seen live: no answer within 10 s). Real confirmations took 3–5 s.
@@ -568,37 +569,50 @@ class Device:
     def _register_and_confirm(self, timeout: float) -> bool:
         """Register our app id and wait up to ``timeout`` s for the machine.
 
-        Confirmed once ``app_id`` shows our id and either it or the monitor
-        property was republished after the registration (the machine
-        answers a registration with a fresh monitor frame within seconds).
+        Confirmed once ``app_id`` shows our id and either it changed to our
+        id, or it or the monitor property was republished after the
+        registration (the machine answers a registration with a fresh
+        monitor frame within seconds). Transports without timestamps (LAN
+        returns bare values) can only confirm through the value change.
         """
         own = hex_to_signed_decimal(APP_ID_HEX)
         monitor = self.resolve_property("monitor", "monitor")
-        _, app_id_seen = self._app_id_property()
+        value_seen, app_id_seen = self._app_id_property()
         monitor_seen = self._property_updated_at(monitor)
         self._register_app_id(APP_ID_HEX)
         deadline = time.monotonic() + timeout
         while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0 or not self._machine_reachable():
+                return False
+            time.sleep(min(self.app_id_confirm_poll, remaining))
             value, app_id_updated = self._app_id_property()
-            if value == own and (
-                app_id_updated != app_id_seen
-                or self._property_updated_at(monitor) != monitor_seen
+            if value != own:
+                continue
+            if value_seen != own or (
+                app_id_updated is not None and app_id_updated != app_id_seen
             ):
                 return True
-            if time.monotonic() >= deadline:
-                return False
-            time.sleep(self.app_id_confirm_poll)
+            monitor_updated = self._property_updated_at(monitor)
+            if monitor_updated is not None and monitor_updated != monitor_seen:
+                return True
 
     def _property_entry(self, name: str) -> dict[str, Any] | None:
-        """The raw property dict (``value``, ``data_updated_at``) or None."""
+        """The property as a dict (``value``, ``data_updated_at``) or None.
+
+        The cloud returns the property dict; the LAN transport returns the
+        bare value, which is wrapped without a timestamp.
+        """
         try:
-            entry = self.transport.get_property(name)
+            entry = self.get_property(name)
         except (OSError, ValueError, RuntimeError) as err:
             logger.debug("get_property(%s) failed: %s", name, err)
             return None
         while isinstance(entry, dict) and isinstance(entry.get("property"), dict):
             entry = entry["property"]
-        return entry if isinstance(entry, dict) else None
+        if entry is None:
+            return None
+        return entry if isinstance(entry, dict) else {"value": entry}
 
     def _app_id_property(self) -> tuple[Any, Any]:
         """``(value, data_updated_at)`` of the ``app_id`` property."""
