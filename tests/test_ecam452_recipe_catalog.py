@@ -39,6 +39,13 @@ def _recipe(profile: int, bev: int, tlv: bytes) -> bytes:
     return _answer(b"\xa6\xf0" + bytes([profile, bev]) + tlv)
 
 
+def _custom_names(first: int, names: list[tuple[str, int]]) -> bytes:
+    body = bytes([first, first + len(names) - 1])
+    for name, icon in names:
+        body += name.encode("utf-16-be")[:20].ljust(20, b"\x00") + bytes([icon])
+    return _answer(b"\xaa\xf0" + body)
+
+
 def _priority(profile: int, bevs: list[int]) -> bytes:
     return _answer(b"\xa8\xf0" + bytes([profile, *bevs]))
 
@@ -63,6 +70,13 @@ def _snapshot(*, bundle_b64: bool = False) -> dict[str, str]:
         "d240_rec_custom_1": _b64(_recipe(1, CUSTOM_1, b"\x01\x00\x37\x02\x03")),
         "d245_rec_custom_6": _b64(_recipe(1, CUSTOM_6, b"\x01\x00\x00\x02\x00")),
         "d261_recipe_priority_1": _b64(_priority(1, [2, 1, COLD_BREW])),
+        "d053_custom_name_13": _b64(
+            _custom_names(1, [("Latte XL", 2), ("Matcha", 0x13), ("wärmen", 0x12)])
+        ),
+        # A 10-character name fills all 20 bytes, no terminator.
+        "d054_custom_name_46": _b64(
+            _custom_names(4, [("FlatWh. gr", 0x0B), ("kl. FlatWh", 0), ("", 0)])
+        ),
     }
 
 
@@ -165,3 +179,17 @@ def test_seed_keeps_recipe_values_out_of_the_cache():
     )
 
     assert dev.recipe_params(1, profile_slot=1).values[1] == 60
+
+
+def test_custom_recipe_names_come_from_the_snapshot():
+    snap = _snapshot()
+    dev = _device(dict(snap))
+    dev.seed_catalog_from_properties(snap)
+
+    assert dev.custom_recipe_names() == {
+        230: "Latte XL",
+        231: "Matcha",
+        232: "wärmen",
+        233: "FlatWh. gr",
+        234: "kl. FlatWh",
+    }

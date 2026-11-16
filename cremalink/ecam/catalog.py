@@ -261,6 +261,27 @@ def decode_text(payload: bytes) -> str | None:
     return name or None
 
 
+def decode_custom_names(payload: bytes) -> dict[int, str]:
+    """Slot → name from an ``aa f0`` custom-recipe names payload.
+
+    Layout (ECAM452 cloud ``d053_custom_name_13`` / ``d054_custom_name_46``):
+    ``<first slot> <last slot>`` then per slot 20 bytes UTF-16BE name and
+    one icon byte. Slots without a readable name are skipped.
+    """
+    if len(payload) < 2:
+        return {}
+    first, last = payload[0], payload[1]
+    out: dict[int, str] = {}
+    for i, slot in enumerate(range(first, last + 1)):
+        chunk = payload[2 + i * 21 : 2 + i * 21 + 20]
+        if len(chunk) < 20:
+            break
+        name = chunk.decode("utf-16-be", errors="ignore").split("\x00", 1)[0].strip()
+        if name:
+            out[slot] = name
+    return out
+
+
 def _bundled_blobs(value: Any) -> dict[str, str] | None:
     """Inner values of a JSON bundle datapoint, or ``None``.
 

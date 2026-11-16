@@ -36,6 +36,9 @@ from cremalink.transports.base import DeviceTransport
 
 logger = logging.getLogger(__name__)
 
+#: Custom recipe slot N (1-6) is beverage id 229 + N (0xE6-0xEB).
+_CUSTOM_SLOT_BASE = 229
+
 #: Monitor ``status`` enum names of the standby family (device-map enums).
 _STANDBY_STATUS_NAMES = frozenset(
     {"in_standby", "going_to_sleep", "sleeping", "deep_sleep"}
@@ -221,6 +224,9 @@ class Device:
     _seeded_beverages: dict[int, ecam_catalog.Beverage] = field(
         default_factory=dict, init=False, repr=False
     )
+    #: Custom recipe names by beverage id (``0xE6``–``0xEB``) from a cloud
+    #: snapshot's ``aa f0`` blobs.
+    _custom_names: dict[int, str] = field(default_factory=dict, init=False, repr=False)
     _fetch_lock: threading.RLock = field(
         default_factory=threading.RLock, init=False, repr=False
     )
@@ -2433,8 +2439,17 @@ class Device:
         """
         index: dict[tuple[int, int], str] = {}
         recipes: dict[str, dict[str, Any]] = {}
+        custom_names: dict[int, str] = {}
         for name, blob in ecam_catalog.iter_blobs(dict(properties)):
             payload = blob.get("payload")
+            if (
+                blob.get("crc_valid")
+                and blob["family"] == ecam_catalog.FAMILY_CUSTOM_NAMES
+                and payload is not None
+            ):
+                for slot, text in ecam_catalog.decode_custom_names(payload).items():
+                    custom_names[_CUSTOM_SLOT_BASE + slot] = text
+                continue
             if (
                 blob.get("crc_valid")
                 and blob["family"] == ecam_catalog.FAMILY_PROFILE_RECIPE
@@ -2443,6 +2458,9 @@ class Device:
             ):
                 index.setdefault((payload[0], payload[1]), name)
                 recipes[name] = {"value": properties[name]}
+        if custom_names:
+            with self._fetch_lock:
+                self._custom_names.update(custom_names)
         if not index:
             return
         declared = self._declared().beverages
@@ -2459,6 +2477,10 @@ class Device:
             len(index),
             sorted(extra),
         )
+
+    def custom_recipe_names(self) -> dict[int, str]:
+        """Custom recipe names by beverage id, as the last cloud seed saw them."""
+        return dict(self._custom_names)
 
     def _priority_property_name(self, profile_slot: int) -> str | None:
         # Soul: ``dNNN_<p>_rec_priority``; striker: ``dNNN_recipe_priority_<p>``.
