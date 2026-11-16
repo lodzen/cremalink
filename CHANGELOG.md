@@ -99,8 +99,37 @@ Changes since 2.0.0.dev5:
     Gigya response incl. session fields), `Client.fetch_properties`
     logs request timing/response shape/datapoint counts per family, and
     `Device` logs catalogue seeds and `recipe_params` sources.
-
-## 2.0.0.dev5 — 2026-11-06
+- **Standby quiet mode for the embedded server** (`local_server_app`,
+  research.md R16): `LocalServerState.machine_asleep` (set via
+  `EmbeddedLocalServer.set_machine_asleep`, logged as
+  `machine_sleep_state`) silences the nudger entirely — queued reads
+  wait out the sleep and dead-session re-registration is suppressed, so
+  no POST/key-exchange ever hits a sleeping machine. The monitor job
+  slows to `monitor_poll_interval_standby` (30 s), while the 20 s
+  session keep-alive stays active for datapoint pushes and instant
+  wake writes. Standalone servers keep the normal cadence.
+- **Nudge cadence matches the app** (`nudger_job`, protocol.md §14.9):
+  `local_reg` PUTs now go out only when the machine's `commands.json`
+  poll loop looks stopped — an enqueue edge, a poll-stall edge
+  (`last_commands_poll_at` older than `commands_poll_active_seconds`),
+  or an asleep→awake transition — plus a still-pending re-nudge every
+  `nudger_renudge_seconds` (10 s, the app's keepalive cadence) while the
+  loop stays dead. A healthy ~2 s poll loop produces zero nudges (live
+  drop: ~1 PUT/s → ~0 under load).
+- **Register-per-request removed** (`api.py`): the queueing endpoints
+  (`/command`, `/property`, `/properties/request`, `/refresh_monitor`,
+  `/get_properties`) register only when `session_live()` is false —
+  previously every client read cost one `local_reg` PUT (~25/min in HA).
+  `/configure` and `/register` keep their unconditional register, and
+  zombie sessions still self-heal through keepalive PUT failures.
+- **Republish waits are event-driven** (`state.py`, `api.py`,
+  `transports/local`, `device.py`): new `GET /wait_datapoint?since=N&timeout=S`
+  blocks until a datapoint lands (generation counter, no missed
+  arrivals). `Device._wait_datapoint` uses it in every harvest loop —
+  recipe fetches, named-property collects, param reads, write-confirm
+  and the `data_response` mailbox — replacing the 250 ms `get_property`
+  poll that produced ~20 HTTP 404s per recipe read (protocol.md §13).
+  Transports without the endpoint fall back to `response_poll` slices.
 
 Changes since 2.0.0.dev4:
 
