@@ -144,6 +144,11 @@ Changes since 2.0.0.dev5:
     Gigya response incl. session fields), `Client.fetch_properties`
     logs request timing/response shape/datapoint counts per family, and
     `Device` logs catalogue seeds and `recipe_params` sources.
+- **ECAM452 maintenance and usage counters:** grounds container, descale
+  and filter percentages as the machine publishes them
+  (`CLOUD_COUNTER_PERCENTAGES`), aborted, iced and cold brew beverage totals.
+  A counter candidate can name keys of a JSON datapoint
+  (`d734_tot_bev_usage#bev_abort_cnt`); `candidate_datapoint()` strips them.
 - **Standby quiet mode for the embedded server** (`local_server_app`,
   research.md R16): `LocalServerState.machine_asleep` (set via
   `EmbeddedLocalServer.set_machine_asleep`, logged as
