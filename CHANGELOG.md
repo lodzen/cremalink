@@ -144,6 +144,8 @@ Changes since 2.0.0.dev5:
     Gigya response incl. session fields), `Client.fetch_properties`
     logs request timing/response shape/datapoint counts per family, and
     `Device` logs catalogue seeds and `recipe_params` sources.
+- **Model names in device maps:** each bundled map carries a `model_name`
+  (e.g. "Eletta Explore") so front-ends can label the map choice.
 - **Standby quiet mode for the embedded server** (`local_server_app`,
   research.md R16): `LocalServerState.machine_asleep` (set via
   `EmbeddedLocalServer.set_machine_asleep`, logged as
