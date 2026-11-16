@@ -735,14 +735,23 @@ class TestCatalog:
         assert len(_device("ECAM610.json").declared_catalog().beverages) == 28
         assert len(_device("ECAM612.json").declared_catalog().beverages) == 22
 
-    def test_striker_map_reads_declared_catalog_without_traffic(self):
-        # ECAM452 publishes no recipe datapoints; its model_ref points the
-        # declaration at STRIKER_BEST (STRIKER_GOOD declares no recipes).
+    def test_striker_declared_catalog_comes_from_the_model_table(self):
+        # ECAM452's model_ref points the declaration at STRIKER_BEST
+        # (STRIKER_GOOD declares no recipes) — no machine traffic.
         device = _device("ECAM452.json")
-        catalog = device.read_catalog()
+        catalog = device.declared_catalog()
         assert catalog.source == "model_table"
         assert len(catalog.beverages) == 48
         assert device.transport.requested_properties == []
+
+    def test_striker_read_catalog_reads_its_cloud_datapoints(self):
+        # ECAM452 publishes bundled descriptors and menu orders under its
+        # own names; an explicit read_catalog asks for those.
+        device = _device("ECAM452.json")
+        device.read_catalog(settle=0)
+        requested = device.transport.requested_properties
+        assert "d002_rec_default_1" in requested
+        assert "d261_recipe_priority_1" in requested
 
 
 def _http_error(status: int) -> requests.HTTPError:

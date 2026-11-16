@@ -261,14 +261,48 @@ def decode_text(payload: bytes) -> str | None:
     return name or None
 
 
+def _bundled_blobs(value: Any) -> dict[str, str] | None:
+    """Inner values of a JSON bundle datapoint, or ``None``.
+
+    Striker machines (ECAM452) publish their factory descriptors bundled:
+    ``d002_rec_default_1`` … ``d008_rec_default_7`` hold a JSON object
+    ``{"<recipe label>": "<base64 blob>", ...}``, plain or base64-encoded.
+    """
+    if not isinstance(value, str):
+        return None
+    text = value.strip()
+    if not text.startswith("{"):
+        raw = _b64_bytes(text)
+        if raw is None or not raw.lstrip().startswith(b"{"):
+            return None
+        text = raw.decode("utf-8", "replace")
+    try:
+        data = json.loads(text)
+    except ValueError:
+        return None
+    if not isinstance(data, dict):
+        return None
+    return {str(k): v for k, v in data.items() if isinstance(v, str)}
+
+
 def iter_blobs(properties: dict) -> Iterator[tuple[str, dict]]:
-    """Yield ``(property_name, decoded_blob)`` for every machine blob."""
+    """Yield ``(property_name, decoded_blob)`` for every machine blob.
+
+    Blobs inside a JSON bundle datapoint are yielded one by one as
+    ``<property_name>/<key>``.
+    """
     for name in sorted(properties):
         prop = properties.get(name)
         value = prop.get("value") if isinstance(prop, dict) else prop
         blob = decode_blob(value)
         if blob is not None:
             yield name, blob
+            continue
+        bundle = _bundled_blobs(value) or {}
+        for key in sorted(bundle):
+            inner = decode_blob(bundle[key])
+            if inner is not None:
+                yield f"{name}/{key}", inner
 
 
 def _slot_is_defined(params: dict[int, int]) -> bool:

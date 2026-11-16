@@ -209,6 +209,18 @@ class Device:
     _priority_cache: dict[int, list[int]] = field(
         default_factory=dict, init=False, repr=False
     )
+    #: ``(profile, beverage) -> datapoint`` of the profile recipes, indexed
+    #: from a cloud snapshot by blob content (striker names such as
+    #: ``d102_rec_2_espresso`` follow no formula). Names only, never values.
+    _recipe_datapoints: dict[tuple[int, int], str] = field(
+        default_factory=dict, init=False, repr=False
+    )
+    #: Beverages a cloud snapshot showed beyond the model table (cold brew)
+    #: plus the custom slots with their ``defined`` state, merged into
+    #: ``beverage_catalog``.
+    _seeded_beverages: dict[int, ecam_catalog.Beverage] = field(
+        default_factory=dict, init=False, repr=False
+    )
     _fetch_lock: threading.RLock = field(
         default_factory=threading.RLock, init=False, repr=False
     )
@@ -1020,6 +1032,12 @@ class Device:
         ``dNNN_<prof>_rec_<label>`` property with
         ``NN = 38 + (prof-1)*21 + recipe_index``.
         """
+        indexed = self._recipe_datapoints.get((profile_slot, beverage_id))
+        if indexed is None and beverage_id in ecam_catalog.CUSTOM_SLOT_IDS:
+            # Custom recipes exist once for all profiles (tagged profile 1).
+            indexed = self._recipe_datapoints.get((1, beverage_id))
+        if indexed is not None:
+            return indexed
         if not self.recipe_beverage_order or not self.catalog_datapoints:
             return None
         try:
@@ -1358,7 +1376,10 @@ class Device:
         entry = self.brew_entry(beverage_id)
         known = beverage is not None or bool(entry)
         if not known and catalog is None:
-            known = beverage_id in self._declared().beverages
+            known = (
+                beverage_id in self._declared().beverages
+                or beverage_id in self._seeded_beverages
+            )
         if not known:
             raise ValueError(f"unknown beverage_id: {beverage_id!r}")
         if beverage is not None:
@@ -1533,7 +1554,9 @@ class Device:
         command-map order. Labels are resolved by callers
         (command-map ``name`` → ``Beverage.name`` → ``Beverage <id>``).
         """
-        catalog = self._declared()
+        declared = self._declared().beverages
+        seeded = self._seeded_beverages
+        beverages = {**seeded, **declared}
         priority = self._priority_list(self.current_profile or 1, fetch=fetch_priority)
         rank = {bev: i for i, bev in enumerate(priority)}
         map_order = {
@@ -1541,10 +1564,20 @@ class Device:
             for i, e in enumerate(self.command_map.values())
             if "beverage_id" in e
         }
+
+        def defined(bev_id: int, bev: ecam_catalog.Beverage) -> bool | None:
+            # The snapshot knows whether a custom slot is programmed.
+            return seeded.get(bev_id, bev).defined
+
         brewable = {
             bev_id: bev
-            for bev_id, bev in catalog.beverages.items()
-            if (bev_id in rank or bev_id in map_order) and bev.defined is not False
+            for bev_id, bev in beverages.items()
+            if (
+                bev_id in rank
+                or bev_id in map_order
+                or (bev.kind == "custom" and defined(bev_id, bev) is True)
+            )
+            and defined(bev_id, bev) is not False
         }
         return sorted(
             brewable.values(),
@@ -2348,6 +2381,7 @@ class Device:
         the wrong amount; those stay a live read. Returns the number of
         descriptors seeded (0 → the caller keeps the lazy LAN path).
         """
+        self._index_recipe_datapoints(properties)
         wanted = set(self.catalog_datapoints)
         snapshot = {
             name: {"value": value}
@@ -2387,9 +2421,49 @@ class Device:
         )
         return seeded
 
+    def _index_recipe_datapoints(self, properties: Mapping[str, Any]) -> None:
+        """Index profile-recipe datapoint names and extra beverages.
+
+        Striker machines publish every profile recipe to the cloud under
+        names without a usable formula, so the ``(profile, beverage)`` →
+        name index is taken from the blobs themselves. The values are not
+        kept: brews still read them live (``_fetch_profile_recipe``).
+        Beverages missing from the model table (cold brew, custom slots)
+        are remembered for ``beverage_catalog``.
+        """
+        index: dict[tuple[int, int], str] = {}
+        recipes: dict[str, dict[str, Any]] = {}
+        for name, blob in ecam_catalog.iter_blobs(dict(properties)):
+            payload = blob.get("payload")
+            if (
+                blob.get("crc_valid")
+                and blob["family"] == ecam_catalog.FAMILY_PROFILE_RECIPE
+                and payload is not None
+                and len(payload) >= 2
+            ):
+                index.setdefault((payload[0], payload[1]), name)
+                recipes[name] = {"value": properties[name]}
+        if not index:
+            return
+        declared = self._declared().beverages
+        extra = {
+            bev_id: bev
+            for bev_id, bev in ecam_catalog.build_catalog(recipes).beverages.items()
+            if bev_id not in declared or bev.kind == "custom"
+        }
+        with self._fetch_lock:
+            self._recipe_datapoints.update(index)
+            self._seeded_beverages.update(extra)
+        logger.debug(
+            "cloud catalogue seed: %d recipe datapoints indexed, extra beverages %s",
+            len(index),
+            sorted(extra),
+        )
+
     def _priority_property_name(self, profile_slot: int) -> str | None:
-        suffix = f"_{profile_slot}_rec_priority"
-        return next((n for n in self.catalog_datapoints if n.endswith(suffix)), None)
+        # Soul: ``dNNN_<p>_rec_priority``; striker: ``dNNN_recipe_priority_<p>``.
+        suffixes = (f"_{profile_slot}_rec_priority", f"_recipe_priority_{profile_slot}")
+        return next((n for n in self.catalog_datapoints if n.endswith(suffixes)), None)
 
     def recipe_priority_loaded(self, profile_slot: int | None = None) -> bool:
         """Whether the profile's drink-menu order has been read already."""
