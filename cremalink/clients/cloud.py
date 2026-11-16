@@ -4,6 +4,7 @@ import functools
 import json
 import logging
 import os
+import re
 import time
 
 import requests
@@ -34,6 +35,39 @@ def is_coffee_device(oem_model: str | None) -> bool:
     if not oem_model:
         return True
     return not oem_model.startswith(NON_COFFEE_OEM_PREFIXES)
+
+
+def _property_family(name: str) -> str:
+    """Coarse datapoint family for catalogue diagnostics (counts only).
+
+    Buckets follow the ECAM610 map (research/cloud-properties.md):
+    d0XX/d1XX recipes, d250+ bean adapt, d261+ menu order, d280+ machine
+    settings, d5XX factory/statistics, d7XX beverage counters, d8XX
+    water/descale.
+    """
+    if name.endswith("_rec_priority"):
+        return "menu_order"
+    if "beansystem" in name or "_bs_" in name:
+        return "bean_adapt"
+    if re.search(r"_\d+_rec_", name):
+        return "profile_recipe"  # a6f0 stored values
+    if "_rec_" in name:
+        return "rec_descriptor"  # 0xB0 factory descriptors
+    m = re.match(r"d(\d)\d\d_", name)
+    if m:
+        return {
+            "2": "settings",
+            "5": "factory_statistics",
+            "7": "beverage_counters",
+            "8": "water_descale",
+        }.get(m.group(1), "other")
+    if "monitor" in name:
+        return "monitor"
+    if "name" in name:
+        return "names"
+    if "profile" in name:
+        return "profiles"
+    return "other"
 
 
 def _retry(func):
@@ -211,6 +245,95 @@ class Client:
             return None
         resp.raise_for_status()
         return resp.json().get("property", {}).get("value") or None
+
+    @_retry
+    def fetch_properties(self, dsn: str) -> dict[str, str | None]:
+        """Every datapoint of a device in ONE request — ``{name: value}``.
+
+        This is the Coffee Link app's property-store sync (``syncProperties``
+        fetch-all; research.md R11, ``captures/cloud_fetch.json``). Values
+        are the cloud's *last-published* copies (protocol.md §13 staleness
+        lesson) — fine for factory descriptors and menu order, not for a
+        brew's live recipe values.
+        """
+        resp = requests.get(
+            url=f"{self.ayla_api.get('API_URL')}/dsns/{dsn}/properties.json",
+            headers={
+                "User-Agent": self.api_agent,
+                "Authorization": f"auth_token {self.access_token}",
+                "Accept": "application/json",
+            },
+            timeout=REQUEST_TIMEOUT,
+        )
+        resp.raise_for_status()
+        entries = [
+            entry["property"]
+            for entry in resp.json()
+            if isinstance(entry.get("property"), dict) and entry["property"].get("name")
+        ]
+        properties = {p["name"]: p.get("value") for p in entries}
+        timestamps = [p["data_updated_at"] for p in entries if p.get("data_updated_at")]
+        families: dict[str, int] = {}
+        for name in properties:
+            families.setdefault(_property_family(name), 0)
+            families[_property_family(name)] += 1
+        log_event(
+            self.logger,
+            "cloud_properties_fetched",
+            {
+                "dsn": dsn,
+                "status_code": resp.status_code,
+                "total": len(properties),
+                "with_value": sum(1 for v in properties.values() if v),
+                "empty": sum(1 for v in properties.values() if not v),
+                "families": families,
+                "oldest_update": min(timestamps) if timestamps else None,
+                "newest_update": max(timestamps) if timestamps else None,
+            },
+            level=logging.DEBUG,
+        )
+        return properties
+
+    @_retry
+    def create_datapoint(self, dsn: str, name: str, value) -> dict:
+        """Write one datapoint via the cloud channel — the app's announce path.
+
+        Verified endpoint (``AylaProperty.createDatapointCloud`` /
+        ``createDatapointEndpoint``, Coffee Link 4.9.6; DECODED.md):
+        ``POST apiv1/dsns/{dsn}/properties/{name}/datapoints.json`` with
+        ``{"datapoint": {"value": ...}}`` and ``x-ayla-source: Mobile``.
+        This is the channel that carries ``device_connected`` to the
+        machine's cloud uplink — independent of the LAN ``local_reg``
+        module, so it is the recovery lever when the LAN session is dead
+        (research.md R17). Whether a wedged datapoint engine processes it
+        is unverified — callers should treat it as a probe, not a fix.
+        """
+        resp = requests.post(
+            url=f"{self.ayla_api.get('API_URL')}/dsns/{dsn}/properties/{name}/datapoints.json",
+            headers={
+                "User-Agent": self.api_agent,
+                "Authorization": f"auth_token {self.access_token}",
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+                "x-ayla-source": "Mobile",
+            },
+            json={"datapoint": {"value": value}},
+            timeout=REQUEST_TIMEOUT,
+        )
+        resp.raise_for_status()
+        body = resp.json()
+        log_event(
+            self.logger,
+            "cloud_datapoint_written",
+            {
+                "dsn": dsn,
+                "property": name,
+                "status_code": resp.status_code,
+                "echo": body.get("datapoint", {}).get("echo"),
+            },
+            level=logging.DEBUG,
+        )
+        return body
 
     @_retry
     def get_lan_config(self, dsn: str) -> dict:

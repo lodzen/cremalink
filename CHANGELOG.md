@@ -1,5 +1,105 @@
 # Changelog
 
+## Unreleased
+
+Changes since 2.0.0.dev5:
+
+- **Recipe-parameter brew support** (`004-recipe-brew-params`): brewing can
+  now carry per-call parameter overrides that are merged into the
+  effective `0x83` recipe frame client-side — exactly like the Coffee Link
+  app (`ParameterModel.defValue`), never persisted on the machine.
+  - New `cremalink.ecam.params` module: `ParamMeta`/`PARAMS` registry for
+    user-adjustable recipe parameters (display units + raw scaling),
+    `to_display`/`to_raw` conversions.
+  - `ecam.builder.merge_recipe_params` merges overrides into raw TLV
+    values; `ecam.builder.build_brew_params` builds a brew frame from a
+    value map (applies the APK's `E0` inclusion filter and wide-tag
+    encoding).
+  - `Device.recipe_params(beverage_id)` returns `RecipeParams` — the
+    machine-defined `0xB0` bounds plus the active profile's current
+    `0xA6` values (or descriptor defaults on read failure, flagged via
+    `RecipeParams.source`).
+  - `Device.brew(beverage_id, overrides=..., params=...)` sends one
+    gated brew frame with the effective values.
+  - `Device.beverage_catalog()` and `Device.brew_entry()` expose the
+    machine-catalogued beverages and their command-map entries.
+  - **Lazy, sweep-free catalogue** (research.md R11): the recipe list is
+    the app's static model table; a recipe's `0xB0` bounds cost one GET on
+    first use and are cached, the profile menu order one GET per profile.
+    `Device.beverage_catalog(fetch_priority=...)` and
+    `Device.recipe_priority_loaded()` expose this. `read_catalog()` stays
+    as an explicit full-sweep diagnostic and is never called implicitly.
+  - **Fix:** `authenticate_cloud` failed with an `IndexError` since the
+    Gigya consent page started emitting `consentObj2Sig` in double quotes;
+    the parser accepts both quote styles and raises a clear error if the
+    page layout changes again.
+  - **One-request cloud seed:** `Client.fetch_properties(dsn)` fetches
+    every datapoint in a single cloud call (the app's store sync) and
+    `Device.seed_catalog_from_properties(props)` fills the descriptor and
+    menu-order caches from it; live recipe values are always read from the
+    machine (cloud copies can be stale).
+  - **Offline breaker** (`Device._upstream_call`): a 502 or missing
+    response on any upstream POST (property request/write/command/
+    refresh) marks the machine unreachable with exponential backoff
+    (10 s → 60 s cap). While the breaker is open, upstream POSTs and the
+    read wait loops behind them are skipped instead of each blocking a
+    worker thread in a ~10 s timeout — observed 2026-11-12 with the
+    machine in standby, where queued reads stalled ~6 HA SyncWorkers for
+    the whole bootstrap. Local property-store harvests still run, any
+    successful POST closes the breaker again, and it re-probes on its own
+    after backoff.
+  - **Session-register hardening** (`local_server_app`):
+    `register_with_device` now catches `TimeoutError` alongside aiohttp
+    errors (it escaped as an unhandled exception with an empty message),
+    logs the exception type in every failure event, serializes
+    concurrent register attempts under a lock, resolves PUT-vs-POST
+    inside the lock, and defers a second session-opening POST while one
+    is in flight or awaiting its key exchange — the observed 3-POSTs-in-
+    <1 s race that matches the earlier datapoint-engine wedge.
+  - **Cloud-side session wake** (research.md R17): when `local_reg`
+    keeps failing consecutively (`cloud_wake_threshold`, default 3), the
+    embedded server POSTs `device_connected` through the Ayla cloud
+    channel — the same write the app uses to wake the machine's
+    datapoint engine, which is independent of the dead LAN session
+    module. New `Client.create_datapoint(dsn, name, value)` (verified
+    `datapoints.json` endpoint + `x-ayla-source` header). Throttled to
+    `cloud_wake_interval_seconds` (default 60), run off the event loop,
+    skipped when `cloud_token_path` is unset, failure counter resets on
+    the next successful registration and an announce failure never masks
+    the local `ConnectionError`.
+  - **Bean Adapt support:** `Device.selected_bean_slot()` decodes the
+    currently selected bean system from the `d250`–`d256` bean blobs;
+    bean beverages resolve their values from the profile- and
+    bean-slot-specific `bs_recipe` datapoints and brew with the app's
+    `0x80` multi bit set.
+  - **Bean-system selection (US4, protocol-derived — `0xB9` is on
+    protocol.md §13's untested-write list):** `Device.bean_systems()`
+    decodes configured bean slots and their user-assigned UTF-16BE names
+    from the `d25x_beansystem_N` `ba f0` blobs (DECODED `G0` parser
+    layout); `Device.select_bean_system(slot)` sends the session-gated
+    `0D 06 B9 F0 <slot>` select frame via the same gated path as the
+    verified `0xA9` profile select (announce → frame → optional
+    `B9 F0 <ok>` simple ack; a silent channel counts as applied, matching
+    non-striker `0xA9` semantics). New `ecam.builder.build_bean_select` +
+    `REQ_BEAN_SELECT`. Bean-name/configuration writes (`0xBB`) are not
+    implemented.
+  - **Control set matches the app's brew sheet** (research.md R12 —
+    verified `MainBeveragesFragment.E1()`; supersedes the `RecipeDefaults`
+    rules which are dead code in APK 4.9.6): `PARAMS` now covers only
+    coffee amount (1), taste (2), milk (9), tea temperature `THE_TEMP`
+    (13 — only beverages whose descriptor carries tag 13, i.e. Tea on
+    the Soul) and water (15). `blend`, `inversion` and generic
+    `temp` are gone — inversion is a brew-command flag, not a slider,
+    blend needs `nGrinders > 1` (Soul: 0), and generic temperature is a
+    global machine setting on `globalTemperature` models. Enable rules:
+    `min < max`, quantity current value > 0 (profile-stored value wins
+    over the descriptor default), BeanAdapt beverages get coffee alone.
+  - **Debug diagnostics:** `authenticate_cloud` logs each auth step at
+    debug level (no secrets — the previous error path could dump the
+    Gigya response incl. session fields), `Client.fetch_properties`
+    logs request timing/response shape/datapoint counts per family, and
+    `Device` logs catalogue seeds and `recipe_params` sources.
+
 ## 2.0.0.dev5 — 2026-11-06
 
 Changes since 2.0.0.dev4:

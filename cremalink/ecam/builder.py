@@ -23,10 +23,11 @@ from __future__ import annotations
 
 import base64
 import time
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from enum import Enum
 
 from cremalink.core.binary import crc16_ccitt
+from cremalink.ecam.params import is_bean_beverage
 from cremalink.ecam.machine_profiles import (
     TRAILER_APP_ID,
     MachineProfile,
@@ -50,6 +51,7 @@ REQ_PRIORITY_LIST = 0xA8
 REQ_PROFILE_SELECT = 0xA9
 REQ_RECIPE_NAMES = 0xAA
 REQ_FACTORY_DESCRIPTOR = 0xB0
+REQ_BEAN_SELECT = 0xB9
 REQ_BEAN_SYSTEM = 0xBA
 REQ_STRIKER_HANDSHAKE = 0xE8
 
@@ -71,6 +73,7 @@ REQUEST_NAMES = {
     REQ_PROFILE_SELECT: "profile_select",
     REQ_RECIPE_NAMES: "recipe_names",
     REQ_FACTORY_DESCRIPTOR: "factory_descriptor",
+    REQ_BEAN_SELECT: "bean_select",
     REQ_BEAN_SYSTEM: "bean_system",
     REQ_STRIKER_HANDSHAKE: "striker_handshake",
 }
@@ -187,6 +190,91 @@ def build_brew(
     tail = (profile_slot << 2) | (accessory & 0x03)
     return _frame(
         REQ_BREW, 0xF0, bytes([beverage_id, action_i]) + recipe_b + bytes([tail])
+    )
+
+
+def merge_recipe_params(
+    recipe: bytes | bytearray | Iterable[int],
+    overrides: Mapping[int, int],
+) -> bytes:
+    """Splice override values into a brew-ready recipe TLV byte string.
+
+    Existing entries keep their order and width (u16 per ``WIDE_TAGS``
+    — mirrored from ``catalog`` to avoid an import cycle); override tags
+    absent from ``recipe`` are appended. Pure — filtering for the wire
+    (``brew_param_included``) is the caller's job, as with the app's
+    ``O()`` builder (research.md R1–R2).
+    """
+    from cremalink.ecam.catalog import WIDE_TAGS  # local: catalog → builder cycle
+
+    src = bytes(recipe)
+    merged = dict(overrides)
+    out = bytearray()
+    i = 0
+    while i < len(src):
+        tag = src[i]
+        width = 2 if tag in WIDE_TAGS else 1
+        if i + 1 + width > len(src):
+            break
+        value = merged.pop(tag, int.from_bytes(src[i + 1 : i + 1 + width], "big"))
+        out.append(tag)
+        out += value.to_bytes(width, "big")
+        i += 1 + width
+    for tag, value in merged.items():
+        if not 0 <= tag <= 0xFF:
+            raise ValueError(f"param id out of range: {tag!r}")
+        if not 0 <= value <= 0xFFFF:
+            raise ValueError(f"param value out of range: {value!r}")
+        width = 2 if tag in WIDE_TAGS else 1
+        if value > 0xFF and width == 1:
+            raise ValueError(f"param {tag} value {value} needs u16 width")
+        out.append(tag)
+        out += value.to_bytes(width, "big")
+    return bytes(out)
+
+
+def build_brew_params(
+    beverage_id: int,
+    action: int | BrewAction,
+    params: Mapping[int, int],
+    profile: MachineProfile,
+    *,
+    profile_slot: int = 0,
+    accessory: int = 0,
+) -> bytes:
+    """Build a ``0x83`` brew frame straight from a ``{param_id: value}`` map.
+
+    Encodes each param as ``<id><value>`` — 1 byte, or big-endian u16 for
+    ``WIDE_TAGS`` — after applying the app's ``E0`` filter
+    (``brew_param_included``; id 8 dropped). Bean-system beverages
+    (``beverage_id`` 0xC8–0xCD) send ``action | 0x80`` — the APK ``l0``
+    ``fromBeanSystem`` flag, which also retains param 2 for bev 200
+    (research.md R2/R10). Byte-identical to :func:`build_brew` given the
+    same effective TLV set.
+    """
+    from cremalink.ecam.catalog import WIDE_TAGS
+
+    recipe = bytearray()
+    for tag, value in params.items():
+        if not brew_param_included(tag):
+            continue
+        if not 0 <= value <= 0xFFFF:
+            raise ValueError(f"param {tag} value out of range: {value!r}")
+        width = 2 if tag in WIDE_TAGS else 1
+        if value > 0xFF and width == 1:
+            raise ValueError(f"param {tag} value {value} needs u16 width")
+        recipe.append(tag)
+        recipe += value.to_bytes(width, "big")
+    action_i = int(action)
+    if is_bean_beverage(beverage_id):
+        action_i |= 0x80
+    return build_brew(
+        beverage_id,
+        action_i,
+        bytes(recipe),
+        profile,
+        profile_slot=profile_slot,
+        accessory=accessory,
     )
 
 
@@ -344,6 +432,21 @@ def build_bean_system(index: int, profile: MachineProfile) -> bytes:
     if not 0 <= index <= 0xFF:
         raise ValueError(f"bean-system index out of range: {index!r}")
     return build_read(REQ_BEAN_SYSTEM, bytes([index]), profile)
+
+
+def build_bean_select(slot: int, profile: MachineProfile) -> bytes:
+    """``0D 06 B9 F0 <slot>`` — bean-system select (APK ``Q0``→``g0`` /
+    ``selectBeanSystem`` / ``getPacketForSelectBean``, DECODED.md).
+
+    This is a *gated write*: the session must be announced first
+    (protocol.md §14.5). The frame sits on §13's *untested* list —
+    structured after the verified ``0xA9`` path, ack semantics
+    ``ok=(b5==0)`` per the DECODED ``0xB9``→``h.m`` dispatch.
+    """
+    _require_profile(profile)
+    if not 1 <= slot <= 0xFF:
+        raise ValueError(f"bean-system slot out of range: {slot!r}")
+    return _frame(REQ_BEAN_SELECT, 0xF0, bytes([slot]))
 
 
 def build_profile_select(profile_slot: int, profile: MachineProfile) -> bytes:

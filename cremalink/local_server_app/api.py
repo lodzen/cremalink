@@ -185,7 +185,11 @@ def create_app(
             raise web.HTTPBadRequest(text="Server not configured")
         req = await _parse_json_model(request, CommandRequest)
         try:
-            await adapter.register_with_device(state)
+            if not state.session_live():
+                # Live session: the machine's own commands.json poll loop
+                # drains the queue (protocol.md §15); a local_reg PUT per
+                # client request was the remaining burst source.
+                await adapter.register_with_device(state)
             await state.queue_command(req.command)
         except OverflowError as exc:
             raise web.HTTPTooManyRequests(text=str(exc)) from exc
@@ -199,7 +203,8 @@ def create_app(
             raise web.HTTPBadRequest(text="Server not configured")
         req = await _parse_json_model(request, PropertySetRequest)
         try:
-            await adapter.register_with_device(state)
+            if not state.session_live():
+                await adapter.register_with_device(state)
             await state.queue_property_set(req.name, req.value)
         except OverflowError as exc:
             raise web.HTTPTooManyRequests(text=str(exc)) from exc
@@ -213,7 +218,8 @@ def create_app(
             raise web.HTTPBadRequest(text="Server not configured")
         req = await _parse_json_model(request, PropertyGetRequest)
         try:
-            await adapter.register_with_device(state)
+            if not state.session_live():
+                await adapter.register_with_device(state)
             await state.queue_property_get(req.name)
         except OverflowError as exc:
             raise web.HTTPTooManyRequests(text=str(exc)) from exc
@@ -245,7 +251,8 @@ def create_app(
     async def refresh_monitor(request: web.Request) -> web.Response:
         """Queues a request to refresh the monitor status."""
         try:
-            await adapter.register_with_device(state)
+            if not state.session_live():
+                await adapter.register_with_device(state)
             await state.queue_monitor()
         except ConnectionError as exc:
             raise web.HTTPBadGateway(text=str(exc)) from exc
@@ -254,7 +261,8 @@ def create_app(
     async def get_properties(request: web.Request) -> web.Response:
         """Gets the last known device properties."""
         try:
-            await adapter.register_with_device(state)
+            if not state.session_live():
+                await adapter.register_with_device(state)
             await state.queue_properties()
         except ConnectionError as exc:
             raise web.HTTPBadGateway(text=str(exc)) from exc
@@ -270,6 +278,21 @@ def create_app(
         if value is None:
             raise web.HTTPNotFound(text="Property not found")
         return web.json_response({"name": property_name, "value": value})
+
+    async def wait_datapoint(request: web.Request) -> web.Response:
+        """Blocks until a datapoint lands after ``since`` (or timeout).
+
+        Replaces blind get_property polling for republish waits: the
+        client passes the seq it last saw and re-harvests only when it
+        changes — no per-interval 404 churn while the machine answers.
+        """
+        try:
+            since = int(request.query.get("since", "-1"))
+            timeout = min(float(request.query.get("timeout", "8")), 30.0)
+        except ValueError:
+            raise web.HTTPBadRequest(text="invalid since/timeout")
+        seq = await state.wait_for_datapoint(since, timeout)
+        return web.json_response({"seq": seq})
 
     async def health(request: web.Request) -> web.Response:
         return web.Response(text="ok")
@@ -355,6 +378,7 @@ def create_app(
                 "queued_remaining": len(state.command_queue),
                 "payload_size": len(payload),
             },
+            level=logging.DEBUG,
         )
         state.log(
             "command_request",
@@ -420,7 +444,9 @@ def create_app(
                 state._properties_request_pending = False
             return web.Response(status=200)
 
-        state.log_telemetry("device_datapoint_received", decoded_json)
+        state.log_telemetry(
+            "device_datapoint_received", decoded_json, level=logging.DEBUG
+        )
         await state.handle_datapoint(decoded_json)
         return web.json_response({}, status=_commands_response_code())
 
@@ -441,6 +467,7 @@ def create_app(
     app.router.add_get("/refresh_monitor", refresh_monitor)
     app.router.add_get("/get_properties", get_properties)
     app.router.add_get("/properties/{property_name}", get_property)
+    app.router.add_get("/wait_datapoint", wait_datapoint)
     app.router.add_get("/health", health)
     app.router.add_get("/logs", logs)
     app.router.add_get("/debug_queue", debug_queue)

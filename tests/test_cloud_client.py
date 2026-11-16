@@ -74,6 +74,34 @@ def test_list_account_devices_filters_non_coffee_appliances(tmp_path, monkeypatc
     assert devices[0]["product_name"] == "PrimaDonna Soul"
 
 
+def test_fetch_properties_one_request_name_to_value(tmp_path, monkeypatch):
+    """The app's store sync: every datapoint in a single GET (research.md R11)."""
+    client = _make_client(tmp_path, monkeypatch)
+    calls = []
+
+    def _get(url, **_):
+        calls.append(url)
+        return _FakeResponse(
+            200,
+            [
+                {"property": {"name": "d001_rec_espresso", "value": "AAA="}},
+                {"property": {"name": "d302_monitor", "value": "BBB="}},
+                {"property": {"name": "d270_serialnumber"}},  # no value yet
+                {"not_a_property": {}},
+            ],
+        )
+
+    monkeypatch.setattr("cremalink.clients.cloud.requests.get", _get)
+    props = client.fetch_properties("AC000W1")
+
+    assert len(calls) == 1 and calls[0].endswith("/dsns/AC000W1/properties.json")
+    assert props == {
+        "d001_rec_espresso": "AAA=",
+        "d302_monitor": "BBB=",
+        "d270_serialnumber": None,
+    }
+
+
 def test_list_account_devices_multiple_coffee_machines(tmp_path, monkeypatch):
     raw_devices = [
         {
@@ -149,6 +177,27 @@ def test_get_lan_config_falls_back_to_connection_config_endpoint(tmp_path, monke
 
     result = client.get_lan_config("AC000W1")
     assert result["lanip_key"] == "fallback-key"
+
+
+def test_create_datapoint_posts_app_wire_format(tmp_path, monkeypatch):
+    """The app's createDatapointCloud: POST
+    apiv1/dsns/{dsn}/properties/{name}/datapoints.json with
+    {"datapoint": {"value": ...}} + x-ayla-source header (DECODED.md)."""
+    client = _make_client(tmp_path, monkeypatch)
+    calls = []
+
+    def _post(url, **kw):
+        calls.append((url, kw))
+        return _FakeResponse(200, {"datapoint": {"echo": False}})
+
+    monkeypatch.setattr("cremalink.clients.cloud.requests.post", _post)
+    client.create_datapoint("AC000W1", "device_connected", "1799999999")
+
+    assert len(calls) == 1
+    url, kw = calls[0]
+    assert url.endswith("/dsns/AC000W1/properties/device_connected/datapoints.json")
+    assert kw["json"] == {"datapoint": {"value": "1799999999"}}
+    assert kw["headers"]["x-ayla-source"] == "Mobile"
 
 
 def test_get_lan_config_disabled_returns_false_not_exception(tmp_path, monkeypatch):

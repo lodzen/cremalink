@@ -35,7 +35,7 @@ import uuid
 
 from aiohttp import web
 
-from cremalink.local_server_app.api import create_app
+from cremalink.local_server_app.api import LOCAL_STATE_KEY, create_app
 from cremalink.local_server_app.config import ServerSettings
 from cremalink.local_server_app.logging import (
     RingBufferHandler,
@@ -105,6 +105,7 @@ class EmbeddedLocalServer:
         advertised_ip: str | None = None,
         monitor_poll_interval: float = 5.0,
         nudger_poll_interval: float = 1.0,
+        cloud_token_path: str | None = None,
         event_logger: logging.Logger | None = None,
         preferred_port: int = DEFAULT_PORT,
         port_fallback_range: int = DEFAULT_PORT_FALLBACK_RANGE,
@@ -116,6 +117,7 @@ class EmbeddedLocalServer:
         self.device_map_path = device_map_path
         self.monitor_poll_interval = monitor_poll_interval
         self.nudger_poll_interval = nudger_poll_interval
+        self.cloud_token_path = cloud_token_path
         self.session_keepalive_seconds = DEFAULT_SESSION_KEEPALIVE_SECONDS
         self._event_logger = create_logger(
             f"cremalink.embedded.{uuid.uuid4().hex}",
@@ -132,6 +134,7 @@ class EmbeddedLocalServer:
         self.preferred_port = preferred_port
         self.port_fallback_range = port_fallback_range
         self.bind_host = bind_host
+        self._app_state = None
 
         #: Resolved once start() runs; a supplied value is used as-is.
         self.advertised_ip: str | None = advertised_ip
@@ -172,8 +175,10 @@ class EmbeddedLocalServer:
                 monitor_poll_interval=self.monitor_poll_interval,
                 nudger_poll_interval=self.nudger_poll_interval,
                 session_keepalive_interval_seconds=self.session_keepalive_seconds,
+                cloud_token_path=self.cloud_token_path,
             )
             app = create_app(settings=settings, logger=self._event_logger)
+            self._app_state = app[LOCAL_STATE_KEY]
             # aiohttp reports unexpected handler errors through ``logger``;
             # route them through the sanitizing event logger (forwarded to
             # the integration's logger) instead of the global
@@ -205,6 +210,16 @@ class EmbeddedLocalServer:
         """Return a snapshot of this server's sanitized event buffer."""
         return self._event_handler.get_events()
 
+    def set_machine_asleep(self, asleep: bool) -> None:
+        """Tell the server jobs the machine's sleep state.
+
+        The consumer (HA coordinator) knows the monitor status; in
+        standby the monitor/nudger jobs drop to their standby cadence so
+        a sleeping machine is not polled every few seconds.
+        """
+        if self._app_state is not None:
+            self._app_state.set_machine_asleep(asleep)
+
     @property
     def event_logger(self) -> logging.Logger:
         """Return this instance's isolated library event logger."""
@@ -227,7 +242,9 @@ class EmbeddedLocalServer:
             level=level,
         )
 
-    def log_telemetry(self, event: str, details: dict) -> None:
+    def log_telemetry(
+        self, event: str, details: dict, *, level: int = logging.INFO
+    ) -> None:
         """Forward telemetry through the HA logger without buffering it."""
         log_event(
             self._event_logger,
@@ -235,6 +252,7 @@ class EmbeddedLocalServer:
             details,
             diagnostic_sensitive_values=(self.dsn, self.device_ip, self.lan_key),
             operational_sensitive_values=(self.lan_key,),
+            level=level,
             telemetry=True,
         )
 

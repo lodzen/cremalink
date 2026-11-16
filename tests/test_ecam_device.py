@@ -6,6 +6,7 @@ import time
 from pathlib import Path
 
 import pytest
+import requests
 from cremalink.core.binary import crc16_ccitt
 from cremalink.domain.device import Device
 
@@ -165,7 +166,10 @@ class TestBrewAndPower:
         frame = _sent_frame(device)[:-4]
         # TLVs of the a6f0 blob minus drop tags {0x08, 0x19}.
         assert frame[6:-3] == bytes.fromhex("01 00 28 1b 01 02 04 04 00")
-        assert frame[-3] == 0x04  # (slot 1 << 2) | accessory 0
+        # (slot 1 << 2) | mode 2 — the trailer's low bits are the m6.b
+        # dispense mode (PREPARE_BEVERAGE=2), read from the command-map
+        # "accessory" field; brews must not send mode 0 (research.md R2).
+        assert frame[-3] == 0x06
         assert transport.requested_properties == ["d039_1_rec_espresso"]
 
     def test_brew_unknown_recipe_fails(self):
@@ -288,6 +292,39 @@ class TestProfiles:
         device.response_poll = 0
         assert device.select_profile(4) is False
         assert device.current_profile == 0
+
+    def test_select_bean_system_sends_gated_b9_and_ack(self):
+        # 0xB9 is on protocol.md §13's untested list — the gated path
+        # mirrors the verified 0xA9 select (announce → frame → simple
+        # ``B9 F0 <ok>`` ack per the DECODED ``h.m`` dispatch).
+        ack = _answer(bytes([0xB9, 0xF0, 0x00]))
+        device = _device(transport=FakeTransport(responses=[ack]))
+        device.response_poll = 0
+        assert device.select_bean_system(2) is True
+        sent = _sent_frame(device)
+        assert sent[:4].hex() == "0d06b9f0" and sent[4] == 0x02
+        # the session announce preceded the write
+        writes = [w[0] for w in device.transport.written_properties]
+        assert writes and writes[0] == "device_connected"
+
+    def test_select_bean_system_no_ack_counts_applied(self):
+        # Like non-striker 0xA9: no data_response ack on LAN — a nack-free
+        # send counts as applied (fire-and-forget).
+        device = _device(response_timeout=0.01, response_poll=0)
+        assert device.select_bean_system(1) is True
+
+    def test_select_bean_system_nack_returns_false(self):
+        nack = _answer(bytes([0xB9, 0xF0, 0x01]))
+        device = _device(transport=FakeTransport(responses=[nack]))
+        device.response_poll = 0
+        assert device.select_bean_system(2) is False
+
+    def test_select_bean_system_slot_range(self):
+        device = _device()
+        with pytest.raises(ValueError):
+            device.select_bean_system(0)
+        with pytest.raises(ValueError):
+            device.select_bean_system(7)
 
 
 class TestSettings:
@@ -528,6 +565,42 @@ class TestSettingBits:
         # the named-property path sufficed — no 0x95 frame hit the wire
         assert not any(sent[0][2] == 0x95 for sent in device.transport.sent)
 
+    def test_wait_datapoint_drives_republish_waits(self):
+        """A transport with wait_datapoint: republish waits block on the
+        generation counter instead of polling get_property into 404s."""
+        blob = base64.b64encode(self._conf_blob(0x1D)).decode()
+
+        class WaitingTransport(FakeTransport):
+            def __init__(self):
+                super().__init__()
+                self.get_calls = 0
+                self.wait_calls = 0
+
+            def wait_datapoint(self, since, timeout):
+                self.wait_calls += 1
+                # the republish "lands" during the wait — like the
+                # machine pushing d284 ~5 s after the queued GET
+                self.properties["d284_mchn_sett_user_conf"] = {"value": blob}
+                return since + 1
+
+            def get_property(self, name):
+                self.get_calls += 1
+                return super().get_property(name)
+
+        device = _awake(_device(transport=WaitingTransport(), response_poll=0))
+        assert device._read_param_value(0x003F, "user_conf") == 0x1D
+        assert device.transport.wait_calls >= 1
+        assert device._wait_seq >= 0
+        # harvest only — one get_property per wake, not one per 250 ms
+        assert device.transport.get_calls <= 3
+
+    def test_wait_datapoint_falls_back_to_poll_sleep(self):
+        """Transports without wait_datapoint (cloud) keep the plain
+        response_poll sleep — no attribute error, no behavior change."""
+        device = _device(transport=FakeTransport(), response_poll=0)
+        device._wait_datapoint(5.0)  # must not raise
+        assert device._wait_seq == -1
+
     def test_set_bit_falls_back_to_mailbox_read(self):
         # No stored d284: the base value comes from a 0x95 mailbox read.
         device = _awake(
@@ -670,3 +743,104 @@ class TestCatalog:
         assert catalog.source == "model_table"
         assert len(catalog.beverages) == 48
         assert device.transport.requested_properties == []
+
+
+def _http_error(status: int) -> requests.HTTPError:
+    """A requests-style HTTPError carrying a stubbed response."""
+    resp = requests.Response()
+    resp.status_code = status
+    return requests.HTTPError(f"{status} Server Error", response=resp)
+
+
+class _FailingRequests(FakeTransport):
+    """request_property raises a scripted error (or succeeds when None)."""
+
+    def __init__(self, err=None, **kwargs):
+        super().__init__(**kwargs)
+        self.err = err
+
+    def request_property(self, name):
+        self.requested_properties.append(name)
+        if self.err is not None:
+            raise self.err
+
+
+class TestUnreachableBreaker:
+    """Machine offline: one upstream failure opens the breaker; POSTs and
+    the wait loops behind them are suppressed instead of burning executor
+    threads in timeouts (observed 2026-11-12 — standby machine stalled
+    ~6 HA SyncWorkers for the whole bootstrap)."""
+
+    def test_502_opens_breaker_and_suppresses_requests(self):
+        transport = _FailingRequests(_http_error(502))
+        device = _device(transport=transport, response_poll=0)
+        assert device._collect_named_properties(["a", "b"]) == {}
+        # Stopped right after the 502 — remaining names were not POSTed.
+        assert transport.requested_properties == ["a"]
+        assert not device._machine_reachable()
+        # While the breaker is open no upstream POSTs happen at all.
+        assert device._collect_named_properties(["a", "b"]) == {}
+        assert transport.requested_properties == ["a"]
+
+    def test_harvest_still_runs_while_unreachable(self):
+        transport = _FailingRequests(
+            _http_error(502), properties={"x": {"value": "AAEC"}}
+        )
+        device = _device(transport=transport, response_poll=0)
+        device._collect_named_properties(["a"])
+        props = device._collect_named_properties(["x", "y"])
+        assert "x" in props  # cached values still surface — only POSTs stop
+        assert "y" not in props
+
+    def test_non_502_http_error_keeps_trying(self):
+        transport = _FailingRequests(_http_error(400))
+        device = _device(transport=transport, response_poll=0)
+        device._collect_named_properties(["a", "b"], retries=0)
+        assert transport.requested_properties == ["a", "b"]
+        assert device._machine_reachable()
+
+    def test_backoff_grows_and_resets_on_success(self):
+        transport = _FailingRequests(_http_error(502))
+        device = _device(transport=transport, response_poll=0)
+        device._collect_named_properties(["a"])
+        assert device._unreachable_backoff > device._UNREACHABLE_BACKOFF_MIN
+        # Backoff expired and the machine is back — a successful POST
+        # closes the breaker again.
+        device._unreachable_until = 0.0
+        transport.err = None
+        device._collect_named_properties(["a"])
+        assert device._machine_reachable()
+        assert device._unreachable_backoff == 0.0
+
+    def test_announce_suppressed_while_unreachable(self):
+        device = _device(response_poll=0)
+        device._unreachable_until = time.monotonic() + 60
+        with pytest.raises(ConnectionError):
+            device._announce_session()
+        assert device.transport.written_properties == []
+
+    def test_announce_failure_marks_unreachable(self):
+        class FailingWrite(FakeTransport):
+            def write_property(self, name, value):
+                raise _http_error(502)
+
+        device = _device(transport=FailingWrite())
+        with pytest.raises(requests.HTTPError):
+            device._announce_session()
+        assert not device._machine_reachable()
+
+    def test_param_read_short_circuits_while_unreachable(self):
+        device = _device(response_poll=0)
+        device._unreachable_until = time.monotonic() + 60
+        assert device._read_param_frame(0x003E) is None
+        # Neither the session announce write nor a 0x95 frame went out.
+        assert device.transport.written_properties == []
+        assert device.transport.sent == []
+
+    def test_suppression_raises_oserror_family(self):
+        # Callers catch (ConnectionError|OSError) broadly — the suppressed
+        # path must stay in that family.
+        device = _device()
+        device._unreachable_until = time.monotonic() + 60
+        with pytest.raises(OSError):
+            device.refresh_monitor()

@@ -1,12 +1,16 @@
 import base64
 import json
+import logging
 import os
+import re
 import requests
 import urllib.parse
 from datetime import datetime
 
 from cremalink.resources.api_config import load_api_config
 from cremalink.resources.lang import load_lang_config
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class CloudToken:
@@ -43,6 +47,22 @@ class CloudToken:
 
     def __str__(self):
         return self.refresh_token
+
+
+_CONSENT_SIG = re.compile(r"""const\s+consentObj2Sig\s*=\s*(["'])(?P<sig>[^"']+)\1""")
+
+
+def _extract_consent_signature(html: str) -> str:
+    """The consent page's ``consentObj2Sig`` JS constant.
+
+    The page used to emit single quotes and now emits double quotes
+    (observed 2026-11-12); accept both and fail with a clear message
+    instead of an ``IndexError`` if the page layout changes again.
+    """
+    match = _CONSENT_SIG.search(html)
+    if match is None:
+        raise ValueError("Gigya consent page changed: consentObj2Sig not found")
+    return match.group("sig")
 
 
 def _get_query_param(url: str, param: str):
@@ -108,6 +128,11 @@ def authenticate_cloud(email: str, password: str, language: str = "en") -> Cloud
         allow_redirects=False,
     )
     context = _get_query_param(res.headers.get("Location", ""), "context")
+    _LOGGER.debug(
+        "cloud auth step 1 authorize: status=%s context_present=%s",
+        res.status_code,
+        context is not None,
+    )
 
     # Step 2: Get IDs
     res = requests.get(
@@ -125,6 +150,12 @@ def authenticate_cloud(email: str, password: str, language: str = "en") -> Cloud
     ucid = res.get("ucid")
     gmid = res.get("gmid")
     gmid_ticket = res.get("gmidTicket")
+    _LOGGER.debug(
+        "cloud auth step 2 getIDs: ucid=%s gmid=%s gmid_ticket=%s",
+        ucid is not None,
+        gmid is not None,
+        gmid_ticket is not None,
+    )
 
     # Step 3: Login
     risk_context_json = json.dumps(
@@ -173,7 +204,15 @@ def authenticate_cloud(email: str, password: str, language: str = "en") -> Cloud
     ).json()
 
     if "sessionInfo" not in res:
-        raise ValueError(f"Gigya Login failed: {res}")
+        error_code = res.get("errorCode")
+        error_msg = res.get("errorMessage") or res.get("errorDetails")
+        _LOGGER.debug(
+            "cloud auth step 3 login failed: errorCode=%s error=%s",
+            error_code,
+            error_msg,
+        )
+        raise ValueError(f"Gigya Login failed: errorCode={error_code} {error_msg}")
+    _LOGGER.debug("cloud auth step 3 login: sessionInfo present")
 
     login_token = res["sessionInfo"]["login_token"]
 
@@ -197,6 +236,7 @@ def authenticate_cloud(email: str, password: str, language: str = "en") -> Cloud
     user_uid = res["UID"]
     user_uid_sig = res["UIDSignature"]
     user_sig_ts = res["signatureTimestamp"]
+    _LOGGER.debug("cloud auth step 4 getUserInfo: uid_present=%s", bool(user_uid))
 
     # Step 5: Consent
     res = requests.get(
@@ -212,7 +252,8 @@ def authenticate_cloud(email: str, password: str, language: str = "en") -> Cloud
             "signatureTimestamp": user_sig_ts,
         },
     ).text
-    signature = res.split("const consentObj2Sig = '")[1].split("';")[0]
+    signature = _extract_consent_signature(res)
+    _LOGGER.debug("cloud auth step 5 consent: signature extracted")
 
     # Step 6: Authorization Continue
     res = requests.get(
@@ -237,6 +278,11 @@ def authenticate_cloud(email: str, password: str, language: str = "en") -> Cloud
         allow_redirects=False,
     )
     code = _get_query_param(res.headers.get("Location", ""), "code")
+    _LOGGER.debug(
+        "cloud auth step 6 authorize/continue: status=%s code_present=%s",
+        res.status_code,
+        code is not None,
+    )
 
     # Step 7: IDP Token
     res = requests.post(
@@ -253,6 +299,7 @@ def authenticate_cloud(email: str, password: str, language: str = "en") -> Cloud
         },
     ).json()
     idp_token = res["access_token"]
+    _LOGGER.debug("cloud auth step 7 idp token: access_token received")
 
     # Step 8: Exchange for Ayla
     res = requests.post(
@@ -260,5 +307,6 @@ def authenticate_cloud(email: str, password: str, language: str = "en") -> Cloud
         headers={"User-Agent": token_agent},
         data={"app_id": app_id, "app_secret": app_secret, "token": idp_token},
     ).json()
+    _LOGGER.debug("cloud auth step 8 ayla sign-in: refresh_token received")
 
     return CloudToken(res["refresh_token"])
