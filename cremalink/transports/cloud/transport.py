@@ -92,6 +92,10 @@ class CloudTransport(DeviceTransport):
         self.type = device.get("type")
         self.is_online = device.get("connection_status", False) == "Online"
         self.ip = device.get("lan_ip")
+        # Firmware of the Wi-Fi module and when the cloud last updated it.
+        self.sw_version = device.get("sw_version")
+        self.oem_model = device.get("oem_model")
+        self.module_updated_at = device.get("module_updated_at")
 
         # Fetch LAN key, which might be needed for other operations.
         try:

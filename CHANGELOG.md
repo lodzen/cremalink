@@ -144,6 +144,9 @@ Changes since 2.0.0.dev5:
     Gigya response incl. session fields), `Client.fetch_properties`
     logs request timing/response shape/datapoint counts per family, and
     `Device` logs catalogue seeds and `recipe_params` sources.
+- **Firmware versions:** `Device.firmware_info()` returns the machine
+  firmware (`software_version` datapoint) and, over the cloud, the Wi-Fi
+  module firmware with the date the cloud last updated it.
 - **Standby quiet mode for the embedded server** (`local_server_app`,
   research.md R16): `LocalServerState.machine_asleep` (set via
   `EmbeddedLocalServer.set_machine_asleep`, logged as
