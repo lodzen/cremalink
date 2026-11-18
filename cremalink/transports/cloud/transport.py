@@ -46,6 +46,13 @@ class CloudTransport(DeviceTransport):
     it fetches key device metadata from the cloud and stores it.
     """
 
+    #: The cloud API has no response mailbox and cannot ask the device to
+    #: republish a property; answers arrive as republished ``dNNN``
+    #: properties instead. ``Device`` checks these flags before using
+    #: ``pop_response`` / ``request_property``.
+    supports_mailbox = False
+    supports_property_requests = False
+
     def __init__(
         self,
         dsn: str,
