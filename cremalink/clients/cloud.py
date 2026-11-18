@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import re
+import threading
 import time
 
 import requests
@@ -136,6 +137,8 @@ class Client:
         self.api_agent = self.api_conf["USER_AGENT"]["API"]
 
         self.token_path = token_path
+        # Token refreshes rotate the refresh token in the file; serialise them.
+        self._token_lock = threading.Lock()
         # Retrieve or refresh the access token upon initialization.
         self.access_token = self.__get_access_token()
         # Fetch the list of devices associated with the account.
@@ -179,6 +182,7 @@ class Client:
                     self.access_token,
                     device_map_path,
                     event_logger=self.logger,
+                    token_refresher=self.refresh_access_token,
                 )
         return None
 
@@ -400,6 +404,16 @@ class Client:
 
         return result
 
+    def refresh_access_token(self) -> str:
+        """Fetch a new access token with the stored refresh token.
+
+        The refresh token rotates and is written back to ``token_path``.
+        Handed to cloud transports, which call it on HTTP 401.
+        """
+        with self._token_lock:
+            self.access_token = self.__get_access_token()
+            return self.access_token
+
     def __get_access_token(self):
         """
         Retrieves a valid access token, refreshing it if necessary using the refresh token.
@@ -418,6 +432,7 @@ class Client:
                 "Content-Type": "application/json",
             },
             json={"user": {"refresh_token": refresh_token}},
+            timeout=REQUEST_TIMEOUT,
         )
         if response.status_code == 200:
             # If successful, extract new access and refresh tokens.
