@@ -151,6 +151,14 @@ what drains the outgoing queue. While the session is down, registration
 retries are throttled to the register-timeout cadence — <code class="docutils literal notranslate"><span class="pre">POST</span></code> is what
 actually opens a session (key exchange), <code class="docutils literal notranslate"><span class="pre">PUT</span></code> alone cannot re-key a
 live or half-dead one (lodzen/cremalink#4).</p>
+<p>Cadence follows the app (protocol.md §15, <code class="docutils literal notranslate"><span class="pre">AylaLanModule</span></code>): one
+<code class="docutils literal notranslate"><span class="pre">local_reg</span></code> PUT per keepalive tick with <code class="docutils literal notranslate"><span class="pre">notify</span></code> reflecting queue
+depth — <strong>not</strong> one PUT per nudger tick. The machine polls
+<code class="docutils literal notranslate"><span class="pre">commands.json</span></code> on its own ~1.3 s loop once notified, so faster
+PUTs cannot drain the queue any quicker (live-observed ~1 PUT/s
+while pending vs. the app’s ~1 PUT/10 s). A fresh PUT still goes out
+immediately on the empty→non-empty edge so user writes keep ~1-tick
+latency.</p>
 </dd></dl>
 
 <dl class="py function">

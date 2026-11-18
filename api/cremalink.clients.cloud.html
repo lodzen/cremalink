@@ -119,6 +119,32 @@
 <p>Client for interacting with the Ayla IoT cloud platform.
 Manages authentication (access and refresh tokens) and device discovery.</p>
 <dl class="py method">
+<dt class="sig sig-object py" id="cremalink.clients.cloud.Client.create_datapoint">
+<span class="sig-name descname"><span class="pre">create_datapoint</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dsn</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)"><span class="pre">dict</span></a></span></span><a class="reference internal" href="../_modules/cremalink/clients/cloud.html#Client.create_datapoint"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cremalink.clients.cloud.Client.create_datapoint" title="Link to this definition"></a></dt>
+<dd><p>Write one datapoint via the cloud channel — the app’s announce path.</p>
+<p>Verified endpoint (<code class="docutils literal notranslate"><span class="pre">AylaProperty.createDatapointCloud</span></code> /
+<code class="docutils literal notranslate"><span class="pre">createDatapointEndpoint</span></code>, Coffee Link 4.9.6; DECODED.md):
+<code class="docutils literal notranslate"><span class="pre">POST</span> <span class="pre">apiv1/dsns/{dsn}/properties/{name}/datapoints.json</span></code> with
+<code class="docutils literal notranslate"><span class="pre">{&quot;datapoint&quot;:</span> <span class="pre">{&quot;value&quot;:</span> <span class="pre">...}}</span></code> and <code class="docutils literal notranslate"><span class="pre">x-ayla-source:</span> <span class="pre">Mobile</span></code>.
+This is the channel that carries <code class="docutils literal notranslate"><span class="pre">device_connected</span></code> to the
+machine’s cloud uplink — independent of the LAN <code class="docutils literal notranslate"><span class="pre">local_reg</span></code>
+module, so it is the recovery lever when the LAN session is dead
+(research.md R17). Whether a wedged datapoint engine processes it
+is unverified — callers should treat it as a probe, not a fix.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cremalink.clients.cloud.Client.fetch_properties">
+<span class="sig-name descname"><span class="pre">fetch_properties</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dsn</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/cremalink/clients/cloud.html#Client.fetch_properties"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cremalink.clients.cloud.Client.fetch_properties" title="Link to this definition"></a></dt>
+<dd><p>Every datapoint of a device in ONE request — <code class="docutils literal notranslate"><span class="pre">{name:</span> <span class="pre">value}</span></code>.</p>
+<p>This is the Coffee Link app’s property-store sync (<code class="docutils literal notranslate"><span class="pre">syncProperties</span></code>
+fetch-all; research.md R11, <code class="docutils literal notranslate"><span class="pre">captures/cloud_fetch.json</span></code>). Values
+are the cloud’s <em>last-published</em> copies (protocol.md §13 staleness
+lesson) — fine for factory descriptors and menu order, not for a
+brew’s live recipe values.</p>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="cremalink.clients.cloud.Client.get_device">
 <span class="sig-name descname"><span class="pre">get_device</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dsn</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">device_map_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cremalink/clients/cloud.html#Client.get_device"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cremalink.clients.cloud.Client.get_device" title="Link to this definition"></a></dt>
 <dd><p>Retrieves a specific cloud device by its DSN.</p>
@@ -189,6 +215,14 @@ A/C on the same account) are excluded, not just flagged (FR-002).</p>
 <dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#list" title="(in Python v3.15)">list</a>[<a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)">dict</a>]</p>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="cremalink.clients.cloud.Client.refresh_access_token">
+<span class="sig-name descname"><span class="pre">refresh_access_token</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></span><a class="reference internal" href="../_modules/cremalink/clients/cloud.html#Client.refresh_access_token"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cremalink.clients.cloud.Client.refresh_access_token" title="Link to this definition"></a></dt>
+<dd><p>Fetch a new access token with the stored refresh token.</p>
+<p>The refresh token rotates and is written back to <code class="docutils literal notranslate"><span class="pre">token_path</span></code>.
+Handed to cloud transports, which call it on HTTP 401.</p>
 </dd></dl>
 
 </dd></dl>

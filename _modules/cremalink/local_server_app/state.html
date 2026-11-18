@@ -154,6 +154,14 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">last_monitor_received_at</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">last_monitor_command_sent_at</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_monitor_command_payloads</span><span class="p">:</span> <span class="nb">set</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="c1">#: Set by the consumer (HA coordinator) from the monitor status —</span>
+        <span class="c1">#: jobs drop to their standby cadence so a sleeping machine is not</span>
+        <span class="c1">#: flooded with monitor/keepalive traffic it cannot use.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">machine_asleep</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="c1">#: Set by every queue_* append so the nudger's sleep loop wakes at</span>
+        <span class="c1">#: once — queued work (e.g. a wake frame during standby) is edge-</span>
+        <span class="c1">#: detected within a tick instead of waiting out a 30 s interval.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">work_enqueued</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Event</span><span class="p">()</span>
         <span class="c1"># Names of property GETs still sitting in the queue — identical</span>
         <span class="c1"># GETs are idempotent (the republish answers every waiter), so a</span>
         <span class="c1"># second request for a name already queued is a no-op. Keeps</span>
@@ -184,6 +192,13 @@
         <span class="c1"># Throttles re-registration attempts while the session is down so a</span>
         <span class="c1"># dead machine isn't POSTed at nudger cadence (every ~1 s).</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">last_register_attempt_at</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="c1"># Datapoint generation counter — bumped on every datapoint that</span>
+        <span class="c1"># lands (property, mailbox, monitor). `/wait_datapoint` waiters</span>
+        <span class="c1"># pass the seq they last saw and block until it differs — a</span>
+        <span class="c1"># datapoint arriving between the caller's last harvest and the</span>
+        <span class="c1"># wait call can never be missed.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_datapoint_seq</span> <span class="o">=</span> <span class="mi">0</span>
 
         <span class="c1"># --- Concurrency Control ---</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">lock</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
@@ -428,6 +443,16 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">last_commands_poll_at</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span></div>
 
 
+<div class="viewcode-block" id="LocalServerState.set_machine_asleep">
+<a class="viewcode-back" href="../../../api/cremalink.local_server_app.state.html#cremalink.local_server_app.state.LocalServerState.set_machine_asleep">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_machine_asleep</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">asleep</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Switch the jobs between normal and standby polling cadence."""</span>
+        <span class="k">if</span> <span class="n">asleep</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">machine_asleep</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">machine_asleep</span> <span class="o">=</span> <span class="n">asleep</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"machine_sleep_state"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"asleep"</span><span class="p">:</span> <span class="n">asleep</span><span class="p">})</span></div>
+
+
 <div class="viewcode-block" id="LocalServerState.wait_for_commands_poll">
 <a class="viewcode-back" href="../../../api/cremalink.local_server_app.state.html#cremalink.local_server_app.state.LocalServerState.wait_for_commands_poll">[docs]</a>
     <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">wait_for_commands_poll</span><span class="p">(</span>
@@ -497,7 +522,8 @@
             <span class="n">payload_str</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">payload</span><span class="p">,</span> <span class="n">separators</span><span class="o">=</span><span class="p">(</span><span class="s2">","</span><span class="p">,</span> <span class="s2">":"</span><span class="p">))</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">command_queue</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">payload_str</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">last_command</span> <span class="o">=</span> <span class="n">command</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"queue_command"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"command"</span><span class="p">:</span> <span class="n">command</span><span class="p">})</span></div>
+            <span class="bp">self</span><span class="o">.</span><span class="n">work_enqueued</span><span class="o">.</span><span class="n">set</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"queue_command"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"command"</span><span class="p">:</span> <span class="n">command</span><span class="p">},</span> <span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="LocalServerState.queue_property_set">
@@ -529,6 +555,7 @@
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">command_queue</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">queue_max_size</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">OverflowError</span><span class="p">(</span><span class="s2">"Command queue is full"</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">command_queue</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">payload</span><span class="p">,</span> <span class="n">separators</span><span class="o">=</span><span class="p">(</span><span class="s2">","</span><span class="p">,</span> <span class="s2">":"</span><span class="p">)))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">work_enqueued</span><span class="o">.</span><span class="n">set</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"queue_property_set"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="n">name</span><span class="p">})</span></div>
 
 
@@ -553,7 +580,9 @@
         <span class="p">}</span>
         <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">lock</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_property_get_pending</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"queue_property_get_dedup"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="n">name</span><span class="p">})</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+                    <span class="s2">"queue_property_get_dedup"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="n">name</span><span class="p">},</span> <span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span>
+                <span class="p">)</span>
                 <span class="k">return</span>
             <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">command_queue</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">queue_max_size</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">OverflowError</span><span class="p">(</span><span class="s2">"Command queue is full"</span><span class="p">)</span>
@@ -564,7 +593,8 @@
                 <span class="p">)</span>
             <span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_property_get_pending</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"queue_property_get"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="n">name</span><span class="p">})</span></div>
+            <span class="bp">self</span><span class="o">.</span><span class="n">work_enqueued</span><span class="o">.</span><span class="n">set</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"queue_property_get"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="n">name</span><span class="p">},</span> <span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="LocalServerState.queue_monitor">
@@ -596,7 +626,8 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">command_queue</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_monitor_command_payloads</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_monitor_request_pending</span> <span class="o">=</span> <span class="kc">True</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"queue_monitor"</span><span class="p">)</span></div>
+            <span class="bp">self</span><span class="o">.</span><span class="n">work_enqueued</span><span class="o">.</span><span class="n">set</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"queue_monitor"</span><span class="p">,</span> <span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="LocalServerState.queue_properties">
@@ -628,6 +659,7 @@
                 <span class="p">)</span>
             <span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_properties_request_pending</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">work_enqueued</span><span class="o">.</span><span class="n">set</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"queue_properties"</span><span class="p">)</span></div>
 
 
@@ -703,7 +735,7 @@
                 <span class="p">)</span>
             <span class="p">):</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_store_named_value</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">data_block</span><span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"property_datapoint"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="n">name</span><span class="p">})</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"property_datapoint"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="n">name</span><span class="p">},</span> <span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">)</span>
                 <span class="k">return</span>
             <span class="k">if</span> <span class="n">value</span> <span class="ow">and</span> <span class="n">name</span> <span class="ow">in</span> <span class="p">(</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">data_response_property_name</span><span class="p">,</span>
@@ -713,7 +745,7 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">_response_mailbox</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
                     <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="n">name</span><span class="p">,</span> <span class="s2">"value"</span><span class="p">:</span> <span class="n">value</span><span class="p">,</span> <span class="s2">"received_at"</span><span class="p">:</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()}</span>
                 <span class="p">)</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"data_response_datapoint"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="n">name</span><span class="p">})</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"data_response_datapoint"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="n">name</span><span class="p">},</span> <span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">)</span>
                 <span class="k">return</span>
 
             <span class="n">monitor_value</span> <span class="o">=</span> <span class="n">value</span>
@@ -723,14 +755,18 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">last_monitor_raw</span> <span class="o">=</span> <span class="n">decrypted_json</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">last_monitor_received_at</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_monitor_request_pending</span> <span class="o">=</span> <span class="kc">False</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"monitor_datapoint"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"raw_value_len"</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">monitor_value</span><span class="p">)})</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">last_monitor</span> <span class="o">=</span> <span class="n">decrypted_json</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">last_monitor_raw</span> <span class="o">=</span> <span class="n">decrypted_json</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">last_monitor_b64</span> <span class="o">=</span> <span class="kc">None</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">last_monitor_received_at</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">_monitor_request_pending</span> <span class="o">=</span> <span class="kc">False</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"monitor_datapoint"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"monitor_keys"</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="n">data_block</span><span class="o">.</span><span class="n">keys</span><span class="p">())})</span></div>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+                    <span class="s2">"monitor_datapoint"</span><span class="p">,</span>
+                    <span class="p">{</span><span class="s2">"monitor_keys"</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="n">data_block</span><span class="o">.</span><span class="n">keys</span><span class="p">())},</span>
+                    <span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_datapoint_seq</span> <span class="o">+=</span> <span class="mi">1</span></div>
 
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_store_named_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">entry</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
@@ -743,6 +779,7 @@
             <span class="s2">"received_at"</span><span class="p">:</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">(),</span>
             <span class="s2">"raw"</span><span class="p">:</span> <span class="n">entry</span><span class="p">,</span>
         <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_datapoint_seq</span> <span class="o">+=</span> <span class="mi">1</span>
 
     <span class="c1"># --- snapshots ---</span>
 <div class="viewcode-block" id="LocalServerState.snapshot_monitor">
@@ -786,6 +823,24 @@
             <span class="k">if</span> <span class="n">named</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="k">return</span> <span class="n">named</span>
         <span class="k">return</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="LocalServerState.wait_for_datapoint">
+<a class="viewcode-back" href="../../../api/cremalink.local_server_app.state.html#cremalink.local_server_app.state.LocalServerState.wait_for_datapoint">[docs]</a>
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">wait_for_datapoint</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">since</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Blocks until the datapoint seq differs from ``since``.</span>
+
+<span class="sd">        Returns the current seq — callers compare it to what they</span>
+<span class="sd">        passed to detect arrivals. A datapoint landing between the</span>
+<span class="sd">        caller's last harvest and this call can never be missed: the</span>
+<span class="sd">        seq already differs when the wait starts. Internally a cheap</span>
+<span class="sd">        seq poll at 50 ms granularity; nothing per-call is allocated</span>
+<span class="sd">        or registered.</span>
+<span class="sd">        """</span>
+        <span class="n">deadline</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span> <span class="o">+</span> <span class="nb">max</span><span class="p">(</span><span class="n">timeout</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+        <span class="k">while</span> <span class="bp">self</span><span class="o">.</span><span class="n">_datapoint_seq</span> <span class="o">==</span> <span class="n">since</span> <span class="ow">and</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span> <span class="o">&lt;</span> <span class="n">deadline</span><span class="p">:</span>
+            <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.05</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_datapoint_seq</span></div>
 
 
 <div class="viewcode-block" id="LocalServerState.get_named_property">
@@ -835,7 +890,9 @@
 
 <div class="viewcode-block" id="LocalServerState.log_telemetry">
 <a class="viewcode-back" href="../../../api/cremalink.local_server_app.state.html#cremalink.local_server_app.state.LocalServerState.log_telemetry">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">log_telemetry</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">details</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">log_telemetry</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">details</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">INFO</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""Forward redacted telemetry without retaining it in diagnostics."""</span>
         <span class="n">log_event</span><span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="p">,</span>
@@ -843,6 +900,7 @@
             <span class="n">details</span><span class="p">,</span>
             <span class="n">diagnostic_sensitive_values</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dsn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">device_ip</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">lan_key</span><span class="p">),</span>
             <span class="n">operational_sensitive_values</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lan_key</span><span class="p">,),</span>
+            <span class="n">level</span><span class="o">=</span><span class="n">level</span><span class="p">,</span>
             <span class="n">telemetry</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="p">)</span></div>
 </div>

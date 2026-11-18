@@ -80,6 +80,8 @@
 <span class="sd">device registration process.</span>
 <span class="sd">"""</span>
 
+<span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">ssl</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
 
@@ -111,6 +113,23 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">settings</span> <span class="o">=</span> <span class="n">settings</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">logger</span> <span class="o">=</span> <span class="n">logger</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_client</span><span class="p">:</span> <span class="n">aiohttp</span><span class="o">.</span><span class="n">ClientSession</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="c1">#: Serializes registration attempts — the nudger, session job and</span>
+        <span class="c1">#: API endpoints can all decide to register at once (observed</span>
+        <span class="c1">#: 2026-11-12: 3 POSTs in &lt;1 s after a session reset, the same</span>
+        <span class="c1">#: mini-storm shape that once wedged the datapoint engine). The</span>
+        <span class="c1">#: method is resolved *inside* the lock so a loser of the race</span>
+        <span class="c1">#: sees the session the winner just opened.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_register_lock</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
+        <span class="c1">#: Last session-opening POST — the storm guard; PUT keep-alives</span>
+        <span class="c1">#: must not count or a dead session could never re-POST while</span>
+        <span class="c1">#: keep-alives flow.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_post_attempt_at</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="c1">#: Consecutive local_reg failures — the app's MAX_CONNECTION_ATTEMPTS</span>
+        <span class="c1">#: trip point (AylaLanModule$9: &gt;2 failures marks the session</span>
+        <span class="c1">#: unrecoverable client-side). Ours triggers the cloud wake probe.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_reg_failures</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_cloud_wake_at</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cloud_client</span> <span class="o">=</span> <span class="kc">None</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_build_ssl_context</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ssl</span><span class="o">.</span><span class="n">SSLContext</span> <span class="o">|</span> <span class="nb">bool</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""</span>
@@ -171,46 +190,140 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="n">state</span><span class="o">.</span><span class="n">device_ip</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Device IP not configured"</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="n">method</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">method</span> <span class="o">=</span> <span class="s2">"PUT"</span> <span class="k">if</span> <span class="n">state</span><span class="o">.</span><span class="n">session_live</span><span class="p">()</span> <span class="k">else</span> <span class="s2">"POST"</span>
-        <span class="n">api_url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">state</span><span class="o">.</span><span class="n">device_scheme</span><span class="si">}</span><span class="s2">://</span><span class="si">{</span><span class="n">state</span><span class="o">.</span><span class="n">device_ip</span><span class="si">}</span><span class="s2">/local_reg.json"</span>
-        <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">"POST"</span> <span class="ow">and</span> <span class="n">state</span><span class="o">.</span><span class="n">dsn</span><span class="p">:</span>
-            <span class="c1"># The app appends the DSN when opening a session.</span>
-            <span class="n">api_url</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">"?dsn=</span><span class="si">{</span><span class="n">state</span><span class="o">.</span><span class="n">dsn</span><span class="si">}</span><span class="s2">"</span>
-        <span class="c1"># The payload tells the device this server's IP, port, and notification endpoint.</span>
-        <span class="c1"># `notify` mirrors the app: 1 only while commands wait in the queue</span>
-        <span class="c1"># (`_pendingLanCommands.isEmpty() ? 0 : 1`), not a constant flag.</span>
-        <span class="n">payload</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="s2">"local_reg"</span><span class="p">:</span> <span class="p">{</span>
-                <span class="s2">"ip"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">advertised_ip</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">server_ip</span><span class="p">,</span>
-                <span class="s2">"notify"</span><span class="p">:</span> <span class="mi">1</span> <span class="k">if</span> <span class="n">state</span><span class="o">.</span><span class="n">command_queue</span> <span class="k">else</span> <span class="mi">0</span><span class="p">,</span>
-                <span class="s2">"port"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">server_port</span><span class="p">,</span>
-                <span class="s2">"uri"</span><span class="p">:</span> <span class="s2">"/local_lan"</span><span class="p">,</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_register_lock</span><span class="o">.</span><span class="n">locked</span><span class="p">():</span>
+            <span class="n">state</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"register_lock_wait"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"method"</span><span class="p">:</span> <span class="n">method</span><span class="p">},</span> <span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">)</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_register_lock</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">method</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="c1"># Resolved inside the lock — a raced caller whose turn came</span>
+                <span class="c1"># after a successful POST sees the live session and PUTs a</span>
+                <span class="c1"># keep-alive instead of forcing a second key exchange.</span>
+                <span class="n">method</span> <span class="o">=</span> <span class="s2">"PUT"</span> <span class="k">if</span> <span class="n">state</span><span class="o">.</span><span class="n">session_live</span><span class="p">()</span> <span class="k">else</span> <span class="s2">"POST"</span>
+            <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">"POST"</span><span class="p">:</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_post_attempt_at</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">in_flight</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_post_attempt_at</span>
+                    <span class="k">if</span> <span class="n">in_flight</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">session_register_timeout_seconds</span><span class="p">:</span>
+                        <span class="c1"># A session-opening POST is still in flight or</span>
+                        <span class="c1"># awaiting its key exchange — a second one would</span>
+                        <span class="c1"># restart rekey mid-exchange (the mini-storm shape</span>
+                        <span class="c1"># that once wedged the datapoint engine). Defer to</span>
+                        <span class="c1"># the in-flight attempt.</span>
+                        <span class="n">state</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+                            <span class="s2">"register_deferred"</span><span class="p">,</span>
+                            <span class="p">{</span><span class="s2">"in_flight_seconds"</span><span class="p">:</span> <span class="nb">round</span><span class="p">(</span><span class="n">in_flight</span><span class="p">,</span> <span class="mi">1</span><span class="p">)},</span>
+                            <span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">,</span>
+                        <span class="p">)</span>
+                        <span class="k">return</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_last_post_attempt_at</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span>
+            <span class="n">api_url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">state</span><span class="o">.</span><span class="n">device_scheme</span><span class="si">}</span><span class="s2">://</span><span class="si">{</span><span class="n">state</span><span class="o">.</span><span class="n">device_ip</span><span class="si">}</span><span class="s2">/local_reg.json"</span>
+            <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">"POST"</span> <span class="ow">and</span> <span class="n">state</span><span class="o">.</span><span class="n">dsn</span><span class="p">:</span>
+                <span class="c1"># The app appends the DSN when opening a session.</span>
+                <span class="n">api_url</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">"?dsn=</span><span class="si">{</span><span class="n">state</span><span class="o">.</span><span class="n">dsn</span><span class="si">}</span><span class="s2">"</span>
+            <span class="c1"># The payload tells the device this server's IP, port, and notification endpoint.</span>
+            <span class="c1"># `notify` mirrors the app: 1 only while commands wait in the queue</span>
+            <span class="c1"># (`_pendingLanCommands.isEmpty() ? 0 : 1`), not a constant flag.</span>
+            <span class="n">payload</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">"local_reg"</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s2">"ip"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">advertised_ip</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">server_ip</span><span class="p">,</span>
+                    <span class="s2">"notify"</span><span class="p">:</span> <span class="mi">1</span> <span class="k">if</span> <span class="n">state</span><span class="o">.</span><span class="n">command_queue</span> <span class="k">else</span> <span class="mi">0</span><span class="p">,</span>
+                    <span class="s2">"port"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">server_port</span><span class="p">,</span>
+                    <span class="s2">"uri"</span><span class="p">:</span> <span class="s2">"/local_lan"</span><span class="p">,</span>
+                <span class="p">}</span>
             <span class="p">}</span>
-        <span class="p">}</span>
-        <span class="n">client</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_client</span><span class="p">()</span>
-        <span class="n">state</span><span class="o">.</span><span class="n">last_register_attempt_at</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">resp</span> <span class="o">=</span> <span class="k">await</span> <span class="n">client</span><span class="o">.</span><span class="n">request</span><span class="p">(</span>
-                <span class="n">method</span><span class="p">,</span> <span class="n">api_url</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="n">payload</span><span class="p">,</span> <span class="n">ssl</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_build_ssl_context</span><span class="p">()</span>
-            <span class="p">)</span>
-            <span class="k">async</span> <span class="k">with</span> <span class="n">resp</span><span class="p">:</span>
-                <span class="n">resp</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
-        <span class="k">except</span> <span class="n">aiohttp</span><span class="o">.</span><span class="n">ClientError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-            <span class="k">await</span> <span class="n">state</span><span class="o">.</span><span class="n">set_registered</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
-            <span class="n">state</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"local_reg_failed"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"method"</span><span class="p">:</span> <span class="n">method</span><span class="p">,</span> <span class="s2">"error"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">)})</span>
-            <span class="k">raise</span> <span class="ne">ConnectionError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"local_reg failed: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">await</span> <span class="n">state</span><span class="o">.</span><span class="n">set_registered</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
-            <span class="n">state</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
-                <span class="s2">"local_reg_ok"</span><span class="p">,</span>
-                <span class="p">{</span>
-                    <span class="s2">"device_ip"</span><span class="p">:</span> <span class="n">state</span><span class="o">.</span><span class="n">device_ip</span><span class="p">,</span>
-                    <span class="s2">"scheme"</span><span class="p">:</span> <span class="n">state</span><span class="o">.</span><span class="n">device_scheme</span><span class="p">,</span>
-                    <span class="s2">"method"</span><span class="p">:</span> <span class="n">method</span><span class="p">,</span>
-                <span class="p">},</span>
-            <span class="p">)</span></div>
+            <span class="n">client</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_client</span><span class="p">()</span>
+            <span class="n">state</span><span class="o">.</span><span class="n">last_register_attempt_at</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">resp</span> <span class="o">=</span> <span class="k">await</span> <span class="n">client</span><span class="o">.</span><span class="n">request</span><span class="p">(</span>
+                    <span class="n">method</span><span class="p">,</span> <span class="n">api_url</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="n">payload</span><span class="p">,</span> <span class="n">ssl</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_build_ssl_context</span><span class="p">()</span>
+                <span class="p">)</span>
+                <span class="k">async</span> <span class="k">with</span> <span class="n">resp</span><span class="p">:</span>
+                    <span class="n">resp</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
+            <span class="k">except</span> <span class="p">(</span><span class="n">aiohttp</span><span class="o">.</span><span class="n">ClientError</span><span class="p">,</span> <span class="ne">TimeoutError</span><span class="p">)</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+                <span class="c1"># TimeoutError is NOT an aiohttp.ClientError — a machine that</span>
+                <span class="c1"># hangs the request mid-standby surfaced as an unhandled</span>
+                <span class="c1"># exception with an empty str() (observed 2026-11-12).</span>
+                <span class="k">await</span> <span class="n">state</span><span class="o">.</span><span class="n">set_registered</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+                <span class="n">state</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+                    <span class="s2">"local_reg_failed"</span><span class="p">,</span>
+                    <span class="p">{</span><span class="s2">"method"</span><span class="p">:</span> <span class="n">method</span><span class="p">,</span> <span class="s2">"error"</span><span class="p">:</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">exc</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">"</span><span class="p">},</span>
+                <span class="p">)</span>
+                <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_maybe_cloud_wake</span><span class="p">(</span><span class="n">state</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">ConnectionError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"local_reg failed: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_reg_failures</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="k">await</span> <span class="n">state</span><span class="o">.</span><span class="n">set_registered</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+                <span class="n">state</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+                    <span class="s2">"local_reg_ok"</span><span class="p">,</span>
+                    <span class="p">{</span>
+                        <span class="s2">"device_ip"</span><span class="p">:</span> <span class="n">state</span><span class="o">.</span><span class="n">device_ip</span><span class="p">,</span>
+                        <span class="s2">"scheme"</span><span class="p">:</span> <span class="n">state</span><span class="o">.</span><span class="n">device_scheme</span><span class="p">,</span>
+                        <span class="s2">"method"</span><span class="p">:</span> <span class="n">method</span><span class="p">,</span>
+                    <span class="p">},</span>
+                    <span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">,</span>
+                <span class="p">)</span></div>
 
+
+    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">_maybe_cloud_wake</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">LocalServerState</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Fire a cloud ``device_connected`` announce after repeated failures.</span>
+
+<span class="sd">        When ``local_reg`` keeps failing — a 404 means the machine's LAN</span>
+<span class="sd">        module is down (module-off state; observed 2026-11-12 persisting</span>
+<span class="sd">        ~3.5 min until a power cycle) — the only remaining channel is the</span>
+<span class="sd">        machine's cloud uplink, which the app uses for the same announce</span>
+<span class="sd">        (``AylaProperty.createDatapointCloud``; research.md R17). A</span>
+<span class="sd">        device-echoed datapoint afterwards proves the engine is alive.</span>
+
+<span class="sd">        Trigger mirrors ``AylaLanModule$9``: every local_reg error counts</span>
+<span class="sd">        toward the threshold regardless of caller (nudger/session job/API);</span>
+<span class="sd">        the announce itself is throttled to ``cloud_wake_interval_seconds``.</span>
+<span class="sd">        Harmless when no cloud token is configured — the write is skipped</span>
+<span class="sd">        and only LAN retries continue.</span>
+<span class="sd">        """</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_reg_failures</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_reg_failures</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">cloud_wake_threshold</span>
+            <span class="ow">or</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">cloud_token_path</span>
+            <span class="ow">or</span> <span class="ow">not</span> <span class="n">state</span><span class="o">.</span><span class="n">dsn</span>
+        <span class="p">):</span>
+            <span class="k">return</span>
+        <span class="n">now</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_last_cloud_wake_at</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="ow">and</span> <span class="n">now</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_last_cloud_wake_at</span>
+            <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">cloud_wake_interval_seconds</span>
+        <span class="p">):</span>
+            <span class="k">return</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_last_cloud_wake_at</span> <span class="o">=</span> <span class="n">now</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">to_thread</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_cloud_announce_sync</span><span class="p">,</span> <span class="n">state</span><span class="o">.</span><span class="n">dsn</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+            <span class="n">state</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+                <span class="s2">"cloud_announce_failed"</span><span class="p">,</span>
+                <span class="p">{</span><span class="s2">"error"</span><span class="p">:</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">exc</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">"</span><span class="p">},</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">state</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+                <span class="s2">"cloud_announce_sent"</span><span class="p">,</span>
+                <span class="p">{</span><span class="s2">"consecutive_failures"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reg_failures</span><span class="p">},</span>
+            <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_cloud_announce_sync</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dsn</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Synchronous cloud announce — runs via ``asyncio.to_thread``.</span>
+
+<span class="sd">        The ``Client`` constructor refreshes the token and lists devices</span>
+<span class="sd">        (two HTTPS calls); it is cached so only the first wake pays that.</span>
+<span class="sd">        Imported lazily: ``clients.cloud`` is not needed by LAN-only</span>
+<span class="sd">        deployments.</span>
+<span class="sd">        """</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">cremalink.clients.cloud</span><span class="w"> </span><span class="kn">import</span> <span class="n">Client</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cloud_client</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">token_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">settings</span><span class="o">.</span><span class="n">cloud_token_path</span>
+            <span class="k">if</span> <span class="n">token_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_cloud_client</span> <span class="o">=</span> <span class="n">Client</span><span class="p">(</span><span class="n">token_path</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cloud_client</span><span class="o">.</span><span class="n">create_datapoint</span><span class="p">(</span>
+            <span class="n">dsn</span><span class="p">,</span> <span class="s2">"device_connected"</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()))</span>
+        <span class="p">)</span>
 
 <div class="viewcode-block" id="DeviceAdapter.close">
 <a class="viewcode-back" href="../../../api/cremalink.local_server_app.device_adapter.html#cremalink.local_server_app.device_adapter.DeviceAdapter.close">[docs]</a>

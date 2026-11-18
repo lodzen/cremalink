@@ -130,6 +130,40 @@
         <span class="n">validation_alias</span><span class="o">=</span><span class="s2">"MONITOR_POLL_INTERVAL"</span><span class="p">,</span>
         <span class="n">description</span><span class="o">=</span><span class="s2">"Interval in seconds for the monitor job to fetch device status."</span><span class="p">,</span>
     <span class="p">)</span>
+    <span class="n">monitor_poll_interval_standby</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span>
+        <span class="mf">30.0</span><span class="p">,</span>
+        <span class="n">gt</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+        <span class="n">validation_alias</span><span class="o">=</span><span class="s2">"MONITOR_POLL_INTERVAL_STANDBY"</span><span class="p">,</span>
+        <span class="n">description</span><span class="o">=</span><span class="s2">"Monitor job interval while the machine is in standby "</span>
+        <span class="s2">"(set via ``machine_asleep``) — enough to catch the wake transition "</span>
+        <span class="s2">"without polling a sleeping machine every few seconds."</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">nudger_poll_interval_standby</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span>
+        <span class="mf">30.0</span><span class="p">,</span>
+        <span class="n">gt</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+        <span class="n">validation_alias</span><span class="o">=</span><span class="s2">"NUDGER_POLL_INTERVAL_STANDBY"</span><span class="p">,</span>
+        <span class="n">description</span><span class="o">=</span><span class="s2">"Nudger (PUT local_reg notify) interval while the machine "</span>
+        <span class="s2">"is in standby — queued reads wait out the sleep; a session-gated "</span>
+        <span class="s2">"write would still register promptly on the awake path."</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">nudger_renudge_seconds</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span>
+        <span class="mf">10.0</span><span class="p">,</span>
+        <span class="n">gt</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+        <span class="n">validation_alias</span><span class="o">=</span><span class="s2">"NUDGER_RENUDGE_SECONDS"</span><span class="p">,</span>
+        <span class="n">description</span><span class="o">=</span><span class="s2">"Re-notify cadence while the command queue stays pending "</span>
+        <span class="s2">"— the app's keepalive model (AylaLanModule, protocol.md §15): one "</span>
+        <span class="s2">"local_reg PUT per keepalive tick. The machine drains on its own "</span>
+        <span class="s2">"~1.3 s commands.json poll loop once notified."</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">commands_poll_active_seconds</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span>
+        <span class="mf">4.0</span><span class="p">,</span>
+        <span class="n">gt</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+        <span class="n">validation_alias</span><span class="o">=</span><span class="s2">"COMMANDS_POLL_ACTIVE_SECONDS"</span><span class="p">,</span>
+        <span class="n">description</span><span class="o">=</span><span class="s2">"A commands.json poll within this window means the "</span>
+        <span class="s2">"machine's drain loop is running — edge nudges stay off; a "</span>
+        <span class="s2">"longer silence means it went idle and a fresh enqueue earns "</span>
+        <span class="s2">"a prompt notify PUT."</span><span class="p">,</span>
+    <span class="p">)</span>
     <span class="n">session_keepalive_interval_seconds</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span>
         <span class="mf">20.0</span><span class="p">,</span>
         <span class="n">validation_alias</span><span class="o">=</span><span class="s2">"SESSION_KEEPALIVE_INTERVAL_SECONDS"</span><span class="p">,</span>
@@ -158,6 +192,29 @@
         <span class="n">validation_alias</span><span class="o">=</span><span class="s2">"SESSION_REGISTER_TIMEOUT_SECONDS"</span><span class="p">,</span>
         <span class="n">description</span><span class="o">=</span><span class="s2">"After a session-opening POST, wait this long for the "</span>
         <span class="s2">"machine's key exchange before the next retry."</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">cloud_token_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span>
+        <span class="kc">None</span><span class="p">,</span>
+        <span class="n">validation_alias</span><span class="o">=</span><span class="s2">"CLOUD_TOKEN_PATH"</span><span class="p">,</span>
+        <span class="n">description</span><span class="o">=</span><span class="s2">"Path to the Ayla token JSON used for cloud-side recovery "</span>
+        <span class="s2">"announces (device_connected datapoint writes). Optional — without it "</span>
+        <span class="s2">"the LAN session retries stay purely local, exactly like today."</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">cloud_wake_threshold</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span>
+        <span class="mi">3</span><span class="p">,</span>
+        <span class="n">ge</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">validation_alias</span><span class="o">=</span><span class="s2">"CLOUD_WAKE_THRESHOLD"</span><span class="p">,</span>
+        <span class="n">description</span><span class="o">=</span><span class="s2">"Consecutive local_reg failures before a cloud "</span>
+        <span class="s2">"device_connected announce is attempted — mirrors the app's "</span>
+        <span class="s2">"MAX_CONNECTION_ATTEMPTS=2 (&gt;2 failures) trip point (DECODED.md, "</span>
+        <span class="s2">"AylaLanModule$9)."</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">cloud_wake_interval_seconds</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span>
+        <span class="mf">60.0</span><span class="p">,</span>
+        <span class="n">gt</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+        <span class="n">validation_alias</span><span class="o">=</span><span class="s2">"CLOUD_WAKE_INTERVAL_SECONDS"</span><span class="p">,</span>
+        <span class="n">description</span><span class="o">=</span><span class="s2">"Minimum gap between cloud wake announces while the LAN "</span>
+        <span class="s2">"session stays dead — one HTTPS call per interval, not per retry."</span><span class="p">,</span>
     <span class="p">)</span>
 
     <span class="c1"># --- Buffer/Queue Size Settings ---</span>

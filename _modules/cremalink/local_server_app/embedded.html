@@ -111,7 +111,7 @@
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">aiohttp</span><span class="w"> </span><span class="kn">import</span> <span class="n">web</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">cremalink.local_server_app.api</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_app</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">cremalink.local_server_app.api</span><span class="w"> </span><span class="kn">import</span> <span class="n">LOCAL_STATE_KEY</span><span class="p">,</span> <span class="n">create_app</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">cremalink.local_server_app.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">ServerSettings</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">cremalink.local_server_app.logging</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">RingBufferHandler</span><span class="p">,</span>
@@ -186,6 +186,7 @@
         <span class="n">advertised_ip</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">monitor_poll_interval</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">5.0</span><span class="p">,</span>
         <span class="n">nudger_poll_interval</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span>
+        <span class="n">cloud_token_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">event_logger</span><span class="p">:</span> <span class="n">logging</span><span class="o">.</span><span class="n">Logger</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">preferred_port</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">DEFAULT_PORT</span><span class="p">,</span>
         <span class="n">port_fallback_range</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">DEFAULT_PORT_FALLBACK_RANGE</span><span class="p">,</span>
@@ -197,6 +198,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">device_map_path</span> <span class="o">=</span> <span class="n">device_map_path</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">monitor_poll_interval</span> <span class="o">=</span> <span class="n">monitor_poll_interval</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">nudger_poll_interval</span> <span class="o">=</span> <span class="n">nudger_poll_interval</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cloud_token_path</span> <span class="o">=</span> <span class="n">cloud_token_path</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">session_keepalive_seconds</span> <span class="o">=</span> <span class="n">DEFAULT_SESSION_KEEPALIVE_SECONDS</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_event_logger</span> <span class="o">=</span> <span class="n">create_logger</span><span class="p">(</span>
             <span class="sa">f</span><span class="s2">"cremalink.embedded.</span><span class="si">{</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()</span><span class="o">.</span><span class="n">hex</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
@@ -213,6 +215,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">preferred_port</span> <span class="o">=</span> <span class="n">preferred_port</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">port_fallback_range</span> <span class="o">=</span> <span class="n">port_fallback_range</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">bind_host</span> <span class="o">=</span> <span class="n">bind_host</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_app_state</span> <span class="o">=</span> <span class="kc">None</span>
 
         <span class="c1">#: Resolved once start() runs; a supplied value is used as-is.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">advertised_ip</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="n">advertised_ip</span>
@@ -255,8 +258,10 @@
                 <span class="n">monitor_poll_interval</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">monitor_poll_interval</span><span class="p">,</span>
                 <span class="n">nudger_poll_interval</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">nudger_poll_interval</span><span class="p">,</span>
                 <span class="n">session_keepalive_interval_seconds</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">session_keepalive_seconds</span><span class="p">,</span>
+                <span class="n">cloud_token_path</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">cloud_token_path</span><span class="p">,</span>
             <span class="p">)</span>
             <span class="n">app</span> <span class="o">=</span> <span class="n">create_app</span><span class="p">(</span><span class="n">settings</span><span class="o">=</span><span class="n">settings</span><span class="p">,</span> <span class="n">logger</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_event_logger</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_app_state</span> <span class="o">=</span> <span class="n">app</span><span class="p">[</span><span class="n">LOCAL_STATE_KEY</span><span class="p">]</span>
             <span class="c1"># aiohttp reports unexpected handler errors through ``logger``;</span>
             <span class="c1"># route them through the sanitizing event logger (forwarded to</span>
             <span class="c1"># the integration's logger) instead of the global</span>
@@ -292,6 +297,19 @@
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_event_handler</span><span class="o">.</span><span class="n">get_events</span><span class="p">()</span></div>
 
 
+<div class="viewcode-block" id="EmbeddedLocalServer.set_machine_asleep">
+<a class="viewcode-back" href="../../../api/cremalink.local_server_app.embedded.html#cremalink.EmbeddedLocalServer.set_machine_asleep">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_machine_asleep</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">asleep</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Tell the server jobs the machine's sleep state.</span>
+
+<span class="sd">        The consumer (HA coordinator) knows the monitor status; in</span>
+<span class="sd">        standby the monitor/nudger jobs drop to their standby cadence so</span>
+<span class="sd">        a sleeping machine is not polled every few seconds.</span>
+<span class="sd">        """</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_app_state</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_app_state</span><span class="o">.</span><span class="n">set_machine_asleep</span><span class="p">(</span><span class="n">asleep</span><span class="p">)</span></div>
+
+
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">event_logger</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">logging</span><span class="o">.</span><span class="n">Logger</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""Return this instance's isolated library event logger."""</span>
@@ -319,7 +337,9 @@
 
 <div class="viewcode-block" id="EmbeddedLocalServer.log_telemetry">
 <a class="viewcode-back" href="../../../api/cremalink.local_server_app.embedded.html#cremalink.EmbeddedLocalServer.log_telemetry">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">log_telemetry</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">details</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">log_telemetry</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">details</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">level</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">INFO</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">"""Forward telemetry through the HA logger without buffering it."""</span>
         <span class="n">log_event</span><span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_event_logger</span><span class="p">,</span>
@@ -327,6 +347,7 @@
             <span class="n">details</span><span class="p">,</span>
             <span class="n">diagnostic_sensitive_values</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dsn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">device_ip</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">lan_key</span><span class="p">),</span>
             <span class="n">operational_sensitive_values</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lan_key</span><span class="p">,),</span>
+            <span class="n">level</span><span class="o">=</span><span class="n">level</span><span class="p">,</span>
             <span class="n">telemetry</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="p">)</span></div>
 

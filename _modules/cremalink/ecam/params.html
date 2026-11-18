@@ -1,0 +1,275 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>cremalink.ecam.params &mdash; cremalink 0.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=7026087e"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html">
+            
+              <img src="../../../_static/cremalink.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../index.html">Home</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../api/cremalink.html">cremalink package</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">cremalink</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">cremalink.ecam.params</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for cremalink.ecam.params</h1><div class="highlight"><pre>
+<span></span><span class="sd">"""Recipe-parameter metadata shared by the brew-with-overrides paths.</span>
+
+<span class="sd">The machine models every tunable recipe parameter as a numeric value</span>
+<span class="sd">bounded by a per-recipe ``&lt;param&gt;&lt;min&gt;&lt;def&gt;&lt;max&gt;`` triple (the ``0xB0``</span>
+<span class="sd">descriptor; protocol.md §14.3). This module is the single source of truth</span>
+<span class="sd">for which of those parameters are user-adjustable controls and how raw</span>
+<span class="sd">wire units map to display units — the scaling mirrors the app's</span>
+<span class="sd">``RecipeData`` getters (``m()``/siblings; research.md R11): coffee/water</span>
+<span class="sd">raw = **ml directly** (the ``0xB0`` ``defValue`` is returned unscaled</span>
+<span class="sd">when the ingredients list exists — the ×0.5 ``halfMlToMl`` path is only</span>
+<span class="sd">the legacy no-ingredients fallback), milk raw = tenths of a second.</span>
+
+<span class="sd">Pure data/helpers: no I/O, no Home Assistant imports.</span>
+<span class="sd">"""</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">collections.abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mapping</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
+
+<span class="c1">#: Bean-system (BeanAdapt) beverage-id range — ``m6.a`` enum, matches</span>
+<span class="c1">#: ``catalog.BEAN_SYSTEM_IDS`` (kept here so builder/device/catalog can</span>
+<span class="c1">#: share one definition without circular imports).</span>
+<span class="n">BEAN_SYSTEM_ID_MIN</span> <span class="o">=</span> <span class="mh">0xC8</span>  <span class="c1"># 200</span>
+<span class="n">BEAN_SYSTEM_ID_MAX</span> <span class="o">=</span> <span class="mh">0xCD</span>  <span class="c1"># 205</span>
+
+
+<div class="viewcode-block" id="is_bean_beverage">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.params.html#cremalink.ecam.params.is_bean_beverage">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">is_bean_beverage</span><span class="p">(</span><span class="n">beverage_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""True for BeanAdapt beverages — they brew with ``action | 0x80``."""</span>
+    <span class="k">return</span> <span class="n">BEAN_SYSTEM_ID_MIN</span> <span class="o">&lt;=</span> <span class="n">beverage_id</span> <span class="o">&lt;=</span> <span class="n">BEAN_SYSTEM_ID_MAX</span></div>
+
+
+
+<div class="viewcode-block" id="ParamMeta">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.params.html#cremalink.ecam.params.ParamMeta">[docs]</a>
+<span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ParamMeta</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Display metadata for one user-adjustable recipe parameter id.</span>
+
+<span class="sd">    ``to_display`` converts a raw wire value to display units;</span>
+<span class="sd">    ``step_raw`` is the raw-step equivalent of one display step</span>
+<span class="sd">    (coffee/water: 1 raw = 1 ml; milk: 10 raw = 1 s).</span>
+<span class="sd">    """</span>
+
+    <span class="n">param_id</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">key</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">unit</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span>
+    <span class="n">to_display</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">step_raw</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">adjustable</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span></div>
+
+
+
+<span class="c1">#: User-adjustable recipe parameters — the controls the app's brew</span>
+<span class="c1">#: sheet actually offers (``MainBeveragesFragment.E1()`` → ``V0``/``U0``/</span>
+<span class="c1">#: ``Y0``/``c1``/``b1``; research.md R12). On a product-coded machine</span>
+<span class="c1">#: (``EcamMachine.N()`` — every Wi-Fi family incl. the Soul) those are</span>
+<span class="c1">#: coffee amount, aroma, milk amount and hot-water amount plus the</span>
+<span class="c1">#: tea-temperature picker, which exists only for recipes carrying the</span>
+<span class="c1">#: ``THE_TEMP(13)`` ingredient (Soul: tea only). BeanAdapt (id ``0xC8``)</span>
+<span class="c1">#: gets the coffee-amount control alone.</span>
+<span class="c1">#:</span>
+<span class="c1">#: Not controls on these machines, so no entity here:</span>
+<span class="c1">#: ``TEMP(0)`` — the ``b1`` temp picker looks for id 13 on ``N()``</span>
+<span class="c1">#: machines (and for id 0 only on machines without a product code);</span>
+<span class="c1">#: ``BLEND(4)`` and ``MILK_FROTH(11)`` — only in the ``!N()`` branch</span>
+<span class="c1">#: (and blend additionally needs ``nGrinders &gt; 1``; Soul: 0);</span>
+<span class="c1">#: ``INVERSION(12)`` — a stored recipe flag selecting</span>
+<span class="c1">#: ``PREPARE_BEVERAGE_INVERSION`` (``RecipeData.T()`` in</span>
+<span class="c1">#: ``n0()``/brew dispatch), set at recipe creation, never a slider;</span>
+<span class="c1">#: tag ``27`` is **INDEX_LENGTH** (management — rides the wire at its</span>
+<span class="c1">#: stored value via ``E0``; the earlier "temperature" guess came from</span>
+<span class="c1">#: ``catalog.TAG_NAMES``, superseded — R11).</span>
+<span class="n">PARAMS</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">ParamMeta</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="mi">1</span><span class="p">:</span> <span class="n">ParamMeta</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="s2">"coffee"</span><span class="p">,</span> <span class="s2">"ml"</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+    <span class="mi">2</span><span class="p">:</span> <span class="n">ParamMeta</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="s2">"taste"</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+    <span class="mi">9</span><span class="p">:</span> <span class="n">ParamMeta</span><span class="p">(</span><span class="mi">9</span><span class="p">,</span> <span class="s2">"milk"</span><span class="p">,</span> <span class="s2">"s"</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">,</span> <span class="mi">10</span><span class="p">),</span>
+    <span class="mi">13</span><span class="p">:</span> <span class="n">ParamMeta</span><span class="p">(</span><span class="mi">13</span><span class="p">,</span> <span class="s2">"the_temp"</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+    <span class="mi">15</span><span class="p">:</span> <span class="n">ParamMeta</span><span class="p">(</span><span class="mi">15</span><span class="p">,</span> <span class="s2">"water"</span><span class="p">,</span> <span class="s2">"ml"</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+<span class="p">}</span>
+
+<span class="c1">#: Recipe-management tags that ride the wire at stored values but are</span>
+<span class="c1">#: never user controls. ``24``/``25``/``30`` fail the ``E0`` predicate</span>
+<span class="c1">#: anyway, ``8`` is dropped by the app's ``O()`` builder itself, and</span>
+<span class="c1">#: ``27``/``28`` are the INDEX_LENGTH/ACCESSORIO descriptor fields.</span>
+<span class="n">MANAGEMENT_PARAMS</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">({</span><span class="mi">27</span><span class="p">,</span> <span class="mi">28</span><span class="p">})</span>
+
+<span class="c1">#: ``0xB0`` tag carrying the coffee amount (``m6.i.COFFEE``).</span>
+<span class="n">TAG_COFFEE</span> <span class="o">=</span> <span class="mi">1</span>
+
+<span class="c1">#: ``0xB0`` tag carrying the intensity/aroma level.</span>
+<span class="n">TAG_TASTE</span> <span class="o">=</span> <span class="mi">2</span>
+
+<span class="c1">#: ``0xB0`` tag carrying the milk amount (``m6.i.MILK``).</span>
+<span class="n">TAG_MILK</span> <span class="o">=</span> <span class="mi">9</span>
+
+<span class="c1">#: ``0xB0`` tag carrying the hot-water amount (``m6.i.HOT_WATER``).</span>
+<span class="n">TAG_WATER</span> <span class="o">=</span> <span class="mi">15</span>
+
+
+<div class="viewcode-block" id="to_display">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.params.html#cremalink.ecam.params.to_display">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">to_display</span><span class="p">(</span><span class="n">param_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">raw</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Raw wire value → display units (identity for unknown ids)."""</span>
+    <span class="n">meta</span> <span class="o">=</span> <span class="n">PARAMS</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">param_id</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">raw</span> <span class="o">*</span> <span class="n">meta</span><span class="o">.</span><span class="n">to_display</span> <span class="k">if</span> <span class="n">meta</span> <span class="k">else</span> <span class="nb">float</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="to_raw">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.params.html#cremalink.ecam.params.to_raw">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">to_raw</span><span class="p">(</span><span class="n">param_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">display</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Display units → raw wire value (identity for unknown ids)."""</span>
+    <span class="n">meta</span> <span class="o">=</span> <span class="n">PARAMS</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">param_id</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">meta</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">meta</span><span class="o">.</span><span class="n">to_display</span> <span class="o">==</span> <span class="mf">1.0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">display</span><span class="p">))</span>
+    <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="nb">round</span><span class="p">(</span><span class="n">display</span> <span class="o">/</span> <span class="n">meta</span><span class="o">.</span><span class="n">to_display</span><span class="p">))</span></div>
+
+
+
+<div class="viewcode-block" id="adjustable_params">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.params.html#cremalink.ecam.params.adjustable_params">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">adjustable_params</span><span class="p">(</span>
+    <span class="n">bounds</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]],</span>
+    <span class="n">values</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">beverage_id</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">ParamMeta</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">"""Adjustable ``ParamMeta`` subset for a recipe.</span>
+
+<span class="sd">    Mirrors the app's brew-sheet builder ``MainBeveragesFragment.E1()``</span>
+<span class="sd">    for a product-coded machine (``EcamMachine.N()`` — research.md R12):</span>
+<span class="sd">    a control exists when its ingredient is in the recipe (``pid in</span>
+<span class="sd">    bounds``) and — for the quantity controls — the stored amount is</span>
+<span class="sd">    positive (``k() &gt; 0``/``u() &gt; 0``/``C() &gt; 0``, hiding unconfigured</span>
+<span class="sd">    recipes like Mug To-Go and empty custom slots whose amount is 0).</span>
+<span class="sd">    Aroma additionally needs a positive coffee amount (``U0``). BeanAdapt</span>
+<span class="sd">    (id ``0xC8``) gets the coffee-amount control alone — the app's</span>
+<span class="sd">    ``id == 200`` special case — because its other fields are configured</span>
+<span class="sd">    in the BeanAdapt flow, not at brew time. ``values`` are the recipe's</span>
+<span class="sd">    current amounts (profile read); the descriptor default is used for a</span>
+<span class="sd">    missing entry. ``min &lt; max`` still gates every control — a slider</span>
+<span class="sd">    needs a real range.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">bounds</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">{}</span>
+    <span class="n">live</span> <span class="o">=</span> <span class="n">values</span> <span class="ow">or</span> <span class="p">{}</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_current</span><span class="p">(</span><span class="n">pid</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">live</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">pid</span><span class="p">,</span> <span class="n">bounds</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">pid</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))[</span><span class="mi">1</span><span class="p">])</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_usable</span><span class="p">(</span><span class="n">pid</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">pid</span> <span class="ow">in</span> <span class="n">bounds</span> <span class="ow">and</span> <span class="n">bounds</span><span class="p">[</span><span class="n">pid</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">bounds</span><span class="p">[</span><span class="n">pid</span><span class="p">][</span><span class="mi">2</span><span class="p">]</span>
+
+    <span class="n">enabled</span><span class="p">:</span> <span class="nb">set</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="p">{</span><span class="n">TAG_COFFEE</span><span class="p">}</span> <span class="k">if</span> <span class="n">_usable</span><span class="p">(</span><span class="n">TAG_COFFEE</span><span class="p">)</span> <span class="ow">and</span> <span class="n">_current</span><span class="p">(</span><span class="n">TAG_COFFEE</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">is_bean_beverage</span><span class="p">(</span><span class="n">beverage_id</span> <span class="ow">or</span> <span class="o">-</span><span class="mi">1</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">_usable</span><span class="p">(</span><span class="n">TAG_TASTE</span><span class="p">)</span> <span class="ow">and</span> <span class="n">_current</span><span class="p">(</span><span class="n">TAG_COFFEE</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">enabled</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">TAG_TASTE</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">_usable</span><span class="p">(</span><span class="n">TAG_MILK</span><span class="p">)</span> <span class="ow">and</span> <span class="n">_current</span><span class="p">(</span><span class="n">TAG_MILK</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">enabled</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">TAG_MILK</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">_usable</span><span class="p">(</span><span class="n">TAG_WATER</span><span class="p">)</span> <span class="ow">and</span> <span class="n">_current</span><span class="p">(</span><span class="n">TAG_WATER</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">enabled</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">TAG_WATER</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">_usable</span><span class="p">(</span><span class="mi">13</span><span class="p">):</span>  <span class="c1"># THE_TEMP — tea temperature picker (R12)</span>
+            <span class="n">enabled</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="mi">13</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">{</span><span class="n">pid</span><span class="p">:</span> <span class="n">PARAMS</span><span class="p">[</span><span class="n">pid</span><span class="p">]</span> <span class="k">for</span> <span class="n">pid</span> <span class="ow">in</span> <span class="n">enabled</span> <span class="k">if</span> <span class="n">pid</span> <span class="ow">in</span> <span class="n">PARAMS</span><span class="p">}</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Lodzen.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -80,6 +80,8 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">threading</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">requests</span>
@@ -113,6 +115,39 @@
         <span class="k">return</span> <span class="kc">True</span>
     <span class="k">return</span> <span class="ow">not</span> <span class="n">oem_model</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">NON_COFFEE_OEM_PREFIXES</span><span class="p">)</span></div>
 
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_property_family</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Coarse datapoint family for catalogue diagnostics (counts only).</span>
+
+<span class="sd">    Buckets follow the ECAM610 map (research/cloud-properties.md):</span>
+<span class="sd">    d0XX/d1XX recipes, d250+ bean adapt, d261+ menu order, d280+ machine</span>
+<span class="sd">    settings, d5XX factory/statistics, d7XX beverage counters, d8XX</span>
+<span class="sd">    water/descale.</span>
+<span class="sd">    """</span>
+    <span class="k">if</span> <span class="n">name</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">"_rec_priority"</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">"menu_order"</span>
+    <span class="k">if</span> <span class="s2">"beansystem"</span> <span class="ow">in</span> <span class="n">name</span> <span class="ow">or</span> <span class="s2">"_bs_"</span> <span class="ow">in</span> <span class="n">name</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">"bean_adapt"</span>
+    <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="sa">r</span><span class="s2">"_\d+_rec_"</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+        <span class="k">return</span> <span class="s2">"profile_recipe"</span>  <span class="c1"># a6f0 stored values</span>
+    <span class="k">if</span> <span class="s2">"_rec_"</span> <span class="ow">in</span> <span class="n">name</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">"rec_descriptor"</span>  <span class="c1"># 0xB0 factory descriptors</span>
+    <span class="n">m</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sa">r</span><span class="s2">"d(\d)\d\d_"</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">m</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">"2"</span><span class="p">:</span> <span class="s2">"settings"</span><span class="p">,</span>
+            <span class="s2">"5"</span><span class="p">:</span> <span class="s2">"factory_statistics"</span><span class="p">,</span>
+            <span class="s2">"7"</span><span class="p">:</span> <span class="s2">"beverage_counters"</span><span class="p">,</span>
+            <span class="s2">"8"</span><span class="p">:</span> <span class="s2">"water_descale"</span><span class="p">,</span>
+        <span class="p">}</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="s2">"other"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="s2">"monitor"</span> <span class="ow">in</span> <span class="n">name</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">"monitor"</span>
+    <span class="k">if</span> <span class="s2">"name"</span> <span class="ow">in</span> <span class="n">name</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">"names"</span>
+    <span class="k">if</span> <span class="s2">"profile"</span> <span class="ow">in</span> <span class="n">name</span><span class="p">:</span>
+        <span class="k">return</span> <span class="s2">"profiles"</span>
+    <span class="k">return</span> <span class="s2">"other"</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_retry</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
@@ -183,6 +218,8 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">api_agent</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">api_conf</span><span class="p">[</span><span class="s2">"USER_AGENT"</span><span class="p">][</span><span class="s2">"API"</span><span class="p">]</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">token_path</span> <span class="o">=</span> <span class="n">token_path</span>
+        <span class="c1"># Token refreshes rotate the refresh token in the file; serialise them.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_token_lock</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
         <span class="c1"># Retrieve or refresh the access token upon initialization.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">access_token</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__get_access_token</span><span class="p">()</span>
         <span class="c1"># Fetch the list of devices associated with the account.</span>
@@ -231,6 +268,7 @@
                     <span class="bp">self</span><span class="o">.</span><span class="n">access_token</span><span class="p">,</span>
                     <span class="n">device_map_path</span><span class="p">,</span>
                     <span class="n">event_logger</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="p">,</span>
+                    <span class="n">token_refresher</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">refresh_access_token</span><span class="p">,</span>
                 <span class="p">)</span>
         <span class="k">return</span> <span class="kc">None</span></div>
 
@@ -305,6 +343,101 @@
         <span class="k">return</span> <span class="n">resp</span><span class="o">.</span><span class="n">json</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"property"</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"value"</span><span class="p">)</span> <span class="ow">or</span> <span class="kc">None</span></div>
 
 
+<div class="viewcode-block" id="Client.fetch_properties">
+<a class="viewcode-back" href="../../../api/cremalink.clients.cloud.html#cremalink.Client.fetch_properties">[docs]</a>
+    <span class="nd">@_retry</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">fetch_properties</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dsn</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">"""Every datapoint of a device in ONE request — ``{name: value}``.</span>
+
+<span class="sd">        This is the Coffee Link app's property-store sync (``syncProperties``</span>
+<span class="sd">        fetch-all; research.md R11, ``captures/cloud_fetch.json``). Values</span>
+<span class="sd">        are the cloud's *last-published* copies (protocol.md §13 staleness</span>
+<span class="sd">        lesson) — fine for factory descriptors and menu order, not for a</span>
+<span class="sd">        brew's live recipe values.</span>
+<span class="sd">        """</span>
+        <span class="n">resp</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+            <span class="n">url</span><span class="o">=</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">ayla_api</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'API_URL'</span><span class="p">)</span><span class="si">}</span><span class="s2">/dsns/</span><span class="si">{</span><span class="n">dsn</span><span class="si">}</span><span class="s2">/properties.json"</span><span class="p">,</span>
+            <span class="n">headers</span><span class="o">=</span><span class="p">{</span>
+                <span class="s2">"User-Agent"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">api_agent</span><span class="p">,</span>
+                <span class="s2">"Authorization"</span><span class="p">:</span> <span class="sa">f</span><span class="s2">"auth_token </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">access_token</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+                <span class="s2">"Accept"</span><span class="p">:</span> <span class="s2">"application/json"</span><span class="p">,</span>
+            <span class="p">},</span>
+            <span class="n">timeout</span><span class="o">=</span><span class="n">REQUEST_TIMEOUT</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">resp</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
+        <span class="n">entries</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">entry</span><span class="p">[</span><span class="s2">"property"</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">resp</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">entry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"property"</span><span class="p">),</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">and</span> <span class="n">entry</span><span class="p">[</span><span class="s2">"property"</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"name"</span><span class="p">)</span>
+        <span class="p">]</span>
+        <span class="n">properties</span> <span class="o">=</span> <span class="p">{</span><span class="n">p</span><span class="p">[</span><span class="s2">"name"</span><span class="p">]:</span> <span class="n">p</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"value"</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">entries</span><span class="p">}</span>
+        <span class="n">timestamps</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span><span class="p">[</span><span class="s2">"data_updated_at"</span><span class="p">]</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">entries</span> <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"data_updated_at"</span><span class="p">)]</span>
+        <span class="n">families</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">properties</span><span class="p">:</span>
+            <span class="n">families</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">_property_family</span><span class="p">(</span><span class="n">name</span><span class="p">),</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="n">families</span><span class="p">[</span><span class="n">_property_family</span><span class="p">(</span><span class="n">name</span><span class="p">)]</span> <span class="o">+=</span> <span class="mi">1</span>
+        <span class="n">log_event</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="p">,</span>
+            <span class="s2">"cloud_properties_fetched"</span><span class="p">,</span>
+            <span class="p">{</span>
+                <span class="s2">"dsn"</span><span class="p">:</span> <span class="n">dsn</span><span class="p">,</span>
+                <span class="s2">"status_code"</span><span class="p">:</span> <span class="n">resp</span><span class="o">.</span><span class="n">status_code</span><span class="p">,</span>
+                <span class="s2">"total"</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">properties</span><span class="p">),</span>
+                <span class="s2">"with_value"</span><span class="p">:</span> <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">properties</span><span class="o">.</span><span class="n">values</span><span class="p">()</span> <span class="k">if</span> <span class="n">v</span><span class="p">),</span>
+                <span class="s2">"empty"</span><span class="p">:</span> <span class="nb">sum</span><span class="p">(</span><span class="mi">1</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">properties</span><span class="o">.</span><span class="n">values</span><span class="p">()</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">v</span><span class="p">),</span>
+                <span class="s2">"families"</span><span class="p">:</span> <span class="n">families</span><span class="p">,</span>
+                <span class="s2">"oldest_update"</span><span class="p">:</span> <span class="nb">min</span><span class="p">(</span><span class="n">timestamps</span><span class="p">)</span> <span class="k">if</span> <span class="n">timestamps</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="s2">"newest_update"</span><span class="p">:</span> <span class="nb">max</span><span class="p">(</span><span class="n">timestamps</span><span class="p">)</span> <span class="k">if</span> <span class="n">timestamps</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="p">},</span>
+            <span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">properties</span></div>
+
+
+<div class="viewcode-block" id="Client.create_datapoint">
+<a class="viewcode-back" href="../../../api/cremalink.clients.cloud.html#cremalink.Client.create_datapoint">[docs]</a>
+    <span class="nd">@_retry</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">create_datapoint</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dsn</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Write one datapoint via the cloud channel — the app's announce path.</span>
+
+<span class="sd">        Verified endpoint (``AylaProperty.createDatapointCloud`` /</span>
+<span class="sd">        ``createDatapointEndpoint``, Coffee Link 4.9.6; DECODED.md):</span>
+<span class="sd">        ``POST apiv1/dsns/{dsn}/properties/{name}/datapoints.json`` with</span>
+<span class="sd">        ``{"datapoint": {"value": ...}}`` and ``x-ayla-source: Mobile``.</span>
+<span class="sd">        This is the channel that carries ``device_connected`` to the</span>
+<span class="sd">        machine's cloud uplink — independent of the LAN ``local_reg``</span>
+<span class="sd">        module, so it is the recovery lever when the LAN session is dead</span>
+<span class="sd">        (research.md R17). Whether a wedged datapoint engine processes it</span>
+<span class="sd">        is unverified — callers should treat it as a probe, not a fix.</span>
+<span class="sd">        """</span>
+        <span class="n">resp</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">post</span><span class="p">(</span>
+            <span class="n">url</span><span class="o">=</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">ayla_api</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">'API_URL'</span><span class="p">)</span><span class="si">}</span><span class="s2">/dsns/</span><span class="si">{</span><span class="n">dsn</span><span class="si">}</span><span class="s2">/properties/</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">/datapoints.json"</span><span class="p">,</span>
+            <span class="n">headers</span><span class="o">=</span><span class="p">{</span>
+                <span class="s2">"User-Agent"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">api_agent</span><span class="p">,</span>
+                <span class="s2">"Authorization"</span><span class="p">:</span> <span class="sa">f</span><span class="s2">"auth_token </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">access_token</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+                <span class="s2">"Accept"</span><span class="p">:</span> <span class="s2">"application/json"</span><span class="p">,</span>
+                <span class="s2">"Content-Type"</span><span class="p">:</span> <span class="s2">"application/json"</span><span class="p">,</span>
+                <span class="s2">"x-ayla-source"</span><span class="p">:</span> <span class="s2">"Mobile"</span><span class="p">,</span>
+            <span class="p">},</span>
+            <span class="n">json</span><span class="o">=</span><span class="p">{</span><span class="s2">"datapoint"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"value"</span><span class="p">:</span> <span class="n">value</span><span class="p">}},</span>
+            <span class="n">timeout</span><span class="o">=</span><span class="n">REQUEST_TIMEOUT</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">resp</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
+        <span class="n">body</span> <span class="o">=</span> <span class="n">resp</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+        <span class="n">log_event</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="p">,</span>
+            <span class="s2">"cloud_datapoint_written"</span><span class="p">,</span>
+            <span class="p">{</span>
+                <span class="s2">"dsn"</span><span class="p">:</span> <span class="n">dsn</span><span class="p">,</span>
+                <span class="s2">"property"</span><span class="p">:</span> <span class="n">name</span><span class="p">,</span>
+                <span class="s2">"status_code"</span><span class="p">:</span> <span class="n">resp</span><span class="o">.</span><span class="n">status_code</span><span class="p">,</span>
+                <span class="s2">"echo"</span><span class="p">:</span> <span class="n">body</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"datapoint"</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"echo"</span><span class="p">),</span>
+            <span class="p">},</span>
+            <span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">DEBUG</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">body</span></div>
+
+
 <div class="viewcode-block" id="Client.get_lan_config">
 <a class="viewcode-back" href="../../../api/cremalink.clients.cloud.html#cremalink.Client.get_lan_config">[docs]</a>
     <span class="nd">@_retry</span>
@@ -373,6 +506,19 @@
         <span class="k">return</span> <span class="n">result</span></div>
 
 
+<div class="viewcode-block" id="Client.refresh_access_token">
+<a class="viewcode-back" href="../../../api/cremalink.clients.cloud.html#cremalink.Client.refresh_access_token">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">refresh_access_token</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Fetch a new access token with the stored refresh token.</span>
+
+<span class="sd">        The refresh token rotates and is written back to ``token_path``.</span>
+<span class="sd">        Handed to cloud transports, which call it on HTTP 401.</span>
+<span class="sd">        """</span>
+        <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_token_lock</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">access_token</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__get_access_token</span><span class="p">()</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">access_token</span></div>
+
+
     <span class="k">def</span><span class="w"> </span><span class="nf">__get_access_token</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">"""</span>
 <span class="sd">        Retrieves a valid access token, refreshing it if necessary using the refresh token.</span>
@@ -391,6 +537,7 @@
                 <span class="s2">"Content-Type"</span><span class="p">:</span> <span class="s2">"application/json"</span><span class="p">,</span>
             <span class="p">},</span>
             <span class="n">json</span><span class="o">=</span><span class="p">{</span><span class="s2">"user"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"refresh_token"</span><span class="p">:</span> <span class="n">refresh_token</span><span class="p">}},</span>
+            <span class="n">timeout</span><span class="o">=</span><span class="n">REQUEST_TIMEOUT</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">200</span><span class="p">:</span>
             <span class="c1"># If successful, extract new access and refresh tokens.</span>

@@ -80,11 +80,14 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="cremalink.html">cremalink package</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.Client"><code class="docutils literal notranslate"><span class="pre">Client</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.Client.create_datapoint"><code class="docutils literal notranslate"><span class="pre">Client.create_datapoint()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.Client.fetch_properties"><code class="docutils literal notranslate"><span class="pre">Client.fetch_properties()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.Client.get_device"><code class="docutils literal notranslate"><span class="pre">Client.get_device()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.Client.get_devices"><code class="docutils literal notranslate"><span class="pre">Client.get_devices()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.Client.get_lan_config"><code class="docutils literal notranslate"><span class="pre">Client.get_lan_config()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.Client.get_serial_number"><code class="docutils literal notranslate"><span class="pre">Client.get_serial_number()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.Client.list_account_devices"><code class="docutils literal notranslate"><span class="pre">Client.list_account_devices()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.Client.refresh_access_token"><code class="docutils literal notranslate"><span class="pre">Client.refresh_access_token()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.Device"><code class="docutils literal notranslate"><span class="pre">Device</span></code></a><ul>
@@ -105,7 +108,15 @@
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.Device.monitor_profile"><code class="docutils literal notranslate"><span class="pre">Device.monitor_profile</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.Device.extra"><code class="docutils literal notranslate"><span class="pre">Device.extra</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.Device.PARAM_CURRENT_PROFILE"><code class="docutils literal notranslate"><span class="pre">Device.PARAM_CURRENT_PROFILE</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.Device.app_id_confirm_own_seconds"><code class="docutils literal notranslate"><span class="pre">Device.app_id_confirm_own_seconds</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.Device.app_id_confirm_poll"><code class="docutils literal notranslate"><span class="pre">Device.app_id_confirm_poll</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.Device.app_id_confirm_seconds"><code class="docutils literal notranslate"><span class="pre">Device.app_id_confirm_seconds</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.Device.app_id_refresh_min_seconds"><code class="docutils literal notranslate"><span class="pre">Device.app_id_refresh_min_seconds</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.Device.app_id_refresh_seconds"><code class="docutils literal notranslate"><span class="pre">Device.app_id_refresh_seconds</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.Device.bean_systems"><code class="docutils literal notranslate"><span class="pre">Device.bean_systems()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.Device.beverage_catalog"><code class="docutils literal notranslate"><span class="pre">Device.beverage_catalog()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.Device.brew"><code class="docutils literal notranslate"><span class="pre">Device.brew()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.Device.brew_entry"><code class="docutils literal notranslate"><span class="pre">Device.brew_entry()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.Device.capabilities"><code class="docutils literal notranslate"><span class="pre">Device.capabilities</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.Device.catalog_datapoints"><code class="docutils literal notranslate"><span class="pre">Device.catalog_datapoints</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#id0"><code class="docutils literal notranslate"><span class="pre">Device.coffee_count</span></code></a></li>
@@ -137,6 +148,7 @@
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.Device.machine_profile"><code class="docutils literal notranslate"><span class="pre">Device.machine_profile</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#id9"><code class="docutils literal notranslate"><span class="pre">Device.model</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.Device.model_ref"><code class="docutils literal notranslate"><span class="pre">Device.model_ref</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.Device.monitor_bits"><code class="docutils literal notranslate"><span class="pre">Device.monitor_bits</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#id10"><code class="docutils literal notranslate"><span class="pre">Device.monitor_profile</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.Device.n_profiles"><code class="docutils literal notranslate"><span class="pre">Device.n_profiles</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#id11"><code class="docutils literal notranslate"><span class="pre">Device.nickname</span></code></a></li>
@@ -144,13 +156,18 @@
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#id12"><code class="docutils literal notranslate"><span class="pre">Device.property_map</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.Device.read_catalog"><code class="docutils literal notranslate"><span class="pre">Device.read_catalog()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.Device.recipe_beverage_order"><code class="docutils literal notranslate"><span class="pre">Device.recipe_beverage_order</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.Device.recipe_params"><code class="docutils literal notranslate"><span class="pre">Device.recipe_params()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.Device.recipe_priority_loaded"><code class="docutils literal notranslate"><span class="pre">Device.recipe_priority_loaded()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.Device.refresh_current_profile"><code class="docutils literal notranslate"><span class="pre">Device.refresh_current_profile()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.Device.refresh_monitor"><code class="docutils literal notranslate"><span class="pre">Device.refresh_monitor()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.Device.resolve_property"><code class="docutils literal notranslate"><span class="pre">Device.resolve_property()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.Device.response_poll"><code class="docutils literal notranslate"><span class="pre">Device.response_poll</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.Device.response_timeout"><code class="docutils literal notranslate"><span class="pre">Device.response_timeout</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#id13"><code class="docutils literal notranslate"><span class="pre">Device.scheme</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.Device.seed_catalog_from_properties"><code class="docutils literal notranslate"><span class="pre">Device.seed_catalog_from_properties()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.Device.select_bean_system"><code class="docutils literal notranslate"><span class="pre">Device.select_bean_system()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.Device.select_profile"><code class="docutils literal notranslate"><span class="pre">Device.select_profile()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.Device.selected_bean_slot"><code class="docutils literal notranslate"><span class="pre">Device.selected_bean_slot()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.Device.selected_profile"><code class="docutils literal notranslate"><span class="pre">Device.selected_profile</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.Device.send_command"><code class="docutils literal notranslate"><span class="pre">Device.send_command()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.Device.send_frame"><code class="docutils literal notranslate"><span class="pre">Device.send_frame()</span></code></a></li>
@@ -174,6 +191,7 @@
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.EmbeddedLocalServer.get_recent_events"><code class="docutils literal notranslate"><span class="pre">EmbeddedLocalServer.get_recent_events()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.EmbeddedLocalServer.log"><code class="docutils literal notranslate"><span class="pre">EmbeddedLocalServer.log()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.EmbeddedLocalServer.log_telemetry"><code class="docutils literal notranslate"><span class="pre">EmbeddedLocalServer.log_telemetry()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.EmbeddedLocalServer.set_machine_asleep"><code class="docutils literal notranslate"><span class="pre">EmbeddedLocalServer.set_machine_asleep()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.EmbeddedLocalServer.start"><code class="docutils literal notranslate"><span class="pre">EmbeddedLocalServer.start()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.EmbeddedLocalServer.stop"><code class="docutils literal notranslate"><span class="pre">EmbeddedLocalServer.stop()</span></code></a></li>
 </ul>
@@ -184,6 +202,10 @@
 </li>
 <li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.ServerSettings"><code class="docutils literal notranslate"><span class="pre">ServerSettings</span></code></a><ul>
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.ServerSettings.advertised_ip"><code class="docutils literal notranslate"><span class="pre">ServerSettings.advertised_ip</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.ServerSettings.cloud_token_path"><code class="docutils literal notranslate"><span class="pre">ServerSettings.cloud_token_path</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.ServerSettings.cloud_wake_interval_seconds"><code class="docutils literal notranslate"><span class="pre">ServerSettings.cloud_wake_interval_seconds</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.ServerSettings.cloud_wake_threshold"><code class="docutils literal notranslate"><span class="pre">ServerSettings.cloud_wake_threshold</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.ServerSettings.commands_poll_active_seconds"><code class="docutils literal notranslate"><span class="pre">ServerSettings.commands_poll_active_seconds</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.ServerSettings.device_register_ca_path"><code class="docutils literal notranslate"><span class="pre">ServerSettings.device_register_ca_path</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.ServerSettings.device_register_timeout"><code class="docutils literal notranslate"><span class="pre">ServerSettings.device_register_timeout</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.ServerSettings.device_register_verify"><code class="docutils literal notranslate"><span class="pre">ServerSettings.device_register_verify</span></code></a></li>
@@ -196,7 +218,10 @@
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.ServerSettings.log_ring_size"><code class="docutils literal notranslate"><span class="pre">ServerSettings.log_ring_size</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.ServerSettings.model_config"><code class="docutils literal notranslate"><span class="pre">ServerSettings.model_config</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.ServerSettings.monitor_poll_interval"><code class="docutils literal notranslate"><span class="pre">ServerSettings.monitor_poll_interval</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.ServerSettings.monitor_poll_interval_standby"><code class="docutils literal notranslate"><span class="pre">ServerSettings.monitor_poll_interval_standby</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.ServerSettings.nudger_poll_interval"><code class="docutils literal notranslate"><span class="pre">ServerSettings.nudger_poll_interval</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.ServerSettings.nudger_poll_interval_standby"><code class="docutils literal notranslate"><span class="pre">ServerSettings.nudger_poll_interval_standby</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.ServerSettings.nudger_renudge_seconds"><code class="docutils literal notranslate"><span class="pre">ServerSettings.nudger_renudge_seconds</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.ServerSettings.queue_max_size"><code class="docutils literal notranslate"><span class="pre">ServerSettings.queue_max_size</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.ServerSettings.server_ip"><code class="docutils literal notranslate"><span class="pre">ServerSettings.server_ip</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="cremalink.html#cremalink.ServerSettings.server_port"><code class="docutils literal notranslate"><span class="pre">ServerSettings.server_port</span></code></a></li>

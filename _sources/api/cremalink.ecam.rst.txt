@@ -17,6 +17,7 @@ Submodules
    cremalink.ecam.catalog
    cremalink.ecam.machine_profiles
    cremalink.ecam.monitor_bits
+   cremalink.ecam.params
    cremalink.ecam.profiles
    cremalink.ecam.session
    cremalink.ecam.settings

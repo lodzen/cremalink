@@ -118,7 +118,9 @@
         <span class="n">param_id</span><span class="o">=</span><span class="mh">0x003E</span><span class="p">,</span>
         <span class="n">options</span><span class="o">=</span><span class="p">{</span><span class="mi">0</span><span class="p">:</span> <span class="s2">"15 min"</span><span class="p">,</span> <span class="mi">1</span><span class="p">:</span> <span class="s2">"30 min"</span><span class="p">,</span> <span class="mi">2</span><span class="p">:</span> <span class="s2">"1 h"</span><span class="p">,</span> <span class="mi">3</span><span class="p">:</span> <span class="s2">"3 h"</span><span class="p">},</span>
         <span class="n">capability</span><span class="o">=</span><span class="s2">"auto_off_settings"</span><span class="p">,</span>
-        <span class="n">datapoint_hint</span><span class="o">=</span><span class="s2">"aoff"</span><span class="p">,</span>
+        <span class="c1"># Matches both ``d282_mchn_sett_aoff`` (Soul) and</span>
+        <span class="c1"># ``d282_mach_sett_auto_off`` (striker/ECAM452 cloud).</span>
+        <span class="n">datapoint_hint</span><span class="o">=</span><span class="s2">"off"</span><span class="p">,</span>
     <span class="p">),</span>
     <span class="s2">"water_hardness"</span><span class="p">:</span> <span class="n">WritableSetting</span><span class="p">(</span>
         <span class="n">key</span><span class="o">=</span><span class="s2">"water_hardness"</span><span class="p">,</span>

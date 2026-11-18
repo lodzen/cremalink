@@ -99,10 +99,11 @@
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">base64</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">collections.abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Iterable</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">collections.abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Iterable</span><span class="p">,</span> <span class="n">Mapping</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">enum</span><span class="w"> </span><span class="kn">import</span> <span class="n">Enum</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">cremalink.core.binary</span><span class="w"> </span><span class="kn">import</span> <span class="n">crc16_ccitt</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">cremalink.ecam.params</span><span class="w"> </span><span class="kn">import</span> <span class="n">is_bean_beverage</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">cremalink.ecam.machine_profiles</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">TRAILER_APP_ID</span><span class="p">,</span>
     <span class="n">MachineProfile</span><span class="p">,</span>
@@ -126,6 +127,7 @@
 <span class="n">REQ_PROFILE_SELECT</span> <span class="o">=</span> <span class="mh">0xA9</span>
 <span class="n">REQ_RECIPE_NAMES</span> <span class="o">=</span> <span class="mh">0xAA</span>
 <span class="n">REQ_FACTORY_DESCRIPTOR</span> <span class="o">=</span> <span class="mh">0xB0</span>
+<span class="n">REQ_BEAN_SELECT</span> <span class="o">=</span> <span class="mh">0xB9</span>
 <span class="n">REQ_BEAN_SYSTEM</span> <span class="o">=</span> <span class="mh">0xBA</span>
 <span class="n">REQ_STRIKER_HANDSHAKE</span> <span class="o">=</span> <span class="mh">0xE8</span>
 
@@ -147,6 +149,7 @@
     <span class="n">REQ_PROFILE_SELECT</span><span class="p">:</span> <span class="s2">"profile_select"</span><span class="p">,</span>
     <span class="n">REQ_RECIPE_NAMES</span><span class="p">:</span> <span class="s2">"recipe_names"</span><span class="p">,</span>
     <span class="n">REQ_FACTORY_DESCRIPTOR</span><span class="p">:</span> <span class="s2">"factory_descriptor"</span><span class="p">,</span>
+    <span class="n">REQ_BEAN_SELECT</span><span class="p">:</span> <span class="s2">"bean_select"</span><span class="p">,</span>
     <span class="n">REQ_BEAN_SYSTEM</span><span class="p">:</span> <span class="s2">"bean_system"</span><span class="p">,</span>
     <span class="n">REQ_STRIKER_HANDSHAKE</span><span class="p">:</span> <span class="s2">"striker_handshake"</span><span class="p">,</span>
 <span class="p">}</span>
@@ -280,6 +283,97 @@
     <span class="n">tail</span> <span class="o">=</span> <span class="p">(</span><span class="n">profile_slot</span> <span class="o">&lt;&lt;</span> <span class="mi">2</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="n">accessory</span> <span class="o">&amp;</span> <span class="mh">0x03</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">_frame</span><span class="p">(</span>
         <span class="n">REQ_BREW</span><span class="p">,</span> <span class="mh">0xF0</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">([</span><span class="n">beverage_id</span><span class="p">,</span> <span class="n">action_i</span><span class="p">])</span> <span class="o">+</span> <span class="n">recipe_b</span> <span class="o">+</span> <span class="nb">bytes</span><span class="p">([</span><span class="n">tail</span><span class="p">])</span>
+    <span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="merge_recipe_params">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.builder.html#cremalink.ecam.merge_recipe_params">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">merge_recipe_params</span><span class="p">(</span>
+    <span class="n">recipe</span><span class="p">:</span> <span class="nb">bytes</span> <span class="o">|</span> <span class="nb">bytearray</span> <span class="o">|</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+    <span class="n">overrides</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Splice override values into a brew-ready recipe TLV byte string.</span>
+
+<span class="sd">    Existing entries keep their order and width (u16 per ``WIDE_TAGS``</span>
+<span class="sd">    — mirrored from ``catalog`` to avoid an import cycle); override tags</span>
+<span class="sd">    absent from ``recipe`` are appended. Pure — filtering for the wire</span>
+<span class="sd">    (``brew_param_included``) is the caller's job, as with the app's</span>
+<span class="sd">    ``O()`` builder (research.md R1–R2).</span>
+<span class="sd">    """</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">cremalink.ecam.catalog</span><span class="w"> </span><span class="kn">import</span> <span class="n">WIDE_TAGS</span>  <span class="c1"># local: catalog → builder cycle</span>
+
+    <span class="n">src</span> <span class="o">=</span> <span class="nb">bytes</span><span class="p">(</span><span class="n">recipe</span><span class="p">)</span>
+    <span class="n">merged</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">overrides</span><span class="p">)</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="nb">bytearray</span><span class="p">()</span>
+    <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="k">while</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">src</span><span class="p">):</span>
+        <span class="n">tag</span> <span class="o">=</span> <span class="n">src</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+        <span class="n">width</span> <span class="o">=</span> <span class="mi">2</span> <span class="k">if</span> <span class="n">tag</span> <span class="ow">in</span> <span class="n">WIDE_TAGS</span> <span class="k">else</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">width</span> <span class="o">&gt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">src</span><span class="p">):</span>
+            <span class="k">break</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="n">merged</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">tag</span><span class="p">,</span> <span class="nb">int</span><span class="o">.</span><span class="n">from_bytes</span><span class="p">(</span><span class="n">src</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span> <span class="p">:</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">width</span><span class="p">],</span> <span class="s2">"big"</span><span class="p">))</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tag</span><span class="p">)</span>
+        <span class="n">out</span> <span class="o">+=</span> <span class="n">value</span><span class="o">.</span><span class="n">to_bytes</span><span class="p">(</span><span class="n">width</span><span class="p">,</span> <span class="s2">"big"</span><span class="p">)</span>
+        <span class="n">i</span> <span class="o">+=</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">width</span>
+    <span class="k">for</span> <span class="n">tag</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">merged</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">tag</span> <span class="o">&lt;=</span> <span class="mh">0xFF</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"param id out of range: </span><span class="si">{</span><span class="n">tag</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">value</span> <span class="o">&lt;=</span> <span class="mh">0xFFFF</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"param value out of range: </span><span class="si">{</span><span class="n">value</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="n">width</span> <span class="o">=</span> <span class="mi">2</span> <span class="k">if</span> <span class="n">tag</span> <span class="ow">in</span> <span class="n">WIDE_TAGS</span> <span class="k">else</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="n">value</span> <span class="o">&gt;</span> <span class="mh">0xFF</span> <span class="ow">and</span> <span class="n">width</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"param </span><span class="si">{</span><span class="n">tag</span><span class="si">}</span><span class="s2"> value </span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2"> needs u16 width"</span><span class="p">)</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tag</span><span class="p">)</span>
+        <span class="n">out</span> <span class="o">+=</span> <span class="n">value</span><span class="o">.</span><span class="n">to_bytes</span><span class="p">(</span><span class="n">width</span><span class="p">,</span> <span class="s2">"big"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">bytes</span><span class="p">(</span><span class="n">out</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="build_brew_params">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.builder.html#cremalink.ecam.build_brew_params">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">build_brew_params</span><span class="p">(</span>
+    <span class="n">beverage_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">action</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="n">BrewAction</span><span class="p">,</span>
+    <span class="n">params</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
+    <span class="n">profile</span><span class="p">:</span> <span class="n">MachineProfile</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">profile_slot</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="n">accessory</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Build a ``0x83`` brew frame straight from a ``{param_id: value}`` map.</span>
+
+<span class="sd">    Encodes each param as ``&lt;id&gt;&lt;value&gt;`` — 1 byte, or big-endian u16 for</span>
+<span class="sd">    ``WIDE_TAGS`` — after applying the app's ``E0`` filter</span>
+<span class="sd">    (``brew_param_included``; id 8 dropped). Bean-system beverages</span>
+<span class="sd">    (``beverage_id`` 0xC8–0xCD) send ``action | 0x80`` — the APK ``l0``</span>
+<span class="sd">    ``fromBeanSystem`` flag, which also retains param 2 for bev 200</span>
+<span class="sd">    (research.md R2/R10). Byte-identical to :func:`build_brew` given the</span>
+<span class="sd">    same effective TLV set.</span>
+<span class="sd">    """</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">cremalink.ecam.catalog</span><span class="w"> </span><span class="kn">import</span> <span class="n">WIDE_TAGS</span>
+
+    <span class="n">recipe</span> <span class="o">=</span> <span class="nb">bytearray</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">tag</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">params</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">brew_param_included</span><span class="p">(</span><span class="n">tag</span><span class="p">):</span>
+            <span class="k">continue</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">value</span> <span class="o">&lt;=</span> <span class="mh">0xFFFF</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"param </span><span class="si">{</span><span class="n">tag</span><span class="si">}</span><span class="s2"> value out of range: </span><span class="si">{</span><span class="n">value</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="n">width</span> <span class="o">=</span> <span class="mi">2</span> <span class="k">if</span> <span class="n">tag</span> <span class="ow">in</span> <span class="n">WIDE_TAGS</span> <span class="k">else</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="n">value</span> <span class="o">&gt;</span> <span class="mh">0xFF</span> <span class="ow">and</span> <span class="n">width</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"param </span><span class="si">{</span><span class="n">tag</span><span class="si">}</span><span class="s2"> value </span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2"> needs u16 width"</span><span class="p">)</span>
+        <span class="n">recipe</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tag</span><span class="p">)</span>
+        <span class="n">recipe</span> <span class="o">+=</span> <span class="n">value</span><span class="o">.</span><span class="n">to_bytes</span><span class="p">(</span><span class="n">width</span><span class="p">,</span> <span class="s2">"big"</span><span class="p">)</span>
+    <span class="n">action_i</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">action</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">is_bean_beverage</span><span class="p">(</span><span class="n">beverage_id</span><span class="p">):</span>
+        <span class="n">action_i</span> <span class="o">|=</span> <span class="mh">0x80</span>
+    <span class="k">return</span> <span class="n">build_brew</span><span class="p">(</span>
+        <span class="n">beverage_id</span><span class="p">,</span>
+        <span class="n">action_i</span><span class="p">,</span>
+        <span class="nb">bytes</span><span class="p">(</span><span class="n">recipe</span><span class="p">),</span>
+        <span class="n">profile</span><span class="p">,</span>
+        <span class="n">profile_slot</span><span class="o">=</span><span class="n">profile_slot</span><span class="p">,</span>
+        <span class="n">accessory</span><span class="o">=</span><span class="n">accessory</span><span class="p">,</span>
     <span class="p">)</span></div>
 
 
@@ -476,6 +570,24 @@
     <span class="k">if</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">index</span> <span class="o">&lt;=</span> <span class="mh">0xFF</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"bean-system index out of range: </span><span class="si">{</span><span class="n">index</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">build_read</span><span class="p">(</span><span class="n">REQ_BEAN_SYSTEM</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">([</span><span class="n">index</span><span class="p">]),</span> <span class="n">profile</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="build_bean_select">
+<a class="viewcode-back" href="../../../api/cremalink.ecam.builder.html#cremalink.ecam.build_bean_select">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">build_bean_select</span><span class="p">(</span><span class="n">slot</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">profile</span><span class="p">:</span> <span class="n">MachineProfile</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""``0D 06 B9 F0 &lt;slot&gt;`` — bean-system select (APK ``Q0``→``g0`` /</span>
+<span class="sd">    ``selectBeanSystem`` / ``getPacketForSelectBean``, DECODED.md).</span>
+
+<span class="sd">    This is a *gated write*: the session must be announced first</span>
+<span class="sd">    (protocol.md §14.5). The frame sits on §13's *untested* list —</span>
+<span class="sd">    structured after the verified ``0xA9`` path, ack semantics</span>
+<span class="sd">    ``ok=(b5==0)`` per the DECODED ``0xB9``→``h.m`` dispatch.</span>
+<span class="sd">    """</span>
+    <span class="n">_require_profile</span><span class="p">(</span><span class="n">profile</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="mi">1</span> <span class="o">&lt;=</span> <span class="n">slot</span> <span class="o">&lt;=</span> <span class="mh">0xFF</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"bean-system slot out of range: </span><span class="si">{</span><span class="n">slot</span><span class="si">!r}</span><span class="s2">"</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">_frame</span><span class="p">(</span><span class="n">REQ_BEAN_SELECT</span><span class="p">,</span> <span class="mh">0xF0</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">([</span><span class="n">slot</span><span class="p">]))</span></div>
 
 
 

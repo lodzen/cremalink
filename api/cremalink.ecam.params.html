@@ -1,0 +1,354 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>cremalink.ecam.params module &mdash; cremalink 0.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=7026087e"></script>
+      <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="cremalink.ecam.profiles module" href="cremalink.ecam.profiles.html" />
+    <link rel="prev" title="cremalink.ecam.monitor_bits module" href="cremalink.ecam.monitor_bits.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html">
+            
+              <img src="../_static/cremalink.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../index.html">Home</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="cremalink.html">cremalink package</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.Client"><code class="docutils literal notranslate"><span class="pre">Client</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.Device"><code class="docutils literal notranslate"><span class="pre">Device</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.EmbeddedLocalServer"><code class="docutils literal notranslate"><span class="pre">EmbeddedLocalServer</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.LocalServer"><code class="docutils literal notranslate"><span class="pre">LocalServer</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.ServerSettings"><code class="docutils literal notranslate"><span class="pre">ServerSettings</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.authenticate_cloud"><code class="docutils literal notranslate"><span class="pre">authenticate_cloud()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.create_app"><code class="docutils literal notranslate"><span class="pre">create_app()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.create_cloud_device"><code class="docutils literal notranslate"><span class="pre">create_cloud_device()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.create_local_device"><code class="docutils literal notranslate"><span class="pre">create_local_device()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.detect_model_id"><code class="docutils literal notranslate"><span class="pre">detect_model_id()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.device_map"><code class="docutils literal notranslate"><span class="pre">device_map()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#cremalink.log_event"><code class="docutils literal notranslate"><span class="pre">log_event()</span></code></a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="cremalink.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="cremalink.clients.html">cremalink.clients package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.core.html">cremalink.core package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.crypto.html">cremalink.crypto package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.devices.html">cremalink.devices package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.domain.html">cremalink.domain package</a></li>
+<li class="toctree-l3 current"><a class="reference internal" href="cremalink.ecam.html">cremalink.ecam package</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.Beverage"><code class="docutils literal notranslate"><span class="pre">Beverage</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.BrewAction"><code class="docutils literal notranslate"><span class="pre">BrewAction</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.MachineProfile"><code class="docutils literal notranslate"><span class="pre">MachineProfile</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.PowerCommand"><code class="docutils literal notranslate"><span class="pre">PowerCommand</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.ProfileSlot"><code class="docutils literal notranslate"><span class="pre">ProfileSlot</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.RecipeCatalogue"><code class="docutils literal notranslate"><span class="pre">RecipeCatalogue</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.SessionGate"><code class="docutils literal notranslate"><span class="pre">SessionGate</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.StatisticEntry"><code class="docutils literal notranslate"><span class="pre">StatisticEntry</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.StatisticsReport"><code class="docutils literal notranslate"><span class="pre">StatisticsReport</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.WritableSetting"><code class="docutils literal notranslate"><span class="pre">WritableSetting</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.answer_flag"><code class="docutils literal notranslate"><span class="pre">answer_flag()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.answer_id"><code class="docutils literal notranslate"><span class="pre">answer_id()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.blob_family"><code class="docutils literal notranslate"><span class="pre">blob_family()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.brew_param_included"><code class="docutils literal notranslate"><span class="pre">brew_param_included()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_bean_system"><code class="docutils literal notranslate"><span class="pre">build_bean_system()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_brew"><code class="docutils literal notranslate"><span class="pre">build_brew()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_catalog"><code class="docutils literal notranslate"><span class="pre">build_catalog()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_factory_descriptor"><code class="docutils literal notranslate"><span class="pre">build_factory_descriptor()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_monitor_request"><code class="docutils literal notranslate"><span class="pre">build_monitor_request()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_power"><code class="docutils literal notranslate"><span class="pre">build_power()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_priority_list"><code class="docutils literal notranslate"><span class="pre">build_priority_list()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_profile_names"><code class="docutils literal notranslate"><span class="pre">build_profile_names()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_profile_select"><code class="docutils literal notranslate"><span class="pre">build_profile_select()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_read"><code class="docutils literal notranslate"><span class="pre">build_read()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_read_block"><code class="docutils literal notranslate"><span class="pre">build_read_block()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_read_param"><code class="docutils literal notranslate"><span class="pre">build_read_param()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_read_params"><code class="docutils literal notranslate"><span class="pre">build_read_params()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_recipe_names"><code class="docutils literal notranslate"><span class="pre">build_recipe_names()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_recipe_values"><code class="docutils literal notranslate"><span class="pre">build_recipe_values()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_statistics_page"><code class="docutils literal notranslate"><span class="pre">build_statistics_page()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_striker_handshake"><code class="docutils literal notranslate"><span class="pre">build_striker_handshake()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.build_write_param"><code class="docutils literal notranslate"><span class="pre">build_write_param()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.catalog_beverage_ids"><code class="docutils literal notranslate"><span class="pre">catalog_beverage_ids()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.counter_breakdown"><code class="docutils literal notranslate"><span class="pre">counter_breakdown()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.decode_a2_page"><code class="docutils literal notranslate"><span class="pre">decode_a2_page()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.decode_blob"><code class="docutils literal notranslate"><span class="pre">decode_blob()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.encode_for_transport"><code class="docutils literal notranslate"><span class="pre">encode_for_transport()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.fingerprint"><code class="docutils literal notranslate"><span class="pre">fingerprint()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.interpret"><code class="docutils literal notranslate"><span class="pre">interpret()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.is_sync_timeout"><code class="docutils literal notranslate"><span class="pre">is_sync_timeout()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.parse_a9_ack"><code class="docutils literal notranslate"><span class="pre">parse_a9_ack()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.parse_counter_value"><code class="docutils literal notranslate"><span class="pre">parse_counter_value()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.parse_profile_names"><code class="docutils literal notranslate"><span class="pre">parse_profile_names()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.parse_settings"><code class="docutils literal notranslate"><span class="pre">parse_settings()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.parse_simple_ack"><code class="docutils literal notranslate"><span class="pre">parse_simple_ack()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.parse_tlv"><code class="docutils literal notranslate"><span class="pre">parse_tlv()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.parse_triples"><code class="docutils literal notranslate"><span class="pre">parse_triples()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.parse_water_volume_liters"><code class="docutils literal notranslate"><span class="pre">parse_water_volume_liters()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.parse_write_ack"><code class="docutils literal notranslate"><span class="pre">parse_write_ack()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.profile_from_map"><code class="docutils literal notranslate"><span class="pre">profile_from_map()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.resolve_cloud_breakdowns"><code class="docutils literal notranslate"><span class="pre">resolve_cloud_breakdowns()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.resolve_cloud_counters"><code class="docutils literal notranslate"><span class="pre">resolve_cloud_counters()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.trim_frame"><code class="docutils literal notranslate"><span class="pre">trim_frame()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="cremalink.ecam.html#cremalink.ecam.verify_frame"><code class="docutils literal notranslate"><span class="pre">verify_frame()</span></code></a></li>
+<li class="toctree-l4 current"><a class="reference internal" href="cremalink.ecam.html#submodules">Submodules</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.local_server_app.html">cremalink.local_server_app package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.parsing.html">cremalink.parsing package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.resources.html">cremalink.resources package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.transports.html">cremalink.transports package</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.html#submodules">Submodules</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">cremalink</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="cremalink.html">cremalink package</a></li>
+          <li class="breadcrumb-item"><a href="cremalink.ecam.html">cremalink.ecam package</a></li>
+      <li class="breadcrumb-item active">cremalink.ecam.params module</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api/cremalink.ecam.params.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-cremalink.ecam.params">
+<span id="cremalink-ecam-params-module"></span><h1>cremalink.ecam.params module<a class="headerlink" href="#module-cremalink.ecam.params" title="Link to this heading"></a></h1>
+<p>Recipe-parameter metadata shared by the brew-with-overrides paths.</p>
+<p>The machine models every tunable recipe parameter as a numeric value
+bounded by a per-recipe <code class="docutils literal notranslate"><span class="pre">&lt;param&gt;&lt;min&gt;&lt;def&gt;&lt;max&gt;</span></code> triple (the <code class="docutils literal notranslate"><span class="pre">0xB0</span></code>
+descriptor; protocol.md §14.3). This module is the single source of truth
+for which of those parameters are user-adjustable controls and how raw
+wire units map to display units — the scaling mirrors the app’s
+<code class="docutils literal notranslate"><span class="pre">RecipeData</span></code> getters (<code class="docutils literal notranslate"><span class="pre">m()</span></code>/siblings; research.md R11): coffee/water
+raw = <strong>ml directly</strong> (the <code class="docutils literal notranslate"><span class="pre">0xB0</span></code> <code class="docutils literal notranslate"><span class="pre">defValue</span></code> is returned unscaled
+when the ingredients list exists — the ×0.5 <code class="docutils literal notranslate"><span class="pre">halfMlToMl</span></code> path is only
+the legacy no-ingredients fallback), milk raw = tenths of a second.</p>
+<p>Pure data/helpers: no I/O, no Home Assistant imports.</p>
+<dl class="py data">
+<dt class="sig sig-object py" id="cremalink.ecam.params.BEAN_SYSTEM_ID_MIN">
+<span class="sig-prename descclassname"><span class="pre">cremalink.ecam.params.</span></span><span class="sig-name descname"><span class="pre">BEAN_SYSTEM_ID_MIN</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">200</span></span><a class="headerlink" href="#cremalink.ecam.params.BEAN_SYSTEM_ID_MIN" title="Link to this definition"></a></dt>
+<dd><p>Bean-system (BeanAdapt) beverage-id range — <code class="docutils literal notranslate"><span class="pre">m6.a</span></code> enum, matches
+<code class="docutils literal notranslate"><span class="pre">catalog.BEAN_SYSTEM_IDS</span></code> (kept here so builder/device/catalog can
+share one definition without circular imports).</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="cremalink.ecam.params.MANAGEMENT_PARAMS">
+<span class="sig-prename descclassname"><span class="pre">cremalink.ecam.params.</span></span><span class="sig-name descname"><span class="pre">MANAGEMENT_PARAMS</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">frozenset({27,</span> <span class="pre">28})</span></span><a class="headerlink" href="#cremalink.ecam.params.MANAGEMENT_PARAMS" title="Link to this definition"></a></dt>
+<dd><p>Recipe-management tags that ride the wire at stored values but are
+never user controls. <code class="docutils literal notranslate"><span class="pre">24</span></code>/<code class="docutils literal notranslate"><span class="pre">25</span></code>/<code class="docutils literal notranslate"><span class="pre">30</span></code> fail the <code class="docutils literal notranslate"><span class="pre">E0</span></code> predicate
+anyway, <code class="docutils literal notranslate"><span class="pre">8</span></code> is dropped by the app’s <code class="docutils literal notranslate"><span class="pre">O()</span></code> builder itself, and
+<code class="docutils literal notranslate"><span class="pre">27</span></code>/<code class="docutils literal notranslate"><span class="pre">28</span></code> are the INDEX_LENGTH/ACCESSORIO descriptor fields.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="cremalink.ecam.params.PARAMS">
+<span class="sig-prename descclassname"><span class="pre">cremalink.ecam.params.</span></span><span class="sig-name descname"><span class="pre">PARAMS</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#cremalink.ecam.params.ParamMeta" title="cremalink.ecam.params.ParamMeta"><span class="pre">ParamMeta</span></a><span class="p"><span class="pre">]</span></span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{1:</span> <span class="pre">ParamMeta(param_id=1,</span> <span class="pre">key='coffee',</span> <span class="pre">unit='ml',</span> <span class="pre">to_display=1.0,</span> <span class="pre">step_raw=1,</span> <span class="pre">adjustable=True),</span> <span class="pre">2:</span> <span class="pre">ParamMeta(param_id=2,</span> <span class="pre">key='taste',</span> <span class="pre">unit=None,</span> <span class="pre">to_display=1.0,</span> <span class="pre">step_raw=1,</span> <span class="pre">adjustable=True),</span> <span class="pre">9:</span> <span class="pre">ParamMeta(param_id=9,</span> <span class="pre">key='milk',</span> <span class="pre">unit='s',</span> <span class="pre">to_display=0.1,</span> <span class="pre">step_raw=10,</span> <span class="pre">adjustable=True),</span> <span class="pre">13:</span> <span class="pre">ParamMeta(param_id=13,</span> <span class="pre">key='the_temp',</span> <span class="pre">unit=None,</span> <span class="pre">to_display=1.0,</span> <span class="pre">step_raw=1,</span> <span class="pre">adjustable=True),</span> <span class="pre">15:</span> <span class="pre">ParamMeta(param_id=15,</span> <span class="pre">key='water',</span> <span class="pre">unit='ml',</span> <span class="pre">to_display=1.0,</span> <span class="pre">step_raw=1,</span> <span class="pre">adjustable=True)}</span></span><a class="headerlink" href="#cremalink.ecam.params.PARAMS" title="Link to this definition"></a></dt>
+<dd><p>User-adjustable recipe parameters — the controls the app’s brew
+sheet actually offers (<code class="docutils literal notranslate"><span class="pre">MainBeveragesFragment.E1()</span></code> → <code class="docutils literal notranslate"><span class="pre">V0</span></code>/<code class="docutils literal notranslate"><span class="pre">U0</span></code>/
+<code class="docutils literal notranslate"><span class="pre">Y0</span></code>/<code class="docutils literal notranslate"><span class="pre">c1</span></code>/<code class="docutils literal notranslate"><span class="pre">b1</span></code>; research.md R12). On a product-coded machine
+(<code class="docutils literal notranslate"><span class="pre">EcamMachine.N()</span></code> — every Wi-Fi family incl. the Soul) those are
+coffee amount, aroma, milk amount and hot-water amount plus the
+tea-temperature picker, which exists only for recipes carrying the
+<code class="docutils literal notranslate"><span class="pre">THE_TEMP(13)</span></code> ingredient (Soul: tea only). BeanAdapt (id <code class="docutils literal notranslate"><span class="pre">0xC8</span></code>)
+gets the coffee-amount control alone.</p>
+<p>Not controls on these machines, so no entity here:
+<code class="docutils literal notranslate"><span class="pre">TEMP(0)</span></code> — the <code class="docutils literal notranslate"><span class="pre">b1</span></code> temp picker looks for id 13 on <code class="docutils literal notranslate"><span class="pre">N()</span></code>
+machines (and for id 0 only on machines without a product code);
+<code class="docutils literal notranslate"><span class="pre">BLEND(4)</span></code> and <code class="docutils literal notranslate"><span class="pre">MILK_FROTH(11)</span></code> — only in the <code class="docutils literal notranslate"><span class="pre">!N()</span></code> branch
+(and blend additionally needs <code class="docutils literal notranslate"><span class="pre">nGrinders</span> <span class="pre">&gt;</span> <span class="pre">1</span></code>; Soul: 0);
+<code class="docutils literal notranslate"><span class="pre">INVERSION(12)</span></code> — a stored recipe flag selecting
+<code class="docutils literal notranslate"><span class="pre">PREPARE_BEVERAGE_INVERSION</span></code> (<code class="docutils literal notranslate"><span class="pre">RecipeData.T()</span></code> in
+<code class="docutils literal notranslate"><span class="pre">n0()</span></code>/brew dispatch), set at recipe creation, never a slider;
+tag <code class="docutils literal notranslate"><span class="pre">27</span></code> is <strong>INDEX_LENGTH</strong> (management — rides the wire at its
+stored value via <code class="docutils literal notranslate"><span class="pre">E0</span></code>; the earlier “temperature” guess came from
+<code class="docutils literal notranslate"><span class="pre">catalog.TAG_NAMES</span></code>, superseded — R11).</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="cremalink.ecam.params.ParamMeta">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">cremalink.ecam.params.</span></span><span class="sig-name descname"><span class="pre">ParamMeta</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">param_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">unit</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">to_display</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.15)"><span class="pre">float</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">step_raw</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">adjustable</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/cremalink/ecam/params.html#ParamMeta"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cremalink.ecam.params.ParamMeta" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/builtins/functions.html#object" title="(in Python v3.15)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Display metadata for one user-adjustable recipe parameter id.</p>
+<p><code class="docutils literal notranslate"><span class="pre">to_display</span></code> converts a raw wire value to display units;
+<code class="docutils literal notranslate"><span class="pre">step_raw</span></code> is the raw-step equivalent of one display step
+(coffee/water: 1 raw = 1 ml; milk: 10 raw = 1 s).</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cremalink.ecam.params.ParamMeta.adjustable">
+<span class="sig-name descname"><span class="pre">adjustable</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><span class="pre">bool</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></span><a class="headerlink" href="#cremalink.ecam.params.ParamMeta.adjustable" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cremalink.ecam.params.ParamMeta.key">
+<span class="sig-name descname"><span class="pre">key</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a></span><a class="headerlink" href="#cremalink.ecam.params.ParamMeta.key" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cremalink.ecam.params.ParamMeta.param_id">
+<span class="sig-name descname"><span class="pre">param_id</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span><a class="headerlink" href="#cremalink.ecam.params.ParamMeta.param_id" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cremalink.ecam.params.ParamMeta.step_raw">
+<span class="sig-name descname"><span class="pre">step_raw</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span><a class="headerlink" href="#cremalink.ecam.params.ParamMeta.step_raw" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cremalink.ecam.params.ParamMeta.to_display">
+<span class="sig-name descname"><span class="pre">to_display</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.15)"><span class="pre">float</span></a></span><a class="headerlink" href="#cremalink.ecam.params.ParamMeta.to_display" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="cremalink.ecam.params.ParamMeta.unit">
+<span class="sig-name descname"><span class="pre">unit</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#str" title="(in Python v3.15)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span><a class="headerlink" href="#cremalink.ecam.params.ParamMeta.unit" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="cremalink.ecam.params.TAG_COFFEE">
+<span class="sig-prename descclassname"><span class="pre">cremalink.ecam.params.</span></span><span class="sig-name descname"><span class="pre">TAG_COFFEE</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></span><a class="headerlink" href="#cremalink.ecam.params.TAG_COFFEE" title="Link to this definition"></a></dt>
+<dd><p><code class="docutils literal notranslate"><span class="pre">0xB0</span></code> tag carrying the coffee amount (<code class="docutils literal notranslate"><span class="pre">m6.i.COFFEE</span></code>).</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="cremalink.ecam.params.TAG_MILK">
+<span class="sig-prename descclassname"><span class="pre">cremalink.ecam.params.</span></span><span class="sig-name descname"><span class="pre">TAG_MILK</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">9</span></span><a class="headerlink" href="#cremalink.ecam.params.TAG_MILK" title="Link to this definition"></a></dt>
+<dd><p><code class="docutils literal notranslate"><span class="pre">0xB0</span></code> tag carrying the milk amount (<code class="docutils literal notranslate"><span class="pre">m6.i.MILK</span></code>).</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="cremalink.ecam.params.TAG_TASTE">
+<span class="sig-prename descclassname"><span class="pre">cremalink.ecam.params.</span></span><span class="sig-name descname"><span class="pre">TAG_TASTE</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">2</span></span><a class="headerlink" href="#cremalink.ecam.params.TAG_TASTE" title="Link to this definition"></a></dt>
+<dd><p><code class="docutils literal notranslate"><span class="pre">0xB0</span></code> tag carrying the intensity/aroma level.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="cremalink.ecam.params.TAG_WATER">
+<span class="sig-prename descclassname"><span class="pre">cremalink.ecam.params.</span></span><span class="sig-name descname"><span class="pre">TAG_WATER</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">15</span></span><a class="headerlink" href="#cremalink.ecam.params.TAG_WATER" title="Link to this definition"></a></dt>
+<dd><p><code class="docutils literal notranslate"><span class="pre">0xB0</span></code> tag carrying the hot-water amount (<code class="docutils literal notranslate"><span class="pre">m6.i.HOT_WATER</span></code>).</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cremalink.ecam.params.adjustable_params">
+<span class="sig-prename descclassname"><span class="pre">cremalink.ecam.params.</span></span><span class="sig-name descname"><span class="pre">adjustable_params</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">bounds</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/collections.abc.html#collections.abc.Mapping" title="(in Python v3.15)"><span class="pre">Mapping</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#tuple" title="(in Python v3.15)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">values</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/collections.abc.html#collections.abc.Mapping" title="(in Python v3.15)"><span class="pre">Mapping</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">beverage_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/builtins/constants.html#None" title="(in Python v3.15)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/stdtypes.html#dict" title="(in Python v3.15)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#cremalink.ecam.params.ParamMeta" title="cremalink.ecam.params.ParamMeta"><span class="pre">ParamMeta</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/cremalink/ecam/params.html#adjustable_params"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cremalink.ecam.params.adjustable_params" title="Link to this definition"></a></dt>
+<dd><p>Adjustable <code class="docutils literal notranslate"><span class="pre">ParamMeta</span></code> subset for a recipe.</p>
+<p>Mirrors the app’s brew-sheet builder <code class="docutils literal notranslate"><span class="pre">MainBeveragesFragment.E1()</span></code>
+for a product-coded machine (<code class="docutils literal notranslate"><span class="pre">EcamMachine.N()</span></code> — research.md R12):
+a control exists when its ingredient is in the recipe (<code class="docutils literal notranslate"><span class="pre">pid</span> <span class="pre">in</span>
+<span class="pre">bounds</span></code>) and — for the quantity controls — the stored amount is
+positive (<code class="docutils literal notranslate"><span class="pre">k()</span> <span class="pre">&gt;</span> <span class="pre">0</span></code>/<code class="docutils literal notranslate"><span class="pre">u()</span> <span class="pre">&gt;</span> <span class="pre">0</span></code>/<code class="docutils literal notranslate"><span class="pre">C()</span> <span class="pre">&gt;</span> <span class="pre">0</span></code>, hiding unconfigured
+recipes like Mug To-Go and empty custom slots whose amount is 0).
+Aroma additionally needs a positive coffee amount (<code class="docutils literal notranslate"><span class="pre">U0</span></code>). BeanAdapt
+(id <code class="docutils literal notranslate"><span class="pre">0xC8</span></code>) gets the coffee-amount control alone — the app’s
+<code class="docutils literal notranslate"><span class="pre">id</span> <span class="pre">==</span> <span class="pre">200</span></code> special case — because its other fields are configured
+in the BeanAdapt flow, not at brew time. <code class="docutils literal notranslate"><span class="pre">values</span></code> are the recipe’s
+current amounts (profile read); the descriptor default is used for a
+missing entry. <code class="docutils literal notranslate"><span class="pre">min</span> <span class="pre">&lt;</span> <span class="pre">max</span></code> still gates every control — a slider
+needs a real range.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cremalink.ecam.params.is_bean_beverage">
+<span class="sig-prename descclassname"><span class="pre">cremalink.ecam.params.</span></span><span class="sig-name descname"><span class="pre">is_bean_beverage</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">beverage_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#bool" title="(in Python v3.15)"><span class="pre">bool</span></a></span></span><a class="reference internal" href="../_modules/cremalink/ecam/params.html#is_bean_beverage"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cremalink.ecam.params.is_bean_beverage" title="Link to this definition"></a></dt>
+<dd><p>True for BeanAdapt beverages — they brew with <code class="docutils literal notranslate"><span class="pre">action</span> <span class="pre">|</span> <span class="pre">0x80</span></code>.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cremalink.ecam.params.to_display">
+<span class="sig-prename descclassname"><span class="pre">cremalink.ecam.params.</span></span><span class="sig-name descname"><span class="pre">to_display</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">param_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">raw</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.15)"><span class="pre">float</span></a></span></span><a class="reference internal" href="../_modules/cremalink/ecam/params.html#to_display"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cremalink.ecam.params.to_display" title="Link to this definition"></a></dt>
+<dd><p>Raw wire value → display units (identity for unknown ids).</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="cremalink.ecam.params.to_raw">
+<span class="sig-prename descclassname"><span class="pre">cremalink.ecam.params.</span></span><span class="sig-name descname"><span class="pre">to_raw</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">param_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">display</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#float" title="(in Python v3.15)"><span class="pre">float</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/builtins/functions.html#int" title="(in Python v3.15)"><span class="pre">int</span></a></span></span><a class="reference internal" href="../_modules/cremalink/ecam/params.html#to_raw"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#cremalink.ecam.params.to_raw" title="Link to this definition"></a></dt>
+<dd><p>Display units → raw wire value (identity for unknown ids).</p>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="cremalink.ecam.monitor_bits.html" class="btn btn-neutral float-left" title="cremalink.ecam.monitor_bits module" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="cremalink.ecam.profiles.html" class="btn btn-neutral float-right" title="cremalink.ecam.profiles module" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Lodzen.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

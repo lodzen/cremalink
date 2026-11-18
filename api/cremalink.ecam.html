@@ -907,8 +907,10 @@ trailer) are ignored. Returns <code class="docutils literal notranslate"><span c
 </li>
 <li class="toctree-l2"><a class="reference internal" href="cremalink.ecam.builder.html#cremalink.ecam.builder.REQUEST_NAMES"><code class="docutils literal notranslate"><span class="pre">REQUEST_NAMES</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="cremalink.ecam.builder.html#cremalink.ecam.builder.brew_param_included"><code class="docutils literal notranslate"><span class="pre">brew_param_included()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.ecam.builder.html#cremalink.ecam.builder.build_bean_select"><code class="docutils literal notranslate"><span class="pre">build_bean_select()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="cremalink.ecam.builder.html#cremalink.ecam.builder.build_bean_system"><code class="docutils literal notranslate"><span class="pre">build_bean_system()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="cremalink.ecam.builder.html#cremalink.ecam.builder.build_brew"><code class="docutils literal notranslate"><span class="pre">build_brew()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.ecam.builder.html#cremalink.ecam.builder.build_brew_params"><code class="docutils literal notranslate"><span class="pre">build_brew_params()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="cremalink.ecam.builder.html#cremalink.ecam.builder.build_factory_descriptor"><code class="docutils literal notranslate"><span class="pre">build_factory_descriptor()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="cremalink.ecam.builder.html#cremalink.ecam.builder.build_handshake_blob"><code class="docutils literal notranslate"><span class="pre">build_handshake_blob()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="cremalink.ecam.builder.html#cremalink.ecam.builder.build_monitor_request"><code class="docutils literal notranslate"><span class="pre">build_monitor_request()</span></code></a></li>
@@ -927,6 +929,7 @@ trailer) are ignored. Returns <code class="docutils literal notranslate"><span c
 <li class="toctree-l2"><a class="reference internal" href="cremalink.ecam.builder.html#cremalink.ecam.builder.build_write_param"><code class="docutils literal notranslate"><span class="pre">build_write_param()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="cremalink.ecam.builder.html#cremalink.ecam.builder.describe_request_frame"><code class="docutils literal notranslate"><span class="pre">describe_request_frame()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="cremalink.ecam.builder.html#cremalink.ecam.builder.encode_for_transport"><code class="docutils literal notranslate"><span class="pre">encode_for_transport()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.ecam.builder.html#cremalink.ecam.builder.merge_recipe_params"><code class="docutils literal notranslate"><span class="pre">merge_recipe_params()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="cremalink.ecam.builder.html#cremalink.ecam.builder.trim_frame"><code class="docutils literal notranslate"><span class="pre">trim_frame()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="cremalink.ecam.builder.html#cremalink.ecam.builder.verify_frame"><code class="docutils literal notranslate"><span class="pre">verify_frame()</span></code></a></li>
 </ul>
@@ -999,6 +1002,29 @@ trailer) are ignored. Returns <code class="docutils literal notranslate"><span c
 </li>
 <li class="toctree-l2"><a class="reference internal" href="cremalink.ecam.monitor_bits.html#cremalink.ecam.monitor_bits.SWITCH_BITS"><code class="docutils literal notranslate"><span class="pre">SWITCH_BITS</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="cremalink.ecam.monitor_bits.html#cremalink.ecam.monitor_bits.decode_bits"><code class="docutils literal notranslate"><span class="pre">decode_bits()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="cremalink.ecam.params.html">cremalink.ecam.params module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.ecam.params.html#cremalink.ecam.params.BEAN_SYSTEM_ID_MIN"><code class="docutils literal notranslate"><span class="pre">BEAN_SYSTEM_ID_MIN</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.ecam.params.html#cremalink.ecam.params.MANAGEMENT_PARAMS"><code class="docutils literal notranslate"><span class="pre">MANAGEMENT_PARAMS</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.ecam.params.html#cremalink.ecam.params.PARAMS"><code class="docutils literal notranslate"><span class="pre">PARAMS</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.ecam.params.html#cremalink.ecam.params.ParamMeta"><code class="docutils literal notranslate"><span class="pre">ParamMeta</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.ecam.params.html#cremalink.ecam.params.ParamMeta.adjustable"><code class="docutils literal notranslate"><span class="pre">ParamMeta.adjustable</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.ecam.params.html#cremalink.ecam.params.ParamMeta.key"><code class="docutils literal notranslate"><span class="pre">ParamMeta.key</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.ecam.params.html#cremalink.ecam.params.ParamMeta.param_id"><code class="docutils literal notranslate"><span class="pre">ParamMeta.param_id</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.ecam.params.html#cremalink.ecam.params.ParamMeta.step_raw"><code class="docutils literal notranslate"><span class="pre">ParamMeta.step_raw</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.ecam.params.html#cremalink.ecam.params.ParamMeta.to_display"><code class="docutils literal notranslate"><span class="pre">ParamMeta.to_display</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="cremalink.ecam.params.html#cremalink.ecam.params.ParamMeta.unit"><code class="docutils literal notranslate"><span class="pre">ParamMeta.unit</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.ecam.params.html#cremalink.ecam.params.TAG_COFFEE"><code class="docutils literal notranslate"><span class="pre">TAG_COFFEE</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.ecam.params.html#cremalink.ecam.params.TAG_MILK"><code class="docutils literal notranslate"><span class="pre">TAG_MILK</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.ecam.params.html#cremalink.ecam.params.TAG_TASTE"><code class="docutils literal notranslate"><span class="pre">TAG_TASTE</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.ecam.params.html#cremalink.ecam.params.TAG_WATER"><code class="docutils literal notranslate"><span class="pre">TAG_WATER</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.ecam.params.html#cremalink.ecam.params.adjustable_params"><code class="docutils literal notranslate"><span class="pre">adjustable_params()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.ecam.params.html#cremalink.ecam.params.is_bean_beverage"><code class="docutils literal notranslate"><span class="pre">is_bean_beverage()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.ecam.params.html#cremalink.ecam.params.to_display"><code class="docutils literal notranslate"><span class="pre">to_display()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="cremalink.ecam.params.html#cremalink.ecam.params.to_raw"><code class="docutils literal notranslate"><span class="pre">to_raw()</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="cremalink.ecam.profiles.html">cremalink.ecam.profiles module</a><ul>

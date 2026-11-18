@@ -133,9 +133,24 @@
 <span class="sd">    retries are throttled to the register-timeout cadence — ``POST`` is what</span>
 <span class="sd">    actually opens a session (key exchange), ``PUT`` alone cannot re-key a</span>
 <span class="sd">    live or half-dead one (lodzen/cremalink#4).</span>
+
+<span class="sd">    Cadence follows the app (protocol.md §15, ``AylaLanModule``): one</span>
+<span class="sd">    ``local_reg`` PUT per keepalive tick with ``notify`` reflecting queue</span>
+<span class="sd">    depth — **not** one PUT per nudger tick. The machine polls</span>
+<span class="sd">    ``commands.json`` on its own ~1.3 s loop once notified, so faster</span>
+<span class="sd">    PUTs cannot drain the queue any quicker (live-observed ~1 PUT/s</span>
+<span class="sd">    while pending vs. the app's ~1 PUT/10 s). A fresh PUT still goes out</span>
+<span class="sd">    immediately on the empty→non-empty edge so user writes keep ~1-tick</span>
+<span class="sd">    latency.</span>
 <span class="sd">    """</span>
-    <span class="n">interval</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">nudger_poll_interval</span>
+    <span class="n">prev_pending</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">prev_polling</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">prev_asleep</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="c1"># Start "now": the re-nudge window counts real pending time, not a</span>
+    <span class="c1"># zero epoch that would fire on the first tick regardless.</span>
+    <span class="n">last_nudged_at</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span>
     <span class="k">while</span> <span class="ow">not</span> <span class="n">stop_event</span><span class="o">.</span><span class="n">is_set</span><span class="p">():</span>
+        <span class="n">pending</span> <span class="o">=</span> <span class="n">prev_pending</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="c1"># Nudge (PUT, notify) when the live session has commands waiting.</span>
             <span class="c1"># A dead session is re-registered (POST, new key exchange) by the</span>
@@ -149,20 +164,75 @@
                     <span class="ow">or</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span> <span class="o">-</span> <span class="n">st</span><span class="o">.</span><span class="n">last_register_attempt_at</span>
                     <span class="o">&gt;=</span> <span class="n">settings</span><span class="o">.</span><span class="n">session_register_timeout_seconds</span>
                 <span class="p">)</span>
-                <span class="n">should_nudge</span> <span class="o">=</span> <span class="p">(</span><span class="n">live</span> <span class="ow">and</span> <span class="n">pending</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="ow">not</span> <span class="n">st</span><span class="o">.</span><span class="n">registered</span> <span class="ow">and</span> <span class="n">retry_due</span><span class="p">)</span>
+            <span class="n">now</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span>
+            <span class="c1"># An active commands.json poll loop drains the queue on its</span>
+            <span class="c1"># own ~1-2 s cadence — a notify PUT is only worth sending</span>
+            <span class="c1"># when the loop looks stopped: an edge (queue/stall/wake) or</span>
+            <span class="c1"># the app-cadence re-nudge while the loop stays dead. While</span>
+            <span class="c1"># the machine polls, pending work drains anyway.</span>
+            <span class="n">machine_polling</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">st</span><span class="o">.</span><span class="n">last_commands_poll_at</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+                <span class="ow">and</span> <span class="n">now</span> <span class="o">-</span> <span class="n">st</span><span class="o">.</span><span class="n">last_commands_poll_at</span>
+                <span class="o">&lt;</span> <span class="n">settings</span><span class="o">.</span><span class="n">commands_poll_active_seconds</span>
+            <span class="p">)</span>
+            <span class="c1"># asleep→awake is itself an edge: work queued through the</span>
+            <span class="c1"># sleep must prompt the poll loop as soon as it's back.</span>
+            <span class="n">woke</span> <span class="o">=</span> <span class="n">prev_asleep</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">st</span><span class="o">.</span><span class="n">machine_asleep</span>
+            <span class="n">edge</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">pending</span>
+                <span class="ow">and</span> <span class="ow">not</span> <span class="n">machine_polling</span>
+                <span class="ow">and</span> <span class="p">(</span><span class="ow">not</span> <span class="n">prev_pending</span> <span class="ow">or</span> <span class="n">prev_polling</span> <span class="ow">or</span> <span class="n">woke</span><span class="p">)</span>
+            <span class="p">)</span>
+            <span class="n">renudge_due</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="ow">not</span> <span class="n">machine_polling</span>
+                <span class="ow">and</span> <span class="n">now</span> <span class="o">-</span> <span class="n">last_nudged_at</span> <span class="o">&gt;=</span> <span class="n">settings</span><span class="o">.</span><span class="n">nudger_renudge_seconds</span>
+            <span class="p">)</span>
+            <span class="c1"># In standby the re-nudge stays off — a sleeping machine must</span>
+            <span class="c1"># not be pushed every 10 s for routine queued reads. A queue</span>
+            <span class="c1"># *edge* still nudges: newly enqueued work is user intent</span>
+            <span class="c1"># (a wake frame has no other way to reach the machine — the</span>
+            <span class="c1"># next keepalive PUT is up to ~20 s out, observed as a very</span>
+            <span class="c1"># slow power-on), and the ~30 s standby monitor GET needs the</span>
+            <span class="c1"># same prompt drain to see the transition.</span>
+            <span class="n">should_nudge</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">live</span> <span class="ow">and</span> <span class="n">pending</span> <span class="ow">and</span> <span class="p">(</span><span class="n">edge</span> <span class="ow">or</span> <span class="p">(</span><span class="n">renudge_due</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">st</span><span class="o">.</span><span class="n">machine_asleep</span><span class="p">))</span>
+            <span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="ow">not</span> <span class="n">st</span><span class="o">.</span><span class="n">registered</span> <span class="ow">and</span> <span class="n">retry_due</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">should_nudge</span><span class="p">:</span>
                 <span class="k">await</span> <span class="n">adapter</span><span class="o">.</span><span class="n">register_with_device</span><span class="p">(</span><span class="n">st</span><span class="p">)</span>
+                <span class="n">last_nudged_at</span> <span class="o">=</span> <span class="n">now</span>
+            <span class="n">prev_pending</span> <span class="o">=</span> <span class="n">pending</span>
+            <span class="n">prev_polling</span> <span class="o">=</span> <span class="n">machine_polling</span>
+            <span class="n">prev_asleep</span> <span class="o">=</span> <span class="n">st</span><span class="o">.</span><span class="n">machine_asleep</span>
         <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-            <span class="n">st</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"local_reg_nudge_failed"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"error"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">)})</span>
+            <span class="c1"># Include the exception type — TimeoutError's str() is empty.</span>
+            <span class="n">st</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+                <span class="s2">"local_reg_nudge_failed"</span><span class="p">,</span>
+                <span class="p">{</span><span class="s2">"error"</span><span class="p">:</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">exc</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">"</span><span class="p">},</span>
+            <span class="p">)</span>
             <span class="c1"># The session is unreachable — drop registration so the next</span>
             <span class="c1"># register goes out as a session-creating POST.</span>
             <span class="k">await</span> <span class="n">st</span><span class="o">.</span><span class="n">set_registered</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
 
+        <span class="n">interval</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">settings</span><span class="o">.</span><span class="n">nudger_poll_interval_standby</span>
+            <span class="k">if</span> <span class="n">st</span><span class="o">.</span><span class="n">machine_asleep</span>
+            <span class="k">else</span> <span class="n">settings</span><span class="o">.</span><span class="n">nudger_poll_interval</span>
+        <span class="p">)</span>
+        <span class="c1"># Sleep for the interval, an enqueue (work_enqueued — queued work</span>
+        <span class="c1"># must edge-nudge at once, a wake frame cannot wait out a 30 s</span>
+        <span class="c1"># standby tick), or shutdown, whichever comes first.</span>
+        <span class="n">enqueued_wait</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">ensure_future</span><span class="p">(</span><span class="n">st</span><span class="o">.</span><span class="n">work_enqueued</span><span class="o">.</span><span class="n">wait</span><span class="p">())</span>
+        <span class="n">stop_wait</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">ensure_future</span><span class="p">(</span><span class="n">stop_event</span><span class="o">.</span><span class="n">wait</span><span class="p">())</span>
         <span class="k">try</span><span class="p">:</span>
-            <span class="c1"># Wait for the specified interval or until the stop event is set.</span>
-            <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">wait_for</span><span class="p">(</span><span class="n">stop_event</span><span class="o">.</span><span class="n">wait</span><span class="p">(),</span> <span class="n">timeout</span><span class="o">=</span><span class="n">interval</span><span class="p">)</span>
-        <span class="k">except</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">TimeoutError</span><span class="p">:</span>
-            <span class="k">continue</span></div>
+            <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">wait</span><span class="p">(</span>
+                <span class="p">{</span><span class="n">enqueued_wait</span><span class="p">,</span> <span class="n">stop_wait</span><span class="p">},</span>
+                <span class="n">timeout</span><span class="o">=</span><span class="n">interval</span><span class="p">,</span>
+                <span class="n">return_when</span><span class="o">=</span><span class="n">asyncio</span><span class="o">.</span><span class="n">FIRST_COMPLETED</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">finally</span><span class="p">:</span>
+            <span class="n">enqueued_wait</span><span class="o">.</span><span class="n">cancel</span><span class="p">()</span>
+            <span class="n">stop_wait</span><span class="o">.</span><span class="n">cancel</span><span class="p">()</span>
+        <span class="n">st</span><span class="o">.</span><span class="n">work_enqueued</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span></div>
 
 
 
@@ -174,8 +244,15 @@
 <span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Periodically queues a request to fetch the device's monitoring status.</span>
 <span class="sd">    """</span>
-    <span class="n">interval</span> <span class="o">=</span> <span class="n">settings</span><span class="o">.</span><span class="n">monitor_poll_interval</span>
     <span class="k">while</span> <span class="ow">not</span> <span class="n">stop_event</span><span class="o">.</span><span class="n">is_set</span><span class="p">():</span>
+        <span class="c1"># Standby slows the monitor loop — the wake transition is still</span>
+        <span class="c1"># caught within the standby interval, while routine polls no</span>
+        <span class="c1"># longer queue against a sleeping machine every few seconds.</span>
+        <span class="n">interval</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">settings</span><span class="o">.</span><span class="n">monitor_poll_interval_standby</span>
+            <span class="k">if</span> <span class="n">st</span><span class="o">.</span><span class="n">machine_asleep</span>
+            <span class="k">else</span> <span class="n">settings</span><span class="o">.</span><span class="n">monitor_poll_interval</span>
+        <span class="p">)</span>
         <span class="n">delay</span> <span class="o">=</span> <span class="n">interval</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="c1"># Only queue a request if the server is configured and another request isn't already pending.</span>
@@ -229,7 +306,10 @@
                 <span class="k">try</span><span class="p">:</span>
                     <span class="k">await</span> <span class="n">adapter</span><span class="o">.</span><span class="n">register_with_device</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">"POST"</span><span class="p">)</span>
                 <span class="k">except</span> <span class="p">(</span><span class="ne">ConnectionError</span><span class="p">,</span> <span class="ne">TimeoutError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">)</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-                    <span class="n">state</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"session_register_failed"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"error"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">)})</span>
+                    <span class="n">state</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+                        <span class="s2">"session_register_failed"</span><span class="p">,</span>
+                        <span class="p">{</span><span class="s2">"error"</span><span class="p">:</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">exc</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">"</span><span class="p">},</span>
+                    <span class="p">)</span>
                 <span class="k">else</span><span class="p">:</span>
                     <span class="n">exchanged</span> <span class="o">=</span> <span class="k">await</span> <span class="n">state</span><span class="o">.</span><span class="n">wait_for_key_exchange</span><span class="p">(</span>
                         <span class="n">settings</span><span class="o">.</span><span class="n">session_register_timeout_seconds</span>
@@ -242,7 +322,10 @@
                 <span class="k">try</span><span class="p">:</span>
                     <span class="k">await</span> <span class="n">adapter</span><span class="o">.</span><span class="n">register_with_device</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">"PUT"</span><span class="p">)</span>
                 <span class="k">except</span> <span class="p">(</span><span class="ne">ConnectionError</span><span class="p">,</span> <span class="ne">TimeoutError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">)</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-                    <span class="n">state</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">"session_keepalive_failed"</span><span class="p">,</span> <span class="p">{</span><span class="s2">"error"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">)})</span>
+                    <span class="n">state</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+                        <span class="s2">"session_keepalive_failed"</span><span class="p">,</span>
+                        <span class="p">{</span><span class="s2">"error"</span><span class="p">:</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">exc</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">"</span><span class="p">},</span>
+                    <span class="p">)</span>
                     <span class="k">await</span> <span class="n">state</span><span class="o">.</span><span class="n">set_registered</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
                 <span class="k">else</span><span class="p">:</span>
                     <span class="c1"># A quiet machine is not a dead one (§14.9): standby</span>

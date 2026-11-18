@@ -252,6 +252,23 @@
         <span class="k">return</span> <span class="n">resp</span><span class="o">.</span><span class="n">json</span><span class="p">()</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"value"</span><span class="p">)</span></div>
 
 
+<div class="viewcode-block" id="LocalTransport.wait_datapoint">
+<a class="viewcode-back" href="../../../../api/cremalink.transports.local.transport.html#cremalink.transports.local.LocalTransport.wait_datapoint">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">wait_datapoint</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">since</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Blocks server-side until a datapoint lands after ``since``.</span>
+
+<span class="sd">        Generation-counter wait — the caller re-harvests when the</span>
+<span class="sd">        returned seq differs. Used instead of polling ``get_property``</span>
+<span class="sd">        into 404s while a republish is in flight (~5 s for recipes).</span>
+<span class="sd">        """</span>
+        <span class="n">resp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_server</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">"/wait_datapoint?since=</span><span class="si">{</span><span class="n">since</span><span class="si">}</span><span class="s2">&amp;timeout=</span><span class="si">{</span><span class="n">timeout</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+            <span class="n">timeout</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">timeout</span><span class="p">)</span> <span class="o">+</span> <span class="mi">5</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">resp</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
+        <span class="k">return</span> <span class="nb">int</span><span class="p">(</span><span class="n">resp</span><span class="o">.</span><span class="n">json</span><span class="p">()[</span><span class="s2">"seq"</span><span class="p">])</span></div>
+
+
 <div class="viewcode-block" id="LocalTransport.write_property">
 <a class="viewcode-back" href="../../../../api/cremalink.transports.local.transport.html#cremalink.transports.local.LocalTransport.write_property">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">write_property</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
