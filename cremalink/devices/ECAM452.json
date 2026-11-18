@@ -27,7 +27,11 @@
     "d261_recipe_priority_1",
     "d262_recipe_priority_2",
     "d263_recipe_priority_3",
-    "d264_recipe_priority_4"
+    "d264_recipe_priority_4",
+    "d265_favorite_priority_1",
+    "d266_favorite_priority_2",
+    "d267_favorite_priority_3",
+    "d268_favorite_priority_4"
   ],
   "command_map": {
     "americano": {

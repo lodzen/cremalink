@@ -56,6 +56,7 @@ BLOB_PREFIX = 0xD0
 FAMILY_DESCRIPTOR = bytes([0xB0, 0xF0])
 FAMILY_PROFILE_RECIPE = bytes([0xA6, 0xF0])
 FAMILY_PRIORITY = bytes([0xA8, 0xF0])
+FAMILY_FAVORITES = bytes([0xAC, 0xF0])
 FAMILY_PROFILE_NAMES = bytes([0xA4, 0xF0])
 FAMILY_CUSTOM_NAMES = bytes([0xAA, 0xF0])
 FAMILY_BEAN_NAMES = bytes([0xBA, 0xF0])
@@ -64,6 +65,7 @@ FAMILY_LABELS = {
     FAMILY_DESCRIPTOR: "factory_descriptor",
     FAMILY_PROFILE_RECIPE: "profile_recipe",
     FAMILY_PRIORITY: "priority_list",
+    FAMILY_FAVORITES: "favorites",
     FAMILY_PROFILE_NAMES: "profile_names",
     FAMILY_CUSTOM_NAMES: "custom_names",
     FAMILY_BEAN_NAMES: "bean_names",
@@ -102,6 +104,7 @@ _MIN_PAYLOAD = {
     FAMILY_DESCRIPTOR: 1,
     FAMILY_PROFILE_RECIPE: 2,
     FAMILY_PRIORITY: 1,
+    FAMILY_FAVORITES: 1,
     FAMILY_PROFILE_NAMES: 2,
     FAMILY_CUSTOM_NAMES: 2,
     FAMILY_BEAN_NAMES: 2,
@@ -139,6 +142,8 @@ class RecipeCatalogue:
     priority_lists: dict[int, list[int]]
     names: dict[str, dict[int, str]]
     stats: dict
+    #: per-profile favourites (``0xAC``), in the machine's favourite order
+    favorite_lists: dict[int, list[int]] = field(default_factory=dict)
 
 
 def _b64_bytes(value: Any) -> bytes | None:
@@ -335,6 +340,7 @@ def build_catalog(properties: dict) -> RecipeCatalogue:
     """Build the machine's beverage catalogue from property values."""
     beverages: dict[int, dict] = {}
     priority: dict[int, list[int]] = {}
+    favorites: dict[int, list[int]] = {}
     names: dict[str, dict[int, str]] = {"profiles": {}, "custom": {}, "beans": {}}
     stats = {
         "blobs": 0,
@@ -412,6 +418,9 @@ def build_catalog(properties: dict) -> RecipeCatalogue:
         elif family == FAMILY_PRIORITY:
             # payload = <profile> <bevid…>; NO header byte after profile.
             priority[payload[0]] = list(payload[1:])
+        elif family == FAMILY_FAVORITES:
+            # Same layout as the menu order; unused slots are zero padding.
+            favorites[payload[0]] = [bev for bev in payload[1:] if bev]
         elif family in (FAMILY_PROFILE_NAMES, FAMILY_CUSTOM_NAMES, FAMILY_BEAN_NAMES):
             bucket = {
                 FAMILY_PROFILE_NAMES: "profiles",
@@ -450,6 +459,7 @@ def build_catalog(properties: dict) -> RecipeCatalogue:
         priority_lists=priority,
         names=names,
         stats=stats,
+        favorite_lists=favorites,
     )
 
 

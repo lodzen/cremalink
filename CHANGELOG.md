@@ -15,6 +15,11 @@ Changes since 2.0.0.dev10:
 - **`Device.model_name`:** the device map's `model_name` key (e.g.
   "PrimaDonna Soul", "Eletta Explore") is now exposed on the device —
   the HA integration puts it on the device registry's `model` field.
+- **Favourite drinks per profile:** the `0xAC` blobs (`dNNN_favorite_priority_<p>`)
+  are parsed into `RecipeCatalogue.favorite_lists` and cached with the cloud
+  catalogue seed; `Device.favorite_beverages(profile)` returns the ids in the
+  machine's favourite order (`None` when unknown, `[]` when the profile has
+  none). ECAM452 lists the four datapoints. No extra machine request.
 
 Changes since 2.0.0.dev9:
 
