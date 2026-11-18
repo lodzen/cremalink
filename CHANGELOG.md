@@ -2,6 +2,51 @@
 
 ## Unreleased
 
+Changes since 2.0.0.dev6:
+
+- **Standby wake writes deliver in <1 s** (`local_server_app`,
+  protocol.md §15 — live-verified 2026-11-18: `HassTurnOn` → first
+  `command_served` in 0.78 s): standby quiet mode previously suppressed
+  every nudge, so a queued wake/brew frame waited for the next ~20 s
+  keepalive PUT before the machine even saw `notify:1`. Now an enqueue
+  edge still nudges during standby — newly queued work is user intent —
+  while periodic re-nudges stay silent. New `work_enqueued` event on
+  `LocalServerState` is signalled by every `queue_*` append and wakes
+  the nudger sleep instantly instead of after the 30 s standby tick.
+- **Striker (ECAM452/Eletta) app-id registration hardened** — the old
+  `_ensure_app_id` trusted the cloud `app_id` value blindly: when the
+  machine dropped a registration (~300 s TTL) and the reset never
+  reached the cloud, every `send_command` was silently ignored for
+  hours. Now only a self-confirmed registration is refreshed
+  (`_app_id_refreshed_at` window); otherwise the device re-registers
+  and confirms via `app_id` echo + datapoint republish — LAN confirms
+  by value change, cloud by `data_updated_at`. Registration is
+  serialized under `_app_id_lock`, polls every 3 s, and refreshes no
+  more than every 60 s (each command already renews the registration).
+- **Cloud transport fixes:** request timeouts on every cloud call (a
+  hung request previously blocked an executor thread indefinitely),
+  automatic Gigya access-token renewal on HTTP 401, thread-safe token
+  rotation, and `get_monitor` now reads the real `data_updated_at`
+  field — the old `updated_at` key does not exist in Ayla responses, so
+  monitor freshness was always assumed.
+- **Eletta datapoint map cleaned up** (`ECAM452.json`): five statistics
+  datapoints the model never publishes were dropped, two monitor bits
+  with model-specific meaning removed from the active set, and
+  `monitor_bits` policy now travels with the device map.
+- **Cloud/LAN capability split** (`Device`): cloud devices no longer
+  run into LAN-only paths — mailbox polling, `sett_profile` republish
+  reads and `data_response` waits are gated by real capability checks
+  (the previous `getattr(...)` probe never fired because the method
+  exists on every transport and merely raises). Passive profile polling
+  keeps standby quiet on cloud devices too, and the cloud write-confirm
+  timeout rose to 45 s for the observed ~21 s republish latency.
+- **ECAM452 cloud settings/profiles:** `read_catalog` and the profile
+  reads now resolve striker datapoints (`sett_profile`, `_profile_name`
+  alongside `_profiles_`) so an Eletta works cloud-only; the
+  `aoff`→`off` settings hint covers both naming schemes.
+- **ECAM452 espresso preset:** the espresso command brews the machine's
+  stored volume instead of a hardcoded amount.
+
 Changes since 2.0.0.dev5:
 
 - **Recipe-parameter brew support** (`004-recipe-brew-params`): brewing can
