@@ -4,6 +4,11 @@
 
 Changes since 2.0.0.dev6:
 
+- **Statistics report knows how fresh it is:** `StatisticsReport.data_updated_at`
+  is the newest cloud `data_updated_at` among the `d5xx`/`d7xx` datapoints
+  (`None` where the transport has no per-datapoint times), so front-ends can
+  show when the machine last reported its counters, not just when they
+  were fetched.
 - **Standby wake writes deliver in <1 s** (`local_server_app`,
   protocol.md §15 — live-verified 2026-11-18: `HassTurnOn` → first
   `command_served` in 0.78 s): standby quiet mode previously suppressed

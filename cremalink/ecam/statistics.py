@@ -19,8 +19,10 @@ unparseable becomes ``None`` (unknown — never invented).
 from __future__ import annotations
 
 import json
+import re
 import time
 from dataclasses import dataclass, field
+from collections.abc import Mapping
 from typing import Any, Iterable
 
 from cremalink.ecam.answers import decode_a2_page
@@ -102,10 +104,22 @@ class StatisticsReport:
     entries: dict[int, StatisticEntry] = field(default_factory=dict)
     complete: bool = False
     fetched_at: float = field(default_factory=time.time)
+    #: when the cloud last received a statistics datapoint from the machine
+    #: (epoch); ``None`` where the transport has no per-datapoint times
+    data_updated_at: float | None = None
     #: logical cloud counters when source == "cloud_counters"
     cloud_counters: dict[str, int | float | None] = field(default_factory=dict)
     #: per-counter JSON breakdowns (Eletta aggregated counters)
     breakdowns: dict[str, dict] = field(default_factory=dict)
+
+
+_STATISTICS_DATAPOINT = re.compile(r"^d[57]\d\d_")
+
+
+def newest_update(updated_at: Mapping[str, float]) -> float | None:
+    """Newest cloud update among the statistics datapoints (``d5xx``/``d7xx``)."""
+    stamps = [t for name, t in updated_at.items() if _STATISTICS_DATAPOINT.match(name)]
+    return max(stamps) if stamps else None
 
 
 def interpret(
