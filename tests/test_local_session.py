@@ -538,19 +538,22 @@ async def test_nudger_skips_edge_while_machine_polls_commands():
 
 
 @pytest.mark.asyncio
-async def test_nudger_stays_silent_while_machine_asleep():
-    """Standby gate: queued routine reads wait out the sleep.
+async def test_nudger_edges_but_never_renudges_while_machine_asleep():
+    """Standby gate: an enqueue edge nudges promptly, the re-nudge stays off.
 
     Live-observed (2026-10): ~120 PUT local_reg nudges in 4 min after the
-    standby transition — the 1 s nudger kept pushing a sleeping machine
-    for monitor/settings GETs it could not use. Machine-initiated
-    commands.json polls still drain the queue; only the nudges stop.
+    standby transition — the 1 s nudger kept pushing a sleeping machine.
+    But a fully silent standby made queued wake frames wait for the next
+    keepalive PUT (~20 s) — observed as a very slow power-on. Newly
+    enqueued work is user intent and earns one edge PUT even in standby;
+    the app-cadence re-nudge stays off while the queue drains.
     """
     state = await _live_state()
     settings = ServerSettings(
         server_settings_path="",
         nudger_poll_interval=0.03,
-        nudger_poll_interval_standby=0.06,
+        nudger_poll_interval_standby=5.0,  # prompt only via work_enqueued
+        nudger_renudge_seconds=0.05,  # would fire constantly if not gated
         session_register_timeout_seconds=0.3,
     )
     state.settings = settings
@@ -558,14 +561,26 @@ async def test_nudger_stays_silent_while_machine_asleep():
     stop = asyncio.Event()
     job = asyncio.create_task(nudger_job(state, adapter, settings, stop))
     try:
-        await state.queue_command("frame-1")
         state.set_machine_asleep(True)
-        await asyncio.sleep(0.12)
+        await asyncio.sleep(0.1)  # settle into the standby tick
         assert adapter._client.calls == []
-        state.set_machine_asleep(False)
-        await asyncio.sleep(0.12)
+        # An enqueue during standby sleep is delivered promptly — the
+        # work_enqueued event cuts the 5 s tick short, then one edge PUT.
+        await state.queue_command("wake-frame")
+        await asyncio.sleep(0.15)
         methods = [m for m, _ in adapter._client.calls]
-        assert "PUT" in methods
+        assert methods == ["PUT"]
+        # The re-nudge does NOT fire in standby even with pending work:
+        # renudge_due is gated on the awake state.
+        async with state.lock:
+            state.command_queue.clear()  # drained by the machine
+        await asyncio.sleep(0.1)
+        assert len(adapter._client.calls) == 1
+        # Wake transition still nudges for work queued during the sleep.
+        await state.queue_command("post-wake-frame")
+        state.set_machine_asleep(False)
+        await asyncio.sleep(0.15)
+        assert len(adapter._client.calls) >= 2
     finally:
         stop.set()
         await job

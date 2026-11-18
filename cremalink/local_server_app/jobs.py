@@ -100,14 +100,16 @@ async def nudger_job(
                 not machine_polling
                 and now - last_nudged_at >= settings.nudger_renudge_seconds
             )
-            should_nudge = (live and pending and (edge or renudge_due)) or (
-                not st.registered and retry_due
-            )
-            # In standby the routine monitor/settings GETs in the queue
-            # drain slowly anyway — nudging every second only pushes a
-            # sleeping machine for nothing (user-observed PUT storm).
-            if st.machine_asleep:
-                should_nudge = False
+            # In standby the re-nudge stays off — a sleeping machine must
+            # not be pushed every 10 s for routine queued reads. A queue
+            # *edge* still nudges: newly enqueued work is user intent
+            # (a wake frame has no other way to reach the machine — the
+            # next keepalive PUT is up to ~20 s out, observed as a very
+            # slow power-on), and the ~30 s standby monitor GET needs the
+            # same prompt drain to see the transition.
+            should_nudge = (
+                live and pending and (edge or (renudge_due and not st.machine_asleep))
+            ) or (not st.registered and retry_due)
             if should_nudge:
                 await adapter.register_with_device(st)
                 last_nudged_at = now
@@ -129,11 +131,21 @@ async def nudger_job(
             if st.machine_asleep
             else settings.nudger_poll_interval
         )
+        # Sleep for the interval, an enqueue (work_enqueued — queued work
+        # must edge-nudge at once, a wake frame cannot wait out a 30 s
+        # standby tick), or shutdown, whichever comes first.
+        enqueued_wait = asyncio.ensure_future(st.work_enqueued.wait())
+        stop_wait = asyncio.ensure_future(stop_event.wait())
         try:
-            # Wait for the specified interval or until the stop event is set.
-            await asyncio.wait_for(stop_event.wait(), timeout=interval)
-        except asyncio.TimeoutError:
-            continue
+            await asyncio.wait(
+                {enqueued_wait, stop_wait},
+                timeout=interval,
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+        finally:
+            enqueued_wait.cancel()
+            stop_wait.cancel()
+        st.work_enqueued.clear()
 
 
 async def monitor_job(

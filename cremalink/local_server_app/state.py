@@ -80,6 +80,10 @@ class LocalServerState:
         #: jobs drop to their standby cadence so a sleeping machine is not
         #: flooded with monitor/keepalive traffic it cannot use.
         self.machine_asleep: bool = False
+        #: Set by every queue_* append so the nudger's sleep loop wakes at
+        #: once — queued work (e.g. a wake frame during standby) is edge-
+        #: detected within a tick instead of waiting out a 30 s interval.
+        self.work_enqueued = asyncio.Event()
         # Names of property GETs still sitting in the queue — identical
         # GETs are idempotent (the republish answers every waiter), so a
         # second request for a name already queued is a no-op. Keeps
@@ -408,6 +412,7 @@ class LocalServerState:
             payload_str = json.dumps(payload, separators=(",", ":"))
             self.command_queue.append(payload_str)
             self.last_command = command
+            self.work_enqueued.set()
         self.log("queue_command", {"command": command}, level=logging.DEBUG)
 
     async def queue_property_set(self, name: str, value: Any) -> None:
@@ -437,6 +442,7 @@ class LocalServerState:
             if len(self.command_queue) >= self.settings.queue_max_size:
                 raise OverflowError("Command queue is full")
             self.command_queue.append(json.dumps(payload, separators=(",", ":")))
+            self.work_enqueued.set()
         self.log("queue_property_set", {"name": name})
 
     async def queue_property_get(self, name: str) -> None:
@@ -471,6 +477,7 @@ class LocalServerState:
                 )
             )
             self._property_get_pending.add(name)
+            self.work_enqueued.set()
         self.log("queue_property_get", {"name": name}, level=logging.DEBUG)
 
     async def queue_monitor(self) -> None:
@@ -500,6 +507,7 @@ class LocalServerState:
             self.command_queue.append(payload)
             self._monitor_command_payloads.add(payload)
             self._monitor_request_pending = True
+            self.work_enqueued.set()
         self.log("queue_monitor", level=logging.DEBUG)
 
     async def queue_properties(self) -> None:
@@ -529,6 +537,7 @@ class LocalServerState:
                 )
             )
             self._properties_request_pending = True
+            self.work_enqueued.set()
         self.log("queue_properties")
 
     async def next_command_payload(self) -> dict[str, Any]:
