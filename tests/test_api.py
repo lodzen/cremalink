@@ -332,3 +332,101 @@ async def test_embedded_server_reports_through_its_own_logger():
         assert server._runner.server._kwargs["access_log"] is None
     finally:
         await server.stop()
+
+
+@pytest.mark.asyncio
+async def test_queue_endpoints_skip_register_while_session_live():
+    """Live session: the machine's own poll loop drains the queue — a
+    local_reg per client request was the remaining burst source
+    (protocol.md §15). Register only while the session is dead."""
+
+    class CountingAdapter(FakeAdapter):
+        calls = 0
+
+        async def register_with_device(self, state):
+            type(self).calls += 1
+            await super().register_with_device(state)
+
+    settings = ServerSettings(
+        server_ip="127.0.0.1",
+        server_port=10800,
+        enable_device_register=False,
+        enable_nudger_job=False,
+        enable_monitor_job=False,
+        enable_session_job=False,
+        fixed_random_2="a5rLvXXkl7CAH6db",
+        fixed_time_2="446005717073803",
+    )
+    logger = create_logger(
+        f"test_local_server_{uuid.uuid4().hex}", settings.log_ring_size
+    )
+    adapter = CountingAdapter(settings=settings, logger=logger)
+    app = create_app(settings=settings, device_adapter=adapter, logger=logger)
+    async with TestClient(TestServer(app)) as client:
+        state = app[LOCAL_STATE_KEY]
+        resp = await client.post(
+            "/configure",
+            json={
+                "dsn": "dsn-1",
+                "device_ip": "1.2.3.4",
+                "lan_key": "lan-key",
+                "device_scheme": "https",
+            },
+        )
+        assert resp.status == 200
+        assert CountingAdapter.calls == 1
+
+        # No keys yet -> not session_live -> queue still registers.
+        resp = await client.post("/command", json={"command": "brew"})
+        assert resp.status == 200
+        assert CountingAdapter.calls == 2
+
+        resp = await client.post(
+            "/local_lan/key_exchange.json",
+            json={"key_exchange": {"random_1": "r1", "time_1": "123456"}},
+        )
+        assert resp.status == 202
+        assert state.session_live()
+
+        # Live session: queue endpoints must not PUT local_reg again.
+        for _ in range(3):
+            resp = await client.post("/command", json={"command": "brew"})
+            assert resp.status == 200
+            resp = await client.get("/refresh_monitor")
+            assert resp.status == 200
+        assert CountingAdapter.calls == 2
+
+        # Session died -> next queue re-registers (self-healing keeps
+        # working; the PUT failure path clears `registered`).
+        await state.set_registered(False)
+        resp = await client.post("/command", json={"command": "brew"})
+        assert resp.status == 200
+        assert CountingAdapter.calls == 3
+
+
+@pytest.mark.asyncio
+async def test_wait_datapoint_endpoint_blocks_until_arrival(app_client):
+    """`/wait_datapoint` holds the request until the seq advances —
+    replaces the get_property 404 poll loop for republish waits."""
+    client, state = app_client
+    resp = await client.get("/wait_datapoint?since=-1&timeout=0.5")
+    assert resp.status == 200
+    assert (await resp.json())["seq"] == 0
+
+    async def land():
+        await asyncio.sleep(0.05)
+        await state.handle_datapoint(
+            {"data": {"name": "d040_1_rec_regular", "value": "AAAA"}}
+        )
+
+    task = asyncio.create_task(land())
+    resp = await client.get("/wait_datapoint?since=0&timeout=5")
+    await task
+    assert resp.status == 200
+    assert (await resp.json())["seq"] == 1
+    # timeout path: unchanged seq, not an error
+    resp = await client.get("/wait_datapoint?since=1&timeout=0.1")
+    assert (await resp.json())["seq"] == 1
+    # bad params → 400
+    resp = await client.get("/wait_datapoint?since=abc")
+    assert resp.status == 400

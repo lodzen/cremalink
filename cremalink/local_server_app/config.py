@@ -52,6 +52,40 @@ class ServerSettings(BaseSettings):
         validation_alias="MONITOR_POLL_INTERVAL",
         description="Interval in seconds for the monitor job to fetch device status.",
     )
+    monitor_poll_interval_standby: float = Field(
+        30.0,
+        gt=0,
+        validation_alias="MONITOR_POLL_INTERVAL_STANDBY",
+        description="Monitor job interval while the machine is in standby "
+        "(set via ``machine_asleep``) — enough to catch the wake transition "
+        "without polling a sleeping machine every few seconds.",
+    )
+    nudger_poll_interval_standby: float = Field(
+        30.0,
+        gt=0,
+        validation_alias="NUDGER_POLL_INTERVAL_STANDBY",
+        description="Nudger (PUT local_reg notify) interval while the machine "
+        "is in standby — queued reads wait out the sleep; a session-gated "
+        "write would still register promptly on the awake path.",
+    )
+    nudger_renudge_seconds: float = Field(
+        10.0,
+        gt=0,
+        validation_alias="NUDGER_RENUDGE_SECONDS",
+        description="Re-notify cadence while the command queue stays pending "
+        "— the app's keepalive model (AylaLanModule, protocol.md §15): one "
+        "local_reg PUT per keepalive tick. The machine drains on its own "
+        "~1.3 s commands.json poll loop once notified.",
+    )
+    commands_poll_active_seconds: float = Field(
+        4.0,
+        gt=0,
+        validation_alias="COMMANDS_POLL_ACTIVE_SECONDS",
+        description="A commands.json poll within this window means the "
+        "machine's drain loop is running — edge nudges stay off; a "
+        "longer silence means it went idle and a fresh enqueue earns "
+        "a prompt notify PUT.",
+    )
     session_keepalive_interval_seconds: float = Field(
         20.0,
         validation_alias="SESSION_KEEPALIVE_INTERVAL_SECONDS",
@@ -80,6 +114,29 @@ class ServerSettings(BaseSettings):
         validation_alias="SESSION_REGISTER_TIMEOUT_SECONDS",
         description="After a session-opening POST, wait this long for the "
         "machine's key exchange before the next retry.",
+    )
+    cloud_token_path: str | None = Field(
+        None,
+        validation_alias="CLOUD_TOKEN_PATH",
+        description="Path to the Ayla token JSON used for cloud-side recovery "
+        "announces (device_connected datapoint writes). Optional — without it "
+        "the LAN session retries stay purely local, exactly like today.",
+    )
+    cloud_wake_threshold: int = Field(
+        3,
+        ge=1,
+        validation_alias="CLOUD_WAKE_THRESHOLD",
+        description="Consecutive local_reg failures before a cloud "
+        "device_connected announce is attempted — mirrors the app's "
+        "MAX_CONNECTION_ATTEMPTS=2 (>2 failures) trip point (DECODED.md, "
+        "AylaLanModule$9).",
+    )
+    cloud_wake_interval_seconds: float = Field(
+        60.0,
+        gt=0,
+        validation_alias="CLOUD_WAKE_INTERVAL_SECONDS",
+        description="Minimum gap between cloud wake announces while the LAN "
+        "session stays dead — one HTTPS call per interval, not per retry.",
     )
 
     # --- Buffer/Queue Size Settings ---

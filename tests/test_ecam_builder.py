@@ -30,6 +30,13 @@ CAPTURED_FRAMES = json.loads(
     (Path(__file__).parent / "fixtures" / "ecam" / "command_frames.json").read_text()
 )
 
+#: Map entries that deliberately no longer rebuild the shared capture.
+#: ECAM452 ``espresso``: the captured frame carries coffee_ml 0x7E (126 ml,
+#: a lungo — miditkl/cremalink#220). The entry now sends the recipe-less
+#: short form, like ``double_espresso``, so the machine brews its own
+#: stored espresso volume for the profile.
+MAP_FRAME_OVERRIDES = {("ECAM452.json", "espresso"): "0d0883f0010106c8b2"}
+
 
 def _rebuild_entry(entry: dict, captured: bytes) -> bytes:
     """Rebuild a decoded map entry; the captured frame supplies the recipe
@@ -59,10 +66,32 @@ def test_every_map_entry_rebuilds_captured_frame(map_name):
         if "recipe_datapoint" in entry:
             assert entry["recipe_datapoint"] in catalog
         captured = bytes.fromhex(CAPTURED_FRAMES[name])
-        rebuilt = _rebuild_entry(entry, captured)
-        assert rebuilt == captured, (
-            f"{map_name}:{name} rebuilt {rebuilt.hex()} != captured {captured.hex()}"
+        expected = bytes.fromhex(
+            MAP_FRAME_OVERRIDES.get((map_name, name), CAPTURED_FRAMES[name])
         )
+        rebuilt = _rebuild_entry(entry, captured)
+        assert rebuilt == expected, (
+            f"{map_name}:{name} rebuilt {rebuilt.hex()} != expected {expected.hex()}"
+        )
+
+
+def test_ecam452_espresso_uses_machine_preset_not_fixed_volume():
+    entry = json.loads((DEVICES / "ECAM452.json").read_text())["command_map"][
+        "espresso"
+    ]
+    frame = build_brew(
+        entry["beverage_id"],
+        entry["action"],
+        bytes.fromhex(entry["recipe"]),
+        STRIKER,
+        profile_slot=entry["profile_slot"],
+        accessory=entry["accessory"],
+    )
+    # Same short form as double_espresso: no coffee_ml TLV, so the machine
+    # pours its stored espresso volume instead of a hard-coded 126 ml.
+    assert entry["recipe"] == ""
+    assert frame.hex() == "0d0883f0010106c8b2"
+    assert len(frame) == len(bytes.fromhex(CAPTURED_FRAMES["double_espresso"]))
 
 
 def test_power_frames_match_captures():

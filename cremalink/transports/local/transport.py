@@ -162,6 +162,20 @@ class LocalTransport(DeviceTransport):
         resp.raise_for_status()
         return resp.json().get("value")
 
+    def wait_datapoint(self, since: int, timeout: float) -> int:
+        """Blocks server-side until a datapoint lands after ``since``.
+
+        Generation-counter wait — the caller re-harvests when the
+        returned seq differs. Used instead of polling ``get_property``
+        into 404s while a republish is in flight (~5 s for recipes).
+        """
+        resp = self._get_server(
+            f"/wait_datapoint?since={since}&timeout={timeout}",
+            timeout=int(timeout) + 5,
+        )
+        resp.raise_for_status()
+        return int(resp.json()["seq"])
+
     def write_property(self, name: str, value: Any) -> dict[str, Any]:
         """Queues a single named property write on the device."""
         if not self._configured:

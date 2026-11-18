@@ -6,6 +6,8 @@ with a coffee machine via the manufacturer's cloud API (Ayla Networks).
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
+from datetime import datetime
 from typing import Any
 
 import requests
@@ -13,6 +15,26 @@ import requests
 from cremalink.parsing.monitor.decode import build_monitor_snapshot
 from cremalink.resources import load_api_config
 from cremalink.transports.base import DeviceTransport
+
+#: (connect, read) seconds for every cloud call — a hung request must not
+#: block the caller (Home Assistant runs these in a shared executor).
+REQUEST_TIMEOUT = (5, 15)
+
+
+def _to_epoch(value: Any) -> float:
+    """Ayla timestamps (ISO-8601 like ``2026-11-15T07:42:01Z``) → epoch."""
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        try:
+            return float(value)
+        except ValueError:
+            pass
+        try:
+            return datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp()
+        except ValueError:
+            pass
+    return time.time()
 
 
 class CloudTransport(DeviceTransport):
@@ -24,8 +46,19 @@ class CloudTransport(DeviceTransport):
     it fetches key device metadata from the cloud and stores it.
     """
 
+    #: The cloud API has no response mailbox and cannot ask the device to
+    #: republish a property; answers arrive as republished ``dNNN``
+    #: properties instead. ``Device`` checks these flags before using
+    #: ``pop_response`` / ``request_property``.
+    supports_mailbox = False
+    supports_property_requests = False
+
     def __init__(
-        self, dsn: str, access_token: str, device_map_path: str | None = None
+        self,
+        dsn: str,
+        access_token: str,
+        device_map_path: str | None = None,
+        token_refresher: Callable[[], str] | None = None,
     ) -> None:
         """
         Initializes the CloudTransport.
@@ -34,6 +67,9 @@ class CloudTransport(DeviceTransport):
             dsn: The Device Serial Number.
             access_token: A valid OAuth access token for the cloud API.
             device_map_path: Optional path to a device-specific command map file.
+            token_refresher: Returns a fresh access token. Called once when a
+                request answers HTTP 401 (expired token); the request is then
+                retried. Without it an expired token fails every call.
         """
         self.api_conf = load_api_config()
         self.gigya_api = self.api_conf.get("GIGYA")
@@ -43,6 +79,7 @@ class CloudTransport(DeviceTransport):
 
         self.dsn = dsn
         self.access_token = access_token
+        self.token_refresher = token_refresher
         self.device_map_path = device_map_path
         self.command_map: dict[str, Any] = {}
         self.property_map: dict[str, Any] = {}
@@ -68,46 +105,49 @@ class CloudTransport(DeviceTransport):
         return
 
     # ---- helpers ----
+    def _request(self, method: str, url: str, **kwargs: Any) -> requests.Response:
+        """Authenticated request with timeout; renews an expired token once."""
+        call = requests.get if method == "GET" else requests.post
+        extra_headers = kwargs.pop("headers", {})
+        for attempt in range(2):
+            response = call(
+                url=url,
+                headers={
+                    "User-Agent": self.api_agent,
+                    "Authorization": f"auth_token {self.access_token}",
+                    "Accept": "application/json",
+                    **extra_headers,
+                },
+                timeout=REQUEST_TIMEOUT,
+                **kwargs,
+            )
+            if (
+                response.status_code == 401
+                and attempt == 0
+                and self.token_refresher is not None
+            ):
+                self.access_token = self.token_refresher()
+                continue
+            response.raise_for_status()
+            return response
+        raise AssertionError("unreachable")
+
     def _get(self, path: str) -> dict:
         """Helper for making authenticated GET requests using the device DSN."""
-        response = requests.get(
-            url=f"{self.ayla_api.get('API_URL')}/dsns/{self.dsn}{path}",
-            headers={
-                "User-Agent": self.api_agent,
-                "Authorization": f"auth_token {self.access_token}",
-                "Accept": "application/json",
-            },
-        )
-        response.raise_for_status()
-        return response.json()
+        url = f"{self.ayla_api.get('API_URL')}/dsns/{self.dsn}{path}"
+        return self._request("GET", url).json()
 
     def _get_by_id(self, path: str) -> dict:
         """Helper for making authenticated GET requests using the internal device ID."""
-        response = requests.get(
-            url=f"{self.ayla_api.get('API_URL')}/devices/{self.id}{path}",
-            headers={
-                "User-Agent": self.api_agent,
-                "Authorization": f"auth_token {self.access_token}",
-                "Accept": "application/json",
-            },
-        )
-        response.raise_for_status()
-        return response.json()
+        url = f"{self.ayla_api.get('API_URL')}/devices/{self.id}{path}"
+        return self._request("GET", url).json()
 
     def _post(self, path: str, data: dict) -> dict:
         """Helper for making authenticated POST requests."""
-        response = requests.post(
-            url=f"{self.ayla_api.get('API_URL')}/dsns/{self.dsn}{path}",
-            headers={
-                "User-Agent": self.api_agent,
-                "Authorization": f"auth_token {self.access_token}",
-                "Accept": "application/json",
-                "Content-Type": "application/json",
-            },
-            json=data,
-        )
-        response.raise_for_status()
-        return response.json()
+        url = f"{self.ayla_api.get('API_URL')}/dsns/{self.dsn}{path}"
+        return self._request(
+            "POST", url, headers={"Content-Type": "application/json"}, json=data
+        ).json()
 
     # ---- DeviceTransport Implementation ----
     def send_command(
@@ -165,13 +205,9 @@ class CloudTransport(DeviceTransport):
         property_name = self.property_map.get("monitor", "monitor")
         prop = self.get_property(property_name) or {}
         raw_b64 = prop.get("value")
-        received_at = prop.get("updated_at")
-
-        try:
-            # Convert timestamp string to float if possible, otherwise use current time.
-            received_ts = float(received_at) if received_at is not None else time.time()
-        except (TypeError, ValueError):
-            received_ts = time.time()
+        # Ayla stores when the machine published the frame as ISO-8601
+        # ``data_updated_at`` (there is no ``updated_at``).
+        received_ts = _to_epoch(prop.get("data_updated_at") or prop.get("updated_at"))
         payload = {
             "monitor": {"data": {"value": raw_b64}},
             "monitor_b64": raw_b64,

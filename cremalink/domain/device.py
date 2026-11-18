@@ -8,11 +8,13 @@ from __future__ import annotations
 
 import json
 import logging
+import re
+import threading
 import time
 from base64 import b64decode, b64encode
-from collections.abc import Collection
+from collections.abc import Callable, Collection, Mapping
 from dataclasses import dataclass, field
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Literal
 
 from cremalink.core.binary import hex_to_signed_decimal, signed_decimal_to_hex
 from cremalink.devices import device_map
@@ -20,6 +22,7 @@ from cremalink.ecam import answers as ecam_answers
 from cremalink.ecam import builder as ecam_builder
 from cremalink.ecam import catalog as ecam_catalog
 from cremalink.ecam import machine_profiles as ecam_profiles_mod
+from cremalink.ecam import params as ecam_params
 from cremalink.ecam import profiles as ecam_profile_parser
 from cremalink.ecam import settings as ecam_settings
 from cremalink.ecam import statistics as ecam_statistics
@@ -44,6 +47,43 @@ class MachineStandbyError(RuntimeError):
 
 
 APP_ID_HEX = "C0FFEEEE"
+
+
+@dataclass(frozen=True)
+class RecipeParams:
+    """Effective brew parameters for one ``(profile_slot, beverage_id)``.
+
+    ``values`` are raw machine units per param id — parsed from the live
+    ``0xA6`` recipe blob (``source="profile"``) or the ``0xB0`` descriptor
+    defaults when the read fails (``source="default"``; a stored
+    command-map ``recipe`` hex also counts as a non-live default).
+    ``bounds`` are the ``0xB0`` ``(min, def, max)`` triples. ``bean_slot``
+    names the detected BeanAdapt slot whose ``bs_recipe`` datapoint fed
+    the values for bean-system beverages (research.md R10).
+    """
+
+    profile_slot: int
+    beverage_id: int
+    values: dict[int, int]
+    source: Literal["profile", "default"]
+    bounds: dict[int, tuple[int, int, int]]
+    bean_slot: int | None = None
+
+
+@dataclass(frozen=True)
+class BeanSystem:
+    """One configured BeanAdapt slot (``d25X_beansystem_N`` ``ba f0`` blob).
+
+    ``slot`` is the bean-system index (1–6; slot 0 is the BeanAdapt
+    ON/OFF feature flag, not a bean). ``name`` is the user-assigned bean
+    name (UTF-16BE at ``[5..44]``, zero-stripped — DECODED ``G0``/
+    ``loadBeanSystems``); ``selected`` marks the machine's currently
+    selected bean (flag byte, research.md R10 / protocol.md §11).
+    """
+
+    slot: int
+    name: str
+    selected: bool
 
 
 def _load_device_map(device_map_path: str | None) -> dict[str, Any]:
@@ -118,6 +158,10 @@ class Device:
     statistics_datapoints: list[str] = field(default_factory=list)
     settings_datapoints: list[str] = field(default_factory=list)
     catalog_datapoints: list[str] = field(default_factory=list)
+    #: Per-model monitor-bit policy from the device map: ``exclude`` (bits the
+    #: model does not have) and ``disabled_by_default`` (bits that may exist
+    #: but are unverified). Empty = every documented bit applies.
+    monitor_bits: dict[str, list[str]] = field(default_factory=dict)
     model_ref: dict[str, Any] = field(default_factory=dict)
     # Recipe index -> beverage id, in machine order (verified Soul table).
     recipe_beverage_order: list[int] = field(default_factory=list)
@@ -127,8 +171,11 @@ class Device:
     #: Post-write confirmation window — longer than ``response_timeout``
     #: because the machine can commit ``0x90`` writes sluggishly under
     #: load (the app's own re-read waits ~2 s; we budget generously and
-    #: poll the republished property meanwhile).
-    write_confirm_seconds: float = 15.0
+    #: poll the republished property meanwhile). Over the cloud the
+    #: republished value of a committed write took up to ~21 s to show
+    #: (ECAM452), so a shorter window reported accepted writes as failed
+    #: and resent them. A confirmed write still returns as soon as seen.
+    write_confirm_seconds: float = 45.0
     # Internal per-device session/response state (never shared).
     _session_gate: SessionGate | None = field(default=None, init=False, repr=False)
     # Last 0xA9-acknowledged profile index (0 = none acked yet).
@@ -138,6 +185,65 @@ class Device:
     #: register that only changes on a profile switch.
     profile_poll_seconds: float = 30.0
     _profile_polled_at: float = field(default=0.0, init=False, repr=False)
+    #: Last datapoint generation seen on the LAN server — lets
+    #: ``_wait_datapoint`` block server-side instead of polling
+    #: ``get_property`` into 404s while a republish is in flight.
+    _wait_seq: int = field(default=-1, init=False, repr=False)
+    #: Lazy recipe-catalogue state (protocol.md §13 + §14.12, research.md
+    #: R11). The app never reads recipes from the machine one by one — its
+    #: property store is filled by a single cloud ``properties.json``
+    #: fetch. Over LAN the machine answers no bulk GET, and every named
+    #: GET costs one ~1.3 s slot on the one-payload-per-poll lane, so a
+    #: full ``read_catalog`` sweep (~211 GETs ≈ 5 min of lane time) is
+    #: never done automatically. Instead: the recipe list is static (the
+    #: app's model table, zero requests); a recipe's factory ``0xB0``
+    #: bounds are fetched with ONE GET on first use and cached for the
+    #: process lifetime (factory constants); the per-profile priority
+    #: list costs one GET per profile. Failed/empty reads are not cached.
+    _declared_cache: ecam_catalog.RecipeCatalogue | None = field(
+        default=None, init=False, repr=False
+    )
+    _descriptor_cache: dict[int, dict[int, tuple[int, int, int]]] = field(
+        default_factory=dict, init=False, repr=False
+    )
+    _priority_cache: dict[int, list[int]] = field(
+        default_factory=dict, init=False, repr=False
+    )
+    _fetch_lock: threading.RLock = field(
+        default_factory=threading.RLock, init=False, repr=False
+    )
+    #: Offline-breaker state — see ``_mark_unreachable``. A dead or
+    #: standby machine fails every upstream POST; while marked
+    #: unreachable those POSTs (and the wait loops behind them) are
+    #: skipped so callers don't burn executor threads in timeouts.
+    _unreachable_until: float = field(default=0.0, init=False, repr=False)
+    _unreachable_backoff: float = field(default=0.0, init=False, repr=False)
+    #: App-id registration (``app_device_connected``, striker machines):
+    #: the machine drops a registration ~300 s after the last refresh, so
+    #: a registration older than this is renewed instead of refreshed.
+    app_id_refresh_seconds: float = 240.0
+    #: How long to wait for the machine to confirm a registration, and the
+    #: spacing of the checks while waiting (the app checks once after a few
+    #: seconds; a few spaced reads keep the request count low).
+    app_id_confirm_seconds: float = 10.0
+    app_id_confirm_poll: float = 3.0
+    #: Shorter wait when the cloud already shows our id: a machine that
+    #: still holds it republishes nothing, so the wait only costs time
+    #: (seen live: no answer within 10 s). Real confirmations took 3–5 s.
+    app_id_confirm_own_seconds: float = 5.0
+    # Unix time of the last registration/refresh this instance sent for a
+    # registration it saw confirmed (0 = none).
+    _app_id_refreshed_at: float = field(default=0.0, init=False, repr=False)
+    #: Inside the refresh window an explicit refresh frame is sent at most
+    #: this often; every frame carrying our id extends the registration too
+    #: (a command sent with an app's id kept that registration alive).
+    app_id_refresh_min_seconds: float = 60.0
+    _app_id_last_refresh_frame: float = field(default=0.0, init=False, repr=False)
+    # Serialises registration and session announces: Home Assistant runs
+    # several executor jobs at once on setup, and each one used to register.
+    _app_id_lock: threading.RLock = field(
+        default_factory=threading.RLock, init=False, repr=False, compare=False
+    )
 
     @classmethod
     def from_map(
@@ -222,6 +328,7 @@ class Device:
             statistics_datapoints=list(map_data.get("statistics_datapoints") or []),
             settings_datapoints=list(map_data.get("settings_datapoints") or []),
             catalog_datapoints=list(map_data.get("catalog_datapoints") or []),
+            monitor_bits=dict(map_data.get("monitor_bits") or {}),
             model_ref=map_data.get("model_ref") or {},
             recipe_beverage_order=list(map_data.get("recipe_beverage_order") or []),
             **kwargs,
@@ -250,11 +357,11 @@ class Device:
         else:
             encoded = _encode_command(command)
 
-        return self.transport.send_command(encoded)
+        return self._upstream_call(self.transport.send_command, encoded)
 
     def refresh_monitor(self) -> Any:
         """Requests a refresh of the device's monitoring data."""
-        return self.transport.refresh_monitor()
+        return self._upstream_call(self.transport.refresh_monitor)
 
     def get_properties(self) -> Any:
         """Fetches all available properties from the device."""
@@ -402,20 +509,129 @@ class Device:
             return None
 
     def _ensure_app_id(self) -> str | None:
-        """Check the app_id matches the cremalink app id and try to set it"""
-        app_id = self.get_property(self.property_map.get("app_id", "app_id")) or {}
-        value = app_id.get("value")
-        if value == "0":
-            self._register_app_id(APP_ID_HEX)
-            # sleep for a bit to allow the app id to get set
-            time.sleep(7)
+        with self._app_id_lock:
+            return self._ensure_app_id_locked()
+
+    def _ensure_app_id_locked(self) -> str | None:
+        """Return the app id to send with, registering our own when needed.
+
+        The cloud copy of ``app_id`` cannot prove a live registration. When
+        the machine drops a registration but its reset to ``0`` never
+        reaches the cloud (seen during a cloud outage), the property keeps
+        showing our id for hours. Trusting it and only refreshing leaves
+        every later command ignored until another app registers.
+
+        So only a registration this instance saw confirmed, and refreshed
+        within ``app_id_refresh_seconds``, is refreshed. Anything else
+        registers again and waits for the machine to confirm. Without a
+        confirmation, an id held by another app is used as before;
+        otherwise ``None`` is returned and callers raise.
+        """
+        own = hex_to_signed_decimal(APP_ID_HEX)
+        value, _ = self._app_id_property()
+        now = time.time()
+        if (
+            value == own
+            and self._app_id_refreshed_at
+            and now - self._app_id_refreshed_at < self.app_id_refresh_seconds
+        ):
+            if now - self._app_id_last_refresh_frame >= self.app_id_refresh_min_seconds:
+                self._refresh_app_id()
+                self._app_id_last_refresh_frame = now
+            # The frame that follows carries our id and extends the
+            # registration as well.
+            self._app_id_refreshed_at = now
             return APP_ID_HEX
-        elif value == hex_to_signed_decimal(APP_ID_HEX):
-            self._refresh_app_id()
+
+        self._app_id_refreshed_at = 0.0
+        timeout = (
+            self.app_id_confirm_own_seconds
+            if value == own
+            else self.app_id_confirm_seconds
+        )
+        if self._register_and_confirm(timeout):
+            self._app_id_refreshed_at = self._app_id_last_refresh_frame = time.time()
             return APP_ID_HEX
-        if not isinstance(value, str):
+
+        value, _ = self._app_id_property()
+        if value == own:
+            # The machine still holds our id and republishes nothing for an
+            # unchanged value (e.g. after a restart of this process). The
+            # registration was renewed anyway; use our id.
+            logger.info("app id registration renewed without machine echo")
+            self._app_id_refreshed_at = self._app_id_last_refresh_frame = time.time()
+            return APP_ID_HEX
+        if isinstance(value, str) and value != "0":
+            try:
+                foreign = signed_decimal_to_hex(value)
+            except ValueError:
+                return None
+            logger.warning(
+                "app id registration not confirmed; another app holds the "
+                "machine, sending with its id"
+            )
+            return foreign
+        logger.warning("app id registration not confirmed by the machine")
+        return None
+
+    def _register_and_confirm(self, timeout: float) -> bool:
+        """Register our app id and wait up to ``timeout`` s for the machine.
+
+        Confirmed once ``app_id`` shows our id and either it changed to our
+        id, or it or the monitor property was republished after the
+        registration (the machine answers a registration with a fresh
+        monitor frame within seconds). Transports without timestamps (LAN
+        returns bare values) can only confirm through the value change.
+        """
+        own = hex_to_signed_decimal(APP_ID_HEX)
+        monitor = self.resolve_property("monitor", "monitor")
+        value_seen, app_id_seen = self._app_id_property()
+        monitor_seen = self._property_updated_at(monitor)
+        self._register_app_id(APP_ID_HEX)
+        deadline = time.monotonic() + timeout
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0 or not self._machine_reachable():
+                return False
+            time.sleep(min(self.app_id_confirm_poll, remaining))
+            value, app_id_updated = self._app_id_property()
+            if value != own:
+                continue
+            if value_seen != own or (
+                app_id_updated is not None and app_id_updated != app_id_seen
+            ):
+                return True
+            monitor_updated = self._property_updated_at(monitor)
+            if monitor_updated is not None and monitor_updated != monitor_seen:
+                return True
+
+    def _property_entry(self, name: str) -> dict[str, Any] | None:
+        """The property as a dict (``value``, ``data_updated_at``) or None.
+
+        The cloud returns the property dict; the LAN transport returns the
+        bare value, which is wrapped without a timestamp.
+        """
+        try:
+            entry = self.get_property(name)
+        except (OSError, ValueError, RuntimeError) as err:
+            logger.debug("get_property(%s) failed: %s", name, err)
             return None
-        return signed_decimal_to_hex(value)
+        while isinstance(entry, dict) and isinstance(entry.get("property"), dict):
+            entry = entry["property"]
+        if entry is None:
+            return None
+        return entry if isinstance(entry, dict) else {"value": entry}
+
+    def _app_id_property(self) -> tuple[Any, Any]:
+        """``(value, data_updated_at)`` of the ``app_id`` property."""
+        entry = self._property_entry(self.property_map.get("app_id", "app_id"))
+        if entry is None:
+            return None, None
+        return entry.get("value"), entry.get("data_updated_at")
+
+    def _property_updated_at(self, name: str) -> Any:
+        entry = self._property_entry(name)
+        return entry.get("data_updated_at") if entry else None
 
     def _register_app_id(self, app_id_hex: str) -> Any:
         """
@@ -423,15 +639,17 @@ class Device:
         The register command is just the timestamp + app_id.
         """
         command = _encode_command("", app_id_hex)
-        return self.transport.send_command(
-            command, self.property_map.get("device_connected", "app_device_connected")
+        return self._upstream_call(
+            self.transport.send_command,
+            command,
+            self.property_map.get("device_connected", "app_device_connected"),
         )
 
     def _refresh_app_id(self) -> Any:
         """Sends a command to refresh the registered app id with the cloud."""
         hex_command = self.command_map.get("refresh", {}).get("command")
         command = _encode_command(hex_command, APP_ID_HEX)
-        return self.transport.send_command(command)
+        return self._upstream_call(self.transport.send_command, command)
 
     # ===== ECAM protocol layer ===========================================
     # All protocol-aware paths below build frames through `cremalink.ecam`
@@ -459,7 +677,8 @@ class Device:
                 raise ConnectionError(
                     "transport cannot write properties; session announce impossible"
                 )
-            write(
+            self._upstream_call(
+                write,
                 self.resolve_property("device_connected", "device_connected"),
                 int(time.time()),
             )
@@ -487,21 +706,23 @@ class Device:
             app_id = int(str(hex_id), 16).to_bytes(4, "big")
         encoded = ecam_builder.encode_for_transport(frame, profile, app_id=app_id)
         try:
-            return self.transport.send_command(
+            return self._upstream_call(
+                self.transport.send_command,
                 encoded,
                 alternative_property=self.resolve_property(
                     profile.command_property, profile.command_property
                 ),
             )
         except TypeError:
-            return self.transport.send_command(encoded)
+            return self._upstream_call(self.transport.send_command, encoded)
 
     def _send_blob(self, blob: bytes) -> Any:
         """Send a non-frame payload (the ``s0`` handshake) — timestamp
         trailer like a frame but no ``0x0D`` structure (§14.8)."""
         encoded = ecam_builder.encode_for_transport(blob, self._profile(), raw=True)
         try:
-            return self.transport.send_command(
+            return self._upstream_call(
+                self.transport.send_command,
                 encoded,
                 alternative_property=self.resolve_property(
                     self._profile().command_property,
@@ -509,19 +730,113 @@ class Device:
                 ),
             )
         except TypeError:
-            return self.transport.send_command(encoded)
+            return self._upstream_call(self.transport.send_command, encoded)
 
     def _send_gated(self, frame: bytes) -> Any:
         """Session-gated write path (0x83/0x84/0x90/0xA9 frames)."""
-        self._session().ensure_fresh()
+        with self._app_id_lock:
+            self._session().ensure_fresh()
         return self.send_frame(frame)
+
+    # --- upstream reachability breaker ---
+    # A dead or standby machine makes every upstream POST fail: the
+    # embedded server answers 502 (its session registration just
+    # failed — every POST endpoint registers first, api.py) or the
+    # transport gives up without a response (closed port 80 on a
+    # standby machine, observed 2026-11-12). While the breaker is open
+    # the POSTs and the wait loops behind them are skipped — a dead
+    # machine cannot answer, and each attempt otherwise burns a worker
+    # thread in a ~10 s timeout (observed: ~6 HA SyncWorkers stalled,
+    # slowing the whole HA bootstrap). Harvest reads of the local
+    # property store still run; any successful upstream POST closes
+    # the breaker again, and it re-probes on its own after backoff.
+    _UNREACHABLE_BACKOFF_MIN = 10.0
+    _UNREACHABLE_BACKOFF_MAX = 60.0
+
+    def _machine_reachable(self) -> bool:
+        """False while the breaker is open (machine recently dead)."""
+        return time.monotonic() >= self._unreachable_until
+
+    def _mark_unreachable(self, err: Exception) -> bool:
+        """Record an upstream failure; True when it opens the breaker.
+
+        A 502 means the embedded server could not reach the machine; no
+        response object at all means the TCP layer never answered. Any
+        other HTTP status proves the datapoint engine replied — the
+        machine is alive — so it does not count.
+        """
+        resp = getattr(err, "response", None)
+        if resp is not None:
+            if getattr(resp, "status_code", None) != 502:
+                return False
+        elif not isinstance(err, OSError):
+            return False
+        backoff = self._unreachable_backoff or self._UNREACHABLE_BACKOFF_MIN
+        self._unreachable_backoff = min(backoff * 2, self._UNREACHABLE_BACKOFF_MAX)
+        self._unreachable_until = time.monotonic() + backoff
+        logger.debug(
+            "machine unreachable (%s) — suppressing upstream posts for %.0fs",
+            err,
+            backoff,
+        )
+        return True
+
+    def _upstream_ok(self) -> None:
+        """A successful upstream POST closes the breaker."""
+        self._unreachable_until = 0.0
+        self._unreachable_backoff = 0.0
+
+    def _upstream_call(
+        self, call: Callable[..., Any], *args: Any, **kwargs: Any
+    ) -> Any:
+        """Run one upstream POST through the breaker.
+
+        Suppressed while the breaker is open (raises ``ConnectionError``
+        cheaply — the machine could not have answered anyway). Marks on
+        failure, closes on success.
+        """
+        if not self._machine_reachable():
+            raise ConnectionError("machine unreachable — upstream post suppressed")
+        try:
+            result = call(*args, **kwargs)
+        except (OSError, ValueError, RuntimeError) as err:
+            self._mark_unreachable(err)
+            raise
+        self._upstream_ok()
+        return result
 
     # --- response mailbox ---
     def _pop_response_frame(self) -> bytes | None:
-        pop = getattr(self.transport, "pop_response", None)
+        pop = self._mailbox()
         if pop is None:
             return None
-        return pop()
+        try:
+            return pop()
+        except NotImplementedError:
+            return None
+
+    def _transport_capability(
+        self, method: str, flag: str
+    ) -> Callable[..., Any] | None:
+        """The transport's optional ``method``, or ``None`` when unsupported.
+
+        ``DeviceTransport`` declares every optional member, so presence alone
+        proves nothing; a transport opts out with a ``supports_*`` flag
+        (``CloudTransport``: no response mailbox, no property requests).
+        """
+        if getattr(self.transport, flag, True) is False:
+            return None
+        return getattr(self.transport, method, None)
+
+    def _mailbox(self) -> Callable[[], bytes | None] | None:
+        """``pop_response`` when the transport has a response mailbox."""
+        return self._transport_capability("pop_response", "supports_mailbox")
+
+    def _property_requester(self) -> Callable[[str], Any] | None:
+        """``request_property`` when the transport can trigger republishes."""
+        return self._transport_capability(
+            "request_property", "supports_property_requests"
+        )
 
     def _wait_answer(
         self, request_id: int, *, timeout: float | None = None
@@ -530,7 +845,10 @@ class Device:
 
         Frames echoing a different request id are stale and dropped; a
         ``0xE1`` frame raises ``TimeoutError`` (machine-side abort).
+        Transports without a mailbox (cloud) return ``None`` at once.
         """
+        if self._mailbox() is None:
+            return None
         deadline = time.monotonic() + (
             self.response_timeout if timeout is None else timeout
         )
@@ -548,7 +866,7 @@ class Device:
                     logger.debug("dropping unparseable mailbox frame")
             if time.monotonic() >= deadline:
                 return None
-            time.sleep(self.response_poll)
+            self._wait_datapoint(deadline - time.monotonic())
 
     # --- named-property helpers ---
     @staticmethod
@@ -567,6 +885,23 @@ class Device:
             seen += 1
         return entry
 
+    @staticmethod
+    def _is_profile_names_datapoint(name: str) -> bool:
+        """``a4f0`` profile-name blobs: ``dNNN_profiles_*`` (Soul) or
+        ``dNNN_profile_name*`` (striker/ECAM452)."""
+        return "_profiles_" in name or "_profile_name" in name
+
+    def _republished_param(self, param_id: int, names: Collection[str]) -> int | None:
+        """``param_id`` from ``95``-answer blobs republished under ``names``."""
+        for name in names:
+            raw = self._as_blob_bytes(self._named_value(name))
+            if raw is None:
+                continue
+            value = ecam_settings.parse_settings(raw).get(param_id)
+            if value is not None:
+                return value
+        return None
+
     def _named_value(self, name: str) -> Any | None:
         """Latest stored value for a datapoint name, or ``None``."""
         try:
@@ -578,6 +913,28 @@ class Device:
             return None
         return self._entry_value(entry)
 
+    def _wait_datapoint(self, seconds: float) -> None:
+        """Sleep until a datapoint lands server-side, or ``seconds``.
+
+        The LAN transport exposes a blocking ``/wait_datapoint``
+        generation counter — a republish wakes the caller the moment it
+        lands instead of harvesting ``get_property`` 404s every 250 ms
+        (observed ~20 GETs per recipe read). Transports without it fall
+        back to the plain ``response_poll`` slice.
+        """
+        seconds = max(seconds, 0.0)
+        if seconds <= 0:
+            return
+        wait = getattr(self.transport, "wait_datapoint", None)
+        if wait is None:
+            time.sleep(min(seconds, self.response_poll))
+            return
+        try:
+            self._wait_seq = self._upstream_call(wait, self._wait_seq, seconds)
+        except (OSError, ValueError, RuntimeError) as err:
+            logger.debug("wait_datapoint failed: %s", err)
+            time.sleep(min(seconds, self.response_poll))
+
     def _collect_named_properties(
         self, names: list[str], *, settle: float = 0.5, retries: int = 1
     ) -> dict[str, Any]:
@@ -586,7 +943,7 @@ class Device:
         Returns ``{name: raw_value}`` — only names the machine actually
         republished appear in the result.
         """
-        request = getattr(self.transport, "request_property", None)
+        request = self._property_requester()
         props: dict[str, Any] = {}
         missing = list(names)
         if request is None:
@@ -597,15 +954,18 @@ class Device:
             return props
         for _ in range(1 + retries):
             for name in missing:
+                if not self._machine_reachable():
+                    break
                 try:
-                    request(name)
+                    self._upstream_call(request, name)
                 except (OSError, ValueError, RuntimeError) as err:
                     logger.debug("request_property(%s) failed: %s", name, err)
             # Harvest whatever already landed, then wait on the head of
             # the queue — the machine serves ~one GET per poll cycle, so
             # republished answers arrive in ~request order. The budget
             # scales with the remaining queue depth; settle=0 stays a
-            # single read pass.
+            # single read pass. With the breaker open the machine cannot
+            # republish — harvest once and return instead of waiting.
             still_missing = []
             for name in missing:
                 value = self._named_value(name)
@@ -614,12 +974,14 @@ class Device:
                 else:
                     props[name] = value
             missing = still_missing
+            if not missing or not self._machine_reachable():
+                break
             deadline = time.monotonic() + settle * len(missing)
             while missing and time.monotonic() < deadline:
                 name = missing[0]
                 value = self._named_value(name)
                 if value is None:
-                    time.sleep(self.response_poll)
+                    self._wait_datapoint(deadline - time.monotonic())
                     continue
                 props[name] = value
                 missing.pop(0)
@@ -629,7 +991,7 @@ class Device:
 
     def _properties_by_name(self) -> dict[str, Any]:
         """Flatten the transport's property snapshot to ``{name: value}``."""
-        props = self.transport.get_properties()
+        props = self._upstream_call(self.transport.get_properties)
         raw = getattr(props, "raw", props)
         out: dict[str, Any] = {}
         if isinstance(raw, dict):
@@ -703,7 +1065,18 @@ class Device:
         """
         name = datapoint or self._recipe_property_name(profile_slot, beverage_id)
         if name is None:
+            logger.debug(
+                "profile recipe: no datapoint for beverage=%s profile=%s",
+                beverage_id,
+                profile_slot,
+            )
             return None
+        logger.debug(
+            "profile recipe: fetching %s (beverage=%s profile=%s)",
+            name,
+            beverage_id,
+            profile_slot,
+        )
         # Trigger republish (0xA6 frame) — ignored if unsupported.
         try:
             self.send_frame(
@@ -713,10 +1086,10 @@ class Device:
             )
         except (OSError, ValueError, RuntimeError) as err:
             logger.debug("recipe republish trigger failed: %s", err)
-        request = getattr(self.transport, "request_property", None)
-        if request is not None:
+        request = self._property_requester()
+        if request is not None and self._machine_reachable():
             try:
-                request(name)
+                self._upstream_call(request, name)
             except (OSError, ValueError, RuntimeError) as err:
                 logger.debug("request_property(%s) failed: %s", name, err)
         # The republish lands one machine poll cycle (~1.3 s) after the
@@ -734,17 +1107,21 @@ class Device:
             if raw is not None:
                 recipe = self._brew_recipe_bytes(raw)
                 if recipe is not None:
+                    logger.debug("profile recipe: %s answered", name)
                     return recipe
             now = time.monotonic()
-            if now >= deadline:
+            if now >= deadline or not self._machine_reachable():
+                logger.debug("profile recipe: %s unanswered", name)
                 return None
             if request is not None and now - last_request >= 3.0:
                 last_request = now
                 try:
-                    request(name)
+                    self._upstream_call(request, name)
                 except (OSError, ValueError, RuntimeError) as err:
                     logger.debug("request_property(%s) failed: %s", name, err)
-            time.sleep(self.response_poll)
+            # Wait capped at the 3 s re-request cadence so a dropped
+            # GET still gets retried inside the deadline.
+            self._wait_datapoint(min(3.0, deadline - time.monotonic()))
 
     # --- brew / power ---
     def brew(
@@ -753,8 +1130,12 @@ class Device:
         recipe: bytes | None = None,
         profile_slot: int | None = None,
         accessory: int = 0,
+        *,
+        overrides: Mapping[int, int] | None = None,
+        action: int | None = None,
+        params: RecipeParams | None = None,
     ) -> Any:
-        """Start brewing ``beverage_id``.
+        """Start brewing ``beverage_id`` — optionally with param overrides.
 
         ``profile_slot=None`` resolves to the last 0xA9-acked profile
         (``current_profile``); ``recipe=None`` fetches the profile-scoped
@@ -764,24 +1145,411 @@ class Device:
         taking beverage id, action and trailer from the stored frame and
         falling back to the captured recipe when the machine does not
         republish one.
+
+        ``overrides`` (``{param_id: raw_value}``) is a one-off brew: the
+        values are merged into the recipe TLVs and the machine's stored
+        recipe is untouched (the ``0x83`` ``PREPARE_BEVERAGE`` path — no
+        ``SAVE_BEVERAGE`` write; research.md R1–R2). Overrides are
+        validated against :meth:`recipe_params` bounds; management tags
+        and params absent from the recipe are rejected (``ValueError``).
+        Passing ``params`` (a prior :meth:`recipe_params` result) skips
+        the second machine read and builds the frame straight from its
+        ``values`` map. Bean-system beverages (``0xC8``–``0xCD``) send
+        ``action | 0x80`` and read the selected bean's ``bs_recipe``
+        datapoint (research.md R10).
         """
         slot = self.current_profile or 1 if profile_slot is None else profile_slot
+        entry = self.brew_entry(beverage_id)
+        action_i = (
+            int(entry.get("action", ecam_builder.BrewAction.START))
+            if action is None
+            else int(action)
+        )
+        if not accessory:
+            accessory = int(entry.get("accessory", 0))
+        bean = ecam_params.is_bean_beverage(beverage_id)
+        if bean:
+            action_i |= 0x80  # APK ``l0`` fromBeanSystem flag (research R10)
+        values: dict[int, int] | None = dict(params.values) if params else None
+        if recipe is None and values is None:
+            recipe = self._resolve_brew_recipe(slot, beverage_id, bean, entry)
+        if overrides is None and params is None:
+            # Plain brew — ``action_i`` already carries the bean ``0x80``
+            # bit, so ``build_brew`` produces the APK-identical frame.
+            # recipe is guaranteed non-None here (the resolver raises
+            # when both recipe and values are absent).
+            assert recipe is not None
+            frame = ecam_builder.build_brew(
+                beverage_id,
+                action_i,
+                recipe,
+                self._profile(),
+                profile_slot=slot,
+                accessory=accessory,
+            )
+            return self._send_gated(frame)
+        return self._send_gated(
+            self._brew_params_frame(
+                beverage_id,
+                action_i,
+                slot,
+                accessory,
+                recipe=recipe,
+                values=values,
+                params=params,
+                overrides=overrides,
+            )
+        )
+
+    def _resolve_brew_recipe(
+        self,
+        slot: int,
+        beverage_id: int,
+        bean: bool,
+        entry: Mapping[str, Any],
+    ) -> bytes:
+        """Live profile-scoped recipe bytes, else the map's static fallback."""
+        recipe = self._fetch_brew_recipe(slot, beverage_id, bean)
+        if recipe is None and entry.get("recipe"):
+            recipe = bytes.fromhex(entry["recipe"])
         if recipe is None:
-            recipe = self._fetch_profile_recipe(slot, beverage_id)
-            if recipe is None:
-                raise ConnectionError(
-                    f"no profile-scoped recipe available for "
-                    f"(profile={slot}, beverage={beverage_id})"
-                )
-        frame = ecam_builder.build_brew(
+            raise ConnectionError(
+                f"no profile-scoped recipe available for "
+                f"(profile={slot}, beverage={beverage_id})"
+            )
+        return recipe
+
+    def _brew_params_frame(
+        self,
+        beverage_id: int,
+        action: int,
+        slot: int,
+        accessory: int,
+        *,
+        recipe: bytes | None,
+        values: dict[int, int] | None,
+        params: RecipeParams | None,
+        overrides: Mapping[int, int] | None,
+    ) -> bytes:
+        """Effective-values ``0x83`` frame: stored values + validated overrides."""
+        rp = params or self.recipe_params(beverage_id, profile_slot=slot)
+        if values is None:
+            values = ecam_catalog.parse_tlv(recipe or b"") or {}
+        self._validate_brew_overrides(values, rp.bounds, overrides or {})
+        values.update(overrides or {})
+        return ecam_builder.build_brew_params(
             beverage_id,
-            ecam_builder.BrewAction.START,
-            recipe,
+            action,
+            values,
             self._profile(),
             profile_slot=slot,
             accessory=accessory,
         )
-        return self._send_gated(frame)
+
+    @staticmethod
+    def _validate_brew_overrides(
+        values: Mapping[int, int],
+        bounds: Mapping[int, tuple[int, int, int]],
+        overrides: Mapping[int, int],
+    ) -> None:
+        """Reject overrides outside the machine-defined set (spec FR-005)."""
+        for pid, value in overrides.items():
+            if pid in ecam_params.MANAGEMENT_PARAMS:
+                raise ValueError(f"param {pid} is machine-managed, not adjustable")
+            if pid in bounds:
+                low, _, high = bounds[pid]
+                if not low <= value <= high:
+                    raise ValueError(
+                        f"param {pid} value {value} outside bounds {low}..{high}"
+                    )
+            elif pid not in values:
+                raise ValueError(f"param {pid} is not part of this recipe")
+
+    def _fetch_brew_recipe(
+        self,
+        profile_slot: int,
+        beverage_id: int,
+        bean: bool,
+        bean_slot: int | None = None,
+    ) -> bytes | None:
+        """Recipe TLV bytes for a brew — bean ``bs_recipe`` or ``0xA6``."""
+        if bean:
+            if bean_slot is None:
+                bean_slot = self.selected_bean_slot()
+            if bean_slot is None:
+                return None
+            blob = self._fetch_bean_recipe(profile_slot, bean_slot)
+            return self._brew_recipe_bytes(blob) if blob else None
+        entry = self.brew_entry(beverage_id)
+        datapoint = (
+            entry.get("recipe_datapoint")
+            if profile_slot == int(entry.get("profile_slot", 1))
+            else None
+        )
+        return self._fetch_profile_recipe(
+            profile_slot, beverage_id, datapoint=datapoint
+        )
+
+    def _fetch_bean_recipe(self, profile_slot: int, bean_slot: int) -> bytes | None:
+        """Republished ``bs_recipe`` blob for ``(profile, bean_slot)``.
+
+        ``dNNN_<prof>_bs_recipe_<slot>`` with ``NNN = 160 + (prof-1)*6 +
+        slot-1`` (research.md R10, LAN-captured naming). The ``0xA6``
+        trigger addresses the bean beverage id ``0xC8``.
+        """
+        suffix = f"_{profile_slot}_bs_recipe_{bean_slot:02d}"
+        name = next((n for n in self.catalog_datapoints if n.endswith(suffix)), None)
+        if name is None:
+            return None
+        try:
+            self.send_frame(
+                ecam_builder.build_recipe_values(profile_slot, 0xC8, self._profile())
+            )
+        except (OSError, ValueError, RuntimeError) as err:
+            logger.debug("bean recipe republish trigger failed: %s", err)
+        request = self._property_requester()
+        if request is not None:
+            try:
+                request(name)
+            except (OSError, ValueError, RuntimeError) as err:
+                logger.debug("request_property(%s) failed: %s", name, err)
+        deadline = time.monotonic() + self.response_timeout
+        last_request = time.monotonic()
+        while True:
+            value = self._named_value(name)
+            if value is not None:
+                raw = self._as_blob_bytes(value)
+                if raw is not None:
+                    return raw
+            now = time.monotonic()
+            if now >= deadline:
+                return None
+            if request is not None and now - last_request >= 3.0:
+                last_request = now
+                try:
+                    request(name)
+                except (OSError, ValueError, RuntimeError) as err:
+                    logger.debug("request_property(%s) failed: %s", name, err)
+            self._wait_datapoint(min(3.0, deadline - time.monotonic()))
+
+    def recipe_params(
+        self,
+        beverage_id: int,
+        *,
+        profile_slot: int | None = None,
+        catalog: ecam_catalog.RecipeCatalogue | None = None,
+    ) -> RecipeParams:
+        """Effective parameters + bounds for ``(profile, beverage)``.
+
+        Costs at most two machine reads and no catalogue sweep
+        (protocol.md §13/§14.12, research.md R11): the recipe's ``0xB0``
+        bounds (one GET, cached for the process) and the profile's live
+        ``0xA6``/``bs_recipe`` values. A full ``catalog`` (from
+        :meth:`read_catalog`) may be supplied; its ``a6f0`` profile
+        records then serve as the values source. BeanAdapt beverages
+        always live-read ``bs_recipe`` — the 6 bean slots share bev id
+        ``0xC8``. Falls back to ``0xB0`` defaults (or the command-map
+        stored recipe) with ``source="default"`` — never raises on a
+        failed machine read. ``ValueError`` only for a beverage neither
+        the model table nor the command map knows.
+        """
+        slot = self.current_profile or 1 if profile_slot is None else profile_slot
+        beverage = catalog.beverages.get(beverage_id) if catalog else None
+        entry = self.brew_entry(beverage_id)
+        known = beverage is not None or bool(entry)
+        if not known and catalog is None:
+            known = beverage_id in self._declared().beverages
+        if not known:
+            raise ValueError(f"unknown beverage_id: {beverage_id!r}")
+        if beverage is not None:
+            bounds = dict(beverage.ranges)
+        elif catalog is None:
+            bounds = dict(self._descriptor_bounds(beverage_id))
+        else:
+            bounds = {}
+        bean = ecam_params.is_bean_beverage(beverage_id)
+        bean_slot = self.selected_bean_slot() if bean else None
+        values: dict[int, int] | None = None
+        if not bean and beverage is not None:
+            stored = beverage.profiles.get(slot)
+            if stored:
+                values = dict(stored)
+        if values is None:
+            recipe = (
+                self._fetch_brew_recipe(slot, beverage_id, bean, bean_slot)
+                if not bean or bean_slot is not None
+                else None
+            )
+            if recipe is not None:
+                values = ecam_catalog.parse_tlv(recipe)
+        if values is None and entry.get("recipe"):
+            values = ecam_catalog.parse_tlv(bytes.fromhex(entry["recipe"]))
+            logger.debug(
+                "recipe_params: beverage=%s values from command-map fallback",
+                beverage_id,
+            )
+        if values is not None:
+            logger.debug(
+                "recipe_params: beverage=%s profile=%s values=%s source=profile "
+                "bounds=%d tags",
+                beverage_id,
+                slot,
+                values,
+                len(bounds),
+            )
+            return RecipeParams(slot, beverage_id, values, "profile", bounds, bean_slot)
+        logger.debug(
+            "recipe_params: beverage=%s profile=%s no stored values — "
+            "using descriptor defaults (bounds=%d tags)",
+            beverage_id,
+            slot,
+            len(bounds),
+        )
+        return RecipeParams(
+            slot,
+            beverage_id,
+            {tag: triple[1] for tag, triple in bounds.items()},
+            "default",
+            bounds,
+            bean_slot,
+        )
+
+    def bean_systems(self) -> list[BeanSystem]:
+        """Configured BeanAdapt slots with their user-assigned names.
+
+        Reads the republished ``d25X_beansystem_N`` blobs — the same
+        ``ba f0`` frames the app's ``U(index)``/``0xBA`` slot reads
+        produce (protocol.md §11 — on LAN the answers republish the
+        ``d25x`` properties rather than answering ``data_response``).
+        Frame layout per DECODED ``G0``/``loadBeanSystems``: id @[4],
+        name UTF-16BE @[5..44] zero-stripped, flag bytes before the CRC
+        (``01 01`` = configured+selected, ``00 00`` = empty slot —
+        research.md R10). Unconfigured/undecodable slots are skipped.
+        """
+        names = [
+            name
+            for name in self.catalog_datapoints
+            if re.fullmatch(r"d25\d_beansystem_[1-6]", name)
+        ]
+        if not names:
+            return []
+        with self._fetch_lock:
+            props = self._collect_named_properties(names, settle=0.5)
+        systems: list[BeanSystem] = []
+        for name in sorted(names):
+            try:
+                slot = int(name.rsplit("_beansystem_", 1)[1])
+            except (ValueError, IndexError):
+                continue
+            value = props.get(name)
+            raw = self._as_blob_bytes(value) if value is not None else None
+            if raw is None:
+                continue
+            frame = ecam_builder.trim_frame(raw)
+            if len(frame) < 46 or frame[2:4] != b"\xba\xf0":
+                continue
+            configured_flag, selected_flag = frame[-4], frame[-3]
+            if not configured_flag:
+                continue
+            # Verified layout (cloud capture d250–d256, 53-byte frames):
+            # ``0D len BA F0 <slot@4> <name[40] UTF-16BE @5..44> <tail 6B>
+            # <crc 2B>`` — no reserved byte after the slot. The field
+            # keeps stale tail bytes past its first NUL (d252 shows
+            # ``'Bohnen 2\x00\x00Bohnen 3'``) → cut at the FIRST NUL,
+            # don't rstrip.
+            label = (
+                frame[5:45]
+                .decode("utf-16-be", errors="replace")
+                .split("\x00")[0]
+                .strip()
+            )
+            systems.append(
+                BeanSystem(slot, label or f"Bean {slot}", bool(selected_flag))
+            )
+        return systems
+
+    def selected_bean_slot(self) -> int | None:
+        """The machine's currently selected BeanAdapt slot (1–6).
+
+        Bean-name blobs (``d25X_beansystem_N``, ``ba f0`` family) end with
+        two flag bytes: captured values mark the configured+selected bean
+        ``01 01`` (byte 49 = configured, byte 50 = selected) vs ``00 00``
+        empty slots (research.md R10). Returns the flagged slot, else the
+        first configured one, else None.
+        """
+        systems = self.bean_systems()
+        selected = next((s.slot for s in systems if s.selected), None)
+        if selected is not None:
+            return selected
+        return systems[0].slot if systems else None
+
+    def select_bean_system(self, slot: int) -> bool:
+        """Switch the BeanAdapt bean system (session-gated ``0xB9``).
+
+        ``0xB9`` is on protocol.md §13's *untested* write list — it goes
+        through the same gated path as the verified ``0xA9`` profile
+        select: ``device_connected`` announce (``_send_gated``) →
+        ``0D 06 B9 F0 <slot>`` → optional ``<ok>`` ack
+        (``h.m(ok=(b5==0))``, DECODED dispatcher). Like ``0xA9`` on
+        non-striker the app has no read-back for the select — a
+        nack-free send counts as applied; an explicit nack returns
+        ``False``.
+        """
+        if not 1 <= slot <= 6:
+            raise ValueError(f"bean-system slot {slot} out of range 1..6")
+        self._send_gated(ecam_builder.build_bean_select(slot, self._profile()))
+        try:
+            frame = self._wait_answer(
+                ecam_builder.REQ_BEAN_SELECT,
+                timeout=min(self.response_timeout, 4.0),
+            )
+        except TimeoutError:
+            return False
+        if frame is None:
+            return True  # no ack — fire-and-forget, same as 0xA9
+        try:
+            _, ok = ecam_answers.parse_simple_ack(frame)
+        except ValueError:
+            return True
+        return ok
+
+    def brew_entry(self, beverage_id: int) -> dict:
+        """The command-map entry carrying ``beverage_id`` (``{}`` if none)."""
+        for entry in self.command_map.values():
+            if int(entry.get("beverage_id", -1)) == beverage_id:
+                return entry
+        return {}
+
+    def beverage_catalog(
+        self, *, fetch_priority: bool = True
+    ) -> list[ecam_catalog.Beverage]:
+        """Brewable beverages for the selector, priority-ordered.
+
+        Built from the app's model table (static — **zero** machine
+        requests) filtered to the union of the profile's drink-menu
+        order and the command-map brew entries. The menu order costs one
+        cached GET per profile; pass ``fetch_priority=False`` (standby /
+        startup) to use only what is already cached, falling back to
+        command-map order. Labels are resolved by callers
+        (command-map ``name`` → ``Beverage.name`` → ``Beverage <id>``).
+        """
+        catalog = self._declared()
+        priority = self._priority_list(self.current_profile or 1, fetch=fetch_priority)
+        rank = {bev: i for i, bev in enumerate(priority)}
+        map_order = {
+            int(e["beverage_id"]): i
+            for i, e in enumerate(self.command_map.values())
+            if "beverage_id" in e
+        }
+        brewable = {
+            bev_id: bev
+            for bev_id, bev in catalog.beverages.items()
+            if (bev_id in rank or bev_id in map_order) and bev.defined is not False
+        }
+        return sorted(
+            brewable.values(),
+            key=lambda b: (rank.get(b.bev_id, len(rank)), map_order.get(b.bev_id, 0)),
+        )
 
     def stop_brew(self) -> Any:
         """Stop the running brew (the verified ``83 f0 .. 02`` frame)."""
@@ -840,7 +1608,7 @@ class Device:
             report.breakdowns = ecam_statistics.resolve_cloud_breakdowns(props)
             return report
 
-        if getattr(self.transport, "pop_response", None) is None:
+        if self._mailbox() is None:
             raise NotImplementedError(
                 "native 0xA2 statistics require a transport with "
                 "pop_response (LAN); this transport does not provide one"
@@ -872,8 +1640,17 @@ class Device:
 
     # --- profiles ---
     def get_profiles(self) -> list[ecam_profile_parser.ProfileSlot]:
-        """Read the occupied profile slots (``a4f0`` blobs, profile-scoped)."""
-        names = [name for name in self.catalog_datapoints if "_profiles_" in name]
+        """Read the occupied profile slots (``a4f0`` blobs, profile-scoped).
+
+        The blobs are republished as ``dNNN_profiles_*`` (Soul) or
+        ``dNNN_profile_name*`` (striker/ECAM452 over the cloud, which has no
+        response mailbox for the ``0xA4`` fallback).
+        """
+        names = [
+            name
+            for name in self.catalog_datapoints
+            if self._is_profile_names_datapoint(name)
+        ]
         slots: dict[int, ecam_profile_parser.ProfileSlot] = {}
         if names:
             props = self._collect_named_properties(names)
@@ -919,11 +1696,14 @@ class Device:
                 status = getattr(self.get_monitor(), "status_name", None)
             except (OSError, ValueError, RuntimeError) as err:
                 logger.debug("monitor status probe failed: %s", err)
-        if status in ("standby", "sleeping", "off"):
+        if status in _STANDBY_STATUS_NAMES:
             self.wake()
         striker = (
             self._profile().session != ecam_profiles_mod.SESSION_DEVICE_CONNECTED_TS
         )
+        republished = [n for n in self.settings_datapoints if "sett_profile" in n]
+        if striker and self._mailbox() is None and republished:
+            return self._select_profile_via_republish(index, republished)
         attempts = 1 if striker else 3
         for attempt in range(attempts):
             self._send_gated(ecam_builder.build_profile_select(index, self._profile()))
@@ -949,6 +1729,33 @@ class Device:
             return False
         self.current_profile = index
         return True
+
+    def _select_profile_via_republish(self, index: int, names: list[str]) -> bool:
+        """Striker over the cloud: no ``0xA9`` ack arrives, so confirm the
+        switch through the republished ``0x03EE`` register (0-based)."""
+        self._send_gated(ecam_builder.build_profile_select(index, self._profile()))
+        deadline = time.monotonic() + self.write_confirm_seconds
+        poll = max(self.response_poll, 1.0)
+        last_read: float | None = None
+        while True:
+            now = time.monotonic()
+            if last_read is None or now - last_read >= 3.0:
+                last_read = now
+                try:
+                    self.send_frame(
+                        ecam_builder.build_read_param(
+                            self.PARAM_CURRENT_PROFILE, self._profile()
+                        )
+                    )
+                except (ConnectionError, OSError, RuntimeError) as err:
+                    logger.debug("profile read-back request failed: %s", err)
+            raw = self._republished_param(self.PARAM_CURRENT_PROFILE, names)
+            if raw is not None and raw + 1 == index:
+                self.current_profile = index
+                return True
+            if now >= deadline:
+                return False
+            time.sleep(poll)
 
     @property
     def selected_profile(self) -> int | None:
@@ -988,7 +1795,32 @@ class Device:
             and now - self._profile_polled_at < self.profile_poll_seconds
         ):
             return None
-        if getattr(self.transport, "pop_response", None) is None:
+        republished = [n for n in self.settings_datapoints if "sett_profile" in n]
+        if republished:
+            # Over the cloud the machine answers the 0x95 read into a named
+            # property (striker: ``d286_mach_sett_profile``), not a mailbox.
+            # Routine polls only read the last republished value: an active
+            # read needs a live session, so polling it every cycle kept a
+            # handshake and registration going every few minutes, even in
+            # standby. Only a forced refresh asks the machine again.
+            self._profile_polled_at = now
+            if force:
+                try:
+                    self._session().ensure_fresh()
+                    self.send_frame(
+                        ecam_builder.build_read_param(
+                            self.PARAM_CURRENT_PROFILE, self._profile()
+                        )
+                    )
+                except (ConnectionError, OSError, RuntimeError) as err:
+                    logger.debug("profile read request failed: %s", err)
+            raw = self._republished_param(self.PARAM_CURRENT_PROFILE, republished)
+            if raw is not None:
+                if not striker and self.current_profile:
+                    return self.current_profile
+                self.current_profile = raw + 1
+                return self.current_profile
+        if self._mailbox() is None:
             return None  # transports without a mailbox cannot answer 0x95
         self._profile_polled_at = now
         try:
@@ -1125,8 +1957,10 @@ class Device:
             ),
             None,
         )
-        request = getattr(self.transport, "request_property", None)
+        request = self._property_requester()
         deadline = time.monotonic() + self.write_confirm_seconds
+        # Over the cloud each poll is an HTTP GET; don't hammer it.
+        poll = self.response_poll if self._mailbox() else max(self.response_poll, 1.0)
         last_request: float | None = None
         acked = False
         seen: int | None = None
@@ -1153,8 +1987,12 @@ class Device:
                     return "confirmed"
                 continue
             now = time.monotonic()
-            if datapoint and request is not None:
-                if last_request is None or now - last_request >= 3.0:
+            if datapoint:
+                # Cloud: no request_property; the 0x95 read sent after the
+                # write makes the machine republish the backing property.
+                if request is not None and (
+                    last_request is None or now - last_request >= 3.0
+                ):
                     last_request = now
                     try:
                         request(datapoint)
@@ -1171,7 +2009,10 @@ class Device:
                     return "confirmed"
             if now >= deadline:
                 break
-            time.sleep(self.response_poll)
+            if getattr(self.transport, "wait_datapoint", None) is not None:
+                self._wait_datapoint(deadline - time.monotonic())
+            else:
+                time.sleep(poll)
         logger.debug(
             "param write (%s=%s) unconfirmed: acked=%s last_seen=%s",
             key,
@@ -1203,10 +2044,10 @@ class Device:
             None,
         )
         if datapoint:
-            request = getattr(self.transport, "request_property", None)
-            if request is not None:
+            request = self._property_requester()
+            if request is not None and self._machine_reachable():
                 try:
-                    request(datapoint)
+                    self._upstream_call(request, datapoint)
                 except (OSError, ValueError, RuntimeError) as err:
                     logger.debug("request_property(%s) failed: %s", datapoint, err)
             # The machine serves ~one queued GET per poll cycle and the
@@ -1220,9 +2061,9 @@ class Device:
                     value = ecam_settings.parse_settings(raw).get(param_id)
                     if value is not None:
                         return value
-                if time.monotonic() >= deadline:
+                if time.monotonic() >= deadline or not self._machine_reachable():
                     break
-                time.sleep(self.response_poll)
+                self._wait_datapoint(deadline - time.monotonic())
         frame = self._read_param_frame(param_id)
         if frame is None:
             return None
@@ -1243,6 +2084,8 @@ class Device:
             self._session().ensure_fresh()
         except (ConnectionError, OSError, RuntimeError) as err:
             logger.debug("session announce before param read failed: %s", err)
+        if not self._machine_reachable():
+            return None  # dead machine cannot answer the mailbox
         frame: bytes | None = None
         for _ in range(retries + 1):
             self.send_frame(ecam_builder.build_read_param(param_id, self._profile()))
@@ -1390,12 +2233,205 @@ class Device:
         parsed; maps without ``catalog_datapoints`` (striker models) get
         the model-table declaration instead.
         """
-        if not self.catalog_datapoints:
+        if not any(
+            not self._is_profile_names_datapoint(n) for n in self.catalog_datapoints
+        ):
+            # No recipe datapoints (striker models may list only their
+            # profile-name blobs here).
             return self.declared_catalog()
+        logger.debug(
+            "read_catalog: collecting %d catalogue datapoints "
+            "(one-payload-per-poll lane — protocol.md §14.12)",
+            len(self.catalog_datapoints),
+        )
         props = self._collect_named_properties(self.catalog_datapoints, settle=settle)
-        return ecam_catalog.build_catalog(
+        catalog = ecam_catalog.build_catalog(
             {name: {"value": value} for name, value in props.items()}
         )
+        logger.debug(
+            "read_catalog: %d/%d datapoints answered → %d beverages, "
+            "%d descriptors, priority lists %s, stats=%s",
+            len(props),
+            len(self.catalog_datapoints),
+            len(catalog.beverages),
+            sum(1 for b in catalog.beverages.values() if b.ranges),
+            {p: len(o) for p, o in catalog.priority_lists.items()},
+            catalog.stats,
+        )
+        return catalog
+
+    def _declared(self) -> ecam_catalog.RecipeCatalogue:
+        """Model-table catalogue, loaded once — no machine traffic."""
+        if self._declared_cache is None:
+            self._declared_cache = self.declared_catalog()
+        return self._declared_cache
+
+    def _descriptor_property_name(self, beverage_id: int) -> str | None:
+        """Datapoint holding the recipe's factory ``0xB0`` descriptor.
+
+        Builtin drinks: ``d{index:03d}_rec_<label>`` with ``index`` the
+        1-based position in ``recipe_beverage_order`` (LAN captures
+        ``lan_d001…d021``); the bean drink ``0xC8`` is ``d022_beansystem_1``
+        (protocol.md §11). ``None`` when the map doesn't list it.
+        """
+        if ecam_params.is_bean_beverage(beverage_id):
+            prefix = "d022_beansystem_"
+        else:
+            try:
+                index = self.recipe_beverage_order.index(beverage_id) + 1
+            except ValueError:
+                return None
+            prefix = f"d{index:03d}_rec_"
+        return next((n for n in self.catalog_datapoints if n.startswith(prefix)), None)
+
+    def _read_single(self, name: str) -> Any | None:
+        """One named GET (+ settle); ``None`` if the machine didn't answer."""
+        props = self._collect_named_properties([name], settle=self.response_timeout)
+        return props.get(name)
+
+    def _descriptor_bounds(self, beverage_id: int) -> dict[int, tuple[int, int, int]]:
+        """``(min, default, max)`` per tag — ONE GET, cached for the process.
+
+        Factory descriptors never change, so a successful read is final;
+        a failed read returns ``{}`` and is retried by the next caller.
+        """
+        name = self._descriptor_property_name(beverage_id)
+        with self._fetch_lock:  # concurrent callers share one read
+            cached = self._descriptor_cache.get(beverage_id)
+            if cached is not None:
+                logger.debug(
+                    "descriptor bounds: cache hit beverage=%s (%d tags)",
+                    beverage_id,
+                    len(cached),
+                )
+                return cached
+            if name is None:
+                logger.debug(
+                    "descriptor bounds: no datapoint mapped for beverage=%s",
+                    beverage_id,
+                )
+                return {}
+            logger.debug(
+                "descriptor bounds: fetching %s for beverage=%s", name, beverage_id
+            )
+            value = self._read_single(name)
+            if value is None:
+                logger.debug(
+                    "descriptor bounds: %s unanswered for beverage=%s",
+                    name,
+                    beverage_id,
+                )
+                return {}
+            catalog = ecam_catalog.build_catalog({name: {"value": value}})
+            beverage = catalog.beverages.get(beverage_id)
+            ranges = dict(beverage.ranges) if beverage else {}
+            if ranges:
+                self._descriptor_cache[beverage_id] = ranges
+            logger.debug(
+                "descriptor bounds: %s → %d tags for beverage=%s",
+                name,
+                len(ranges),
+                beverage_id,
+            )
+            return ranges
+
+    def seed_catalog_from_properties(self, properties: Mapping[str, Any]) -> int:
+        """Fill the descriptor + menu-order caches from a bulk snapshot.
+
+        ``properties`` is ``{datapoint name: base64 value}`` — the cloud
+        ``properties.json`` fetch (the app's one-shot store sync,
+        research.md R11). Only this map's ``catalog_datapoints`` are
+        considered and only the slow-changing families are taken:
+        ``0xB0`` factory descriptors and ``0xA8`` menu orders. Per-profile
+        ``0xA6`` recipe *values* are deliberately NOT seeded — the cloud
+        copy can be stale (protocol.md §13) and a stale value would brew
+        the wrong amount; those stay a live read. Returns the number of
+        descriptors seeded (0 → the caller keeps the lazy LAN path).
+        """
+        wanted = set(self.catalog_datapoints)
+        snapshot = {
+            name: {"value": value}
+            for name, value in properties.items()
+            if name in wanted and value
+        }
+        logger.debug(
+            "cloud catalogue seed: %d properties in, %d catalogue "
+            "datapoints matched of %d declared",
+            len(properties),
+            len(snapshot),
+            len(wanted),
+        )
+        if not snapshot:
+            return 0
+        catalog = ecam_catalog.build_catalog(snapshot)
+        with self._fetch_lock:
+            seeded = 0
+            for bev_id, beverage in catalog.beverages.items():
+                if beverage.ranges:
+                    self._descriptor_cache[bev_id] = dict(beverage.ranges)
+                    seeded += 1
+            priorities = {
+                profile: list(order)
+                for profile, order in catalog.priority_lists.items()
+                if order
+            }
+            self._priority_cache.update(priorities)
+        logger.debug(
+            "cloud catalogue seed: %d descriptors cached, %d priority "
+            "lists %s, beverages parsed=%d, stats=%s",
+            seeded,
+            len(priorities),
+            {p: len(o) for p, o in priorities.items()},
+            len(catalog.beverages),
+            catalog.stats,
+        )
+        return seeded
+
+    def _priority_property_name(self, profile_slot: int) -> str | None:
+        suffix = f"_{profile_slot}_rec_priority"
+        return next((n for n in self.catalog_datapoints if n.endswith(suffix)), None)
+
+    def recipe_priority_loaded(self, profile_slot: int | None = None) -> bool:
+        """Whether the profile's drink-menu order has been read already."""
+        return (profile_slot or self.current_profile or 1) in self._priority_cache
+
+    def _priority_list(self, profile_slot: int, *, fetch: bool) -> list[int]:
+        """Profile drink-menu order (``a8f0``) — one GET per profile, cached."""
+        cached = self._priority_cache.get(profile_slot)
+        if cached is not None:
+            logger.debug(
+                "priority list: cache hit profile=%s (%d entries)",
+                profile_slot,
+                len(cached),
+            )
+            return cached
+        if not fetch:
+            return []
+        name = self._priority_property_name(profile_slot)
+        if name is None:
+            logger.debug("priority list: no datapoint for profile=%s", profile_slot)
+            return []
+        with self._fetch_lock:  # concurrent callers share one read
+            cached = self._priority_cache.get(profile_slot)
+            if cached is not None:
+                return cached
+            logger.debug(
+                "priority list: fetching %s for profile=%s", name, profile_slot
+            )
+            value = self._read_single(name)
+            if value is None:
+                logger.debug(
+                    "priority list: %s unanswered for profile=%s", name, profile_slot
+                )
+                return []
+            catalog = ecam_catalog.build_catalog({name: {"value": value}})
+            order = list(catalog.priority_lists.get(profile_slot) or [])
+            if order:
+                self._priority_cache[profile_slot] = order
+            logger.debug(
+                "priority list: %s → %s for profile=%s", name, order, profile_slot
+            )
+            return order
 
     @staticmethod
     def _as_blob_bytes(value: Any) -> bytes | None:

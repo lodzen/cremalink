@@ -76,6 +76,14 @@ class LocalServerState:
         self.last_monitor_received_at: float | None = None
         self.last_monitor_command_sent_at: float | None = None
         self._monitor_command_payloads: set[str] = set()
+        #: Set by the consumer (HA coordinator) from the monitor status —
+        #: jobs drop to their standby cadence so a sleeping machine is not
+        #: flooded with monitor/keepalive traffic it cannot use.
+        self.machine_asleep: bool = False
+        #: Set by every queue_* append so the nudger's sleep loop wakes at
+        #: once — queued work (e.g. a wake frame during standby) is edge-
+        #: detected within a tick instead of waiting out a 30 s interval.
+        self.work_enqueued = asyncio.Event()
         # Names of property GETs still sitting in the queue — identical
         # GETs are idempotent (the republish answers every waiter), so a
         # second request for a name already queued is a no-op. Keeps
@@ -106,6 +114,13 @@ class LocalServerState:
         # Throttles re-registration attempts while the session is down so a
         # dead machine isn't POSTed at nudger cadence (every ~1 s).
         self.last_register_attempt_at: float | None = None
+
+        # Datapoint generation counter — bumped on every datapoint that
+        # lands (property, mailbox, monitor). `/wait_datapoint` waiters
+        # pass the seq they last saw and block until it differs — a
+        # datapoint arriving between the caller's last harvest and the
+        # wait call can never be missed.
+        self._datapoint_seq = 0
 
         # --- Concurrency Control ---
         self.lock = asyncio.Lock()
@@ -329,6 +344,13 @@ class LocalServerState:
         """Record a ``commands.json`` poll from the machine."""
         self.last_commands_poll_at = time.monotonic()
 
+    def set_machine_asleep(self, asleep: bool) -> None:
+        """Switch the jobs between normal and standby polling cadence."""
+        if asleep == self.machine_asleep:
+            return
+        self.machine_asleep = asleep
+        self.log("machine_sleep_state", {"asleep": asleep})
+
     async def wait_for_commands_poll(
         self, timeout: float, *, since: float | None = None
     ) -> bool:
@@ -390,7 +412,8 @@ class LocalServerState:
             payload_str = json.dumps(payload, separators=(",", ":"))
             self.command_queue.append(payload_str)
             self.last_command = command
-        self.log("queue_command", {"command": command})
+            self.work_enqueued.set()
+        self.log("queue_command", {"command": command}, level=logging.DEBUG)
 
     async def queue_property_set(self, name: str, value: Any) -> None:
         """Adds a write for a single named datapoint to the outgoing queue.
@@ -419,6 +442,7 @@ class LocalServerState:
             if len(self.command_queue) >= self.settings.queue_max_size:
                 raise OverflowError("Command queue is full")
             self.command_queue.append(json.dumps(payload, separators=(",", ":")))
+            self.work_enqueued.set()
         self.log("queue_property_set", {"name": name})
 
     async def queue_property_get(self, name: str) -> None:
@@ -440,7 +464,9 @@ class LocalServerState:
         }
         async with self.lock:
             if name in self._property_get_pending:
-                self.log("queue_property_get_dedup", {"name": name})
+                self.log(
+                    "queue_property_get_dedup", {"name": name}, level=logging.DEBUG
+                )
                 return
             if len(self.command_queue) >= self.settings.queue_max_size:
                 raise OverflowError("Command queue is full")
@@ -451,7 +477,8 @@ class LocalServerState:
                 )
             )
             self._property_get_pending.add(name)
-        self.log("queue_property_get", {"name": name})
+            self.work_enqueued.set()
+        self.log("queue_property_get", {"name": name}, level=logging.DEBUG)
 
     async def queue_monitor(self) -> None:
         """Adds a request for the device's monitoring status to the queue."""
@@ -480,7 +507,8 @@ class LocalServerState:
             self.command_queue.append(payload)
             self._monitor_command_payloads.add(payload)
             self._monitor_request_pending = True
-        self.log("queue_monitor")
+            self.work_enqueued.set()
+        self.log("queue_monitor", level=logging.DEBUG)
 
     async def queue_properties(self) -> None:
         """Adds a request for all device properties to the queue."""
@@ -509,6 +537,7 @@ class LocalServerState:
                 )
             )
             self._properties_request_pending = True
+            self.work_enqueued.set()
         self.log("queue_properties")
 
     async def next_command_payload(self) -> dict[str, Any]:
@@ -575,7 +604,7 @@ class LocalServerState:
                 )
             ):
                 self._store_named_value(name, data_block)
-                self.log("property_datapoint", {"name": name})
+                self.log("property_datapoint", {"name": name}, level=logging.DEBUG)
                 return
             if value and name in (
                 self.data_response_property_name,
@@ -585,7 +614,7 @@ class LocalServerState:
                 self._response_mailbox.append(
                     {"name": name, "value": value, "received_at": time.time()}
                 )
-                self.log("data_response_datapoint", {"name": name})
+                self.log("data_response_datapoint", {"name": name}, level=logging.DEBUG)
                 return
 
             monitor_value = value
@@ -595,14 +624,18 @@ class LocalServerState:
                 self.last_monitor_raw = decrypted_json
                 self.last_monitor_received_at = time.time()
                 self._monitor_request_pending = False
-                self.log("monitor_datapoint", {"raw_value_len": len(monitor_value)})
             else:
                 self.last_monitor = decrypted_json
                 self.last_monitor_raw = decrypted_json
                 self.last_monitor_b64 = None
                 self.last_monitor_received_at = time.time()
                 self._monitor_request_pending = False
-                self.log("monitor_datapoint", {"monitor_keys": list(data_block.keys())})
+                self.log(
+                    "monitor_datapoint",
+                    {"monitor_keys": list(data_block.keys())},
+                    level=logging.DEBUG,
+                )
+            self._datapoint_seq += 1
 
     def _store_named_value(self, name: str | None, entry: dict) -> None:
         """Stores a datapoint/property entry under its datapoint name."""
@@ -614,6 +647,7 @@ class LocalServerState:
             "received_at": time.time(),
             "raw": entry,
         }
+        self._datapoint_seq += 1
 
     # --- snapshots ---
     async def snapshot_monitor(self) -> dict[str, Any]:
@@ -650,6 +684,21 @@ class LocalServerState:
                 return named
         return None
 
+    async def wait_for_datapoint(self, since: int, timeout: float) -> int:
+        """Blocks until the datapoint seq differs from ``since``.
+
+        Returns the current seq — callers compare it to what they
+        passed to detect arrivals. A datapoint landing between the
+        caller's last harvest and this call can never be missed: the
+        seq already differs when the wait starts. Internally a cheap
+        seq poll at 50 ms granularity; nothing per-call is allocated
+        or registered.
+        """
+        deadline = time.monotonic() + max(timeout, 0.0)
+        while self._datapoint_seq == since and time.monotonic() < deadline:
+            await asyncio.sleep(0.05)
+        return self._datapoint_seq
+
     async def get_named_property(self, name: str) -> dict[str, Any] | None:
         """Returns the stored entry for a datapoint name, if seen."""
         async with self.lock:
@@ -683,7 +732,9 @@ class LocalServerState:
             level=level,
         )
 
-    def log_telemetry(self, event: str, details: dict) -> None:
+    def log_telemetry(
+        self, event: str, details: dict, *, level: int = logging.INFO
+    ) -> None:
         """Forward redacted telemetry without retaining it in diagnostics."""
         log_event(
             self.logger,
@@ -691,5 +742,6 @@ class LocalServerState:
             details,
             diagnostic_sensitive_values=(self.dsn, self.device_ip, self.lan_key),
             operational_sensitive_values=(self.lan_key,),
+            level=level,
             telemetry=True,
         )

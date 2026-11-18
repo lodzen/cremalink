@@ -46,9 +46,24 @@ async def nudger_job(
     retries are throttled to the register-timeout cadence — ``POST`` is what
     actually opens a session (key exchange), ``PUT`` alone cannot re-key a
     live or half-dead one (lodzen/cremalink#4).
+
+    Cadence follows the app (protocol.md §15, ``AylaLanModule``): one
+    ``local_reg`` PUT per keepalive tick with ``notify`` reflecting queue
+    depth — **not** one PUT per nudger tick. The machine polls
+    ``commands.json`` on its own ~1.3 s loop once notified, so faster
+    PUTs cannot drain the queue any quicker (live-observed ~1 PUT/s
+    while pending vs. the app's ~1 PUT/10 s). A fresh PUT still goes out
+    immediately on the empty→non-empty edge so user writes keep ~1-tick
+    latency.
     """
-    interval = settings.nudger_poll_interval
+    prev_pending = False
+    prev_polling = False
+    prev_asleep = False
+    # Start "now": the re-nudge window counts real pending time, not a
+    # zero epoch that would fire on the first tick regardless.
+    last_nudged_at = time.monotonic()
     while not stop_event.is_set():
+        pending = prev_pending
         try:
             # Nudge (PUT, notify) when the live session has commands waiting.
             # A dead session is re-registered (POST, new key exchange) by the
@@ -62,20 +77,75 @@ async def nudger_job(
                     or time.monotonic() - st.last_register_attempt_at
                     >= settings.session_register_timeout_seconds
                 )
-                should_nudge = (live and pending) or (not st.registered and retry_due)
+            now = time.monotonic()
+            # An active commands.json poll loop drains the queue on its
+            # own ~1-2 s cadence — a notify PUT is only worth sending
+            # when the loop looks stopped: an edge (queue/stall/wake) or
+            # the app-cadence re-nudge while the loop stays dead. While
+            # the machine polls, pending work drains anyway.
+            machine_polling = (
+                st.last_commands_poll_at is not None
+                and now - st.last_commands_poll_at
+                < settings.commands_poll_active_seconds
+            )
+            # asleep→awake is itself an edge: work queued through the
+            # sleep must prompt the poll loop as soon as it's back.
+            woke = prev_asleep and not st.machine_asleep
+            edge = (
+                pending
+                and not machine_polling
+                and (not prev_pending or prev_polling or woke)
+            )
+            renudge_due = (
+                not machine_polling
+                and now - last_nudged_at >= settings.nudger_renudge_seconds
+            )
+            # In standby the re-nudge stays off — a sleeping machine must
+            # not be pushed every 10 s for routine queued reads. A queue
+            # *edge* still nudges: newly enqueued work is user intent
+            # (a wake frame has no other way to reach the machine — the
+            # next keepalive PUT is up to ~20 s out, observed as a very
+            # slow power-on), and the ~30 s standby monitor GET needs the
+            # same prompt drain to see the transition.
+            should_nudge = (
+                live and pending and (edge or (renudge_due and not st.machine_asleep))
+            ) or (not st.registered and retry_due)
             if should_nudge:
                 await adapter.register_with_device(st)
+                last_nudged_at = now
+            prev_pending = pending
+            prev_polling = machine_polling
+            prev_asleep = st.machine_asleep
         except Exception as exc:
-            st.log("local_reg_nudge_failed", {"error": str(exc)})
+            # Include the exception type — TimeoutError's str() is empty.
+            st.log(
+                "local_reg_nudge_failed",
+                {"error": f"{type(exc).__name__}: {exc}"},
+            )
             # The session is unreachable — drop registration so the next
             # register goes out as a session-creating POST.
             await st.set_registered(False)
 
+        interval = (
+            settings.nudger_poll_interval_standby
+            if st.machine_asleep
+            else settings.nudger_poll_interval
+        )
+        # Sleep for the interval, an enqueue (work_enqueued — queued work
+        # must edge-nudge at once, a wake frame cannot wait out a 30 s
+        # standby tick), or shutdown, whichever comes first.
+        enqueued_wait = asyncio.ensure_future(st.work_enqueued.wait())
+        stop_wait = asyncio.ensure_future(stop_event.wait())
         try:
-            # Wait for the specified interval or until the stop event is set.
-            await asyncio.wait_for(stop_event.wait(), timeout=interval)
-        except asyncio.TimeoutError:
-            continue
+            await asyncio.wait(
+                {enqueued_wait, stop_wait},
+                timeout=interval,
+                return_when=asyncio.FIRST_COMPLETED,
+            )
+        finally:
+            enqueued_wait.cancel()
+            stop_wait.cancel()
+        st.work_enqueued.clear()
 
 
 async def monitor_job(
@@ -84,8 +154,15 @@ async def monitor_job(
     """
     Periodically queues a request to fetch the device's monitoring status.
     """
-    interval = settings.monitor_poll_interval
     while not stop_event.is_set():
+        # Standby slows the monitor loop — the wake transition is still
+        # caught within the standby interval, while routine polls no
+        # longer queue against a sleeping machine every few seconds.
+        interval = (
+            settings.monitor_poll_interval_standby
+            if st.machine_asleep
+            else settings.monitor_poll_interval
+        )
         delay = interval
         try:
             # Only queue a request if the server is configured and another request isn't already pending.
@@ -136,7 +213,10 @@ async def session_job(
                 try:
                     await adapter.register_with_device(state, method="POST")
                 except (ConnectionError, TimeoutError, ValueError) as exc:
-                    state.log("session_register_failed", {"error": str(exc)})
+                    state.log(
+                        "session_register_failed",
+                        {"error": f"{type(exc).__name__}: {exc}"},
+                    )
                 else:
                     exchanged = await state.wait_for_key_exchange(
                         settings.session_register_timeout_seconds
@@ -149,7 +229,10 @@ async def session_job(
                 try:
                     await adapter.register_with_device(state, method="PUT")
                 except (ConnectionError, TimeoutError, ValueError) as exc:
-                    state.log("session_keepalive_failed", {"error": str(exc)})
+                    state.log(
+                        "session_keepalive_failed",
+                        {"error": f"{type(exc).__name__}: {exc}"},
+                    )
                     await state.set_registered(False)
                 else:
                     # A quiet machine is not a dead one (§14.9): standby

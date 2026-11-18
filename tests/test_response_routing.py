@@ -24,7 +24,12 @@ class DummySettings:
 
 
 class DummyLogger:
+    handlers = []
+
     def info(self, *args, **kwargs):
+        return None
+
+    def log(self, *args, **kwargs):
         return None
 
 

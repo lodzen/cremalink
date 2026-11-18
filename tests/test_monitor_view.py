@@ -112,7 +112,12 @@ def test_queue_monitor_uses_configured_property_name():
         monitor_poll_interval = 0.05
 
     class DummyLogger:
+        handlers = []
+
         def info(self, *args, **kwargs):
+            return None
+
+        def log(self, *args, **kwargs):
             return None
 
     async def run():

@@ -14,6 +14,7 @@ import asyncio
 import base64
 import json
 import logging
+import time
 
 import pytest
 from aiohttp.test_utils import TestClient, TestServer
@@ -21,7 +22,7 @@ from aiohttp.test_utils import TestClient, TestServer
 from cremalink.local_server_app import ServerSettings, create_app
 from cremalink.local_server_app.api import LOCAL_STATE_KEY
 from cremalink.local_server_app.device_adapter import DeviceAdapter
-from cremalink.local_server_app.jobs import nudger_job, session_job
+from cremalink.local_server_app.jobs import monitor_job, nudger_job, session_job
 from cremalink.local_server_app.logging import create_logger
 from cremalink.local_server_app.protocol import encrypt_payload
 from cremalink.local_server_app.state import LocalServerState
@@ -69,10 +70,11 @@ class SpyAdapter(DeviceAdapter):
     """Adapter with the device call stubbed; records the chosen method."""
 
     def __init__(self, settings=None, logger=None, *, fail=False):
-        self.settings = settings or ServerSettings(
-            server_settings_path="", enable_device_register=True
+        super().__init__(
+            settings
+            or ServerSettings(server_settings_path="", enable_device_register=True),
+            logger or logging.getLogger("test_session"),
         )
-        self.logger = logger or logging.getLogger("test_session")
         self.calls = []
         self.fail = fail
         self._client = _SpyHttpClient()
@@ -122,6 +124,76 @@ async def test_register_puts_for_live_session():
     method, url = adapter._client.calls[-1]
     assert method == "PUT"
     assert url == "http://1.2.3.4/local_reg.json"
+
+
+class _TimeoutClient(_SpyHttpClient):
+    """Every request times out (asyncio-style, empty str())."""
+
+    async def request(self, method, url, **kwargs):
+        self.calls.append((method, url))
+        raise TimeoutError()
+
+
+@pytest.mark.asyncio
+async def test_register_timeout_marks_dead_and_logs_type(caplog):
+    """TimeoutError is not an aiohttp.ClientError — it must still mark
+    the session dead and produce a non-empty error detail (observed
+    2026-11-12: 'local_reg_nudge_failed {"error": ""}')."""
+    state = await _live_state()
+    adapter = SpyAdapter()
+    adapter._client = _TimeoutClient()
+    with caplog.at_level(logging.INFO, logger="test_session"):
+        with pytest.raises(ConnectionError, match="local_reg failed"):
+            await adapter.register_with_device(state)
+    assert not state.session_live()
+    assert any("TimeoutError" in r.getMessage() for r in caplog.records)
+
+
+@pytest.mark.asyncio
+async def test_concurrent_registers_serialize_to_one_post():
+    """Racing register calls on a dead session must collapse into one
+    POST — the mini-storm shape that once wedged the datapoint engine."""
+    state = await _configured_state()
+    adapter = SpyAdapter()
+    await asyncio.gather(
+        adapter.register_with_device(state),
+        adapter.register_with_device(state),
+        adapter.register_with_device(state),
+    )
+    methods = [m for m, _ in adapter._client.calls]
+    assert methods == ["POST"]
+
+
+@pytest.mark.asyncio
+async def test_post_defer_window_expires():
+    """The defer is a window, not a latch — after the register timeout a
+    retry goes out normally."""
+    adapter = SpyAdapter(
+        settings=ServerSettings(
+            server_settings_path="",
+            enable_device_register=True,
+            session_register_timeout_seconds=0.01,
+        )
+    )
+    state = await _configured_state()
+    await adapter.register_with_device(state)
+    await asyncio.sleep(0.02)
+    await adapter.register_with_device(state)
+    methods = [m for m, _ in adapter._client.calls]
+    assert methods == ["POST", "POST"]
+
+
+@pytest.mark.asyncio
+async def test_method_resolves_to_put_once_session_live():
+    """After the session comes up, a queued register call PUTs — no
+    second key exchange."""
+    state = await _configured_state()
+    adapter = SpyAdapter()
+    await adapter.register_with_device(state)
+    await state.init_crypto(random_1="r", time_1="1")
+    await adapter.register_with_device(state)
+    methods = [m for m, _ in adapter._client.calls]
+    assert methods == ["POST", "PUT"]
 
 
 @pytest.mark.asyncio
@@ -394,6 +466,161 @@ async def test_nudger_notifies_live_session_and_throttles_dead_registers():
 
 
 @pytest.mark.asyncio
+async def test_nudger_edges_then_renudges_at_app_cadence():
+    """Empty->non-empty edge nudges immediately; a still-pending queue
+    only re-nudges every ``nudger_renudge_seconds`` (the app's one PUT
+    per keepalive tick — the machine drains on its own poll loop).
+    Live evidence: ~1 PUT/s while pending vs. ~25-30/min."""
+    state = await _live_state()
+    settings = ServerSettings(
+        server_settings_path="",
+        nudger_poll_interval=0.03,
+        nudger_renudge_seconds=0.15,
+        session_register_timeout_seconds=0.3,
+    )
+    state.settings = settings
+    adapter = SpyAdapter(settings=settings)
+    stop = asyncio.Event()
+    job = asyncio.create_task(nudger_job(state, adapter, settings, stop))
+    try:
+        await state.queue_command("frame-1")  # edge: prompt nudge
+        await asyncio.sleep(0.1)
+        edge_puts = len(adapter._client.calls)
+        assert edge_puts >= 1
+
+        # Queue stays pending (nothing drains it) — PUTs only at the
+        # ~0.15 s re-nudge cadence, not at every 0.03 s tick.
+        await asyncio.sleep(0.4)
+        total = len(adapter._client.calls)
+        assert total <= edge_puts + 4  # ~0.4/0.15 ≈ 3 re-nudges
+        assert total >= edge_puts + 2
+
+        # Drain -> next enqueue is a fresh edge: prompt PUT again.
+        async with state.lock:
+            state.command_queue.clear()
+        await asyncio.sleep(0.12)
+        await state.queue_command("frame-2")
+        await asyncio.sleep(0.1)
+        assert len(adapter._client.calls) > total
+    finally:
+        stop.set()
+        await job
+
+
+@pytest.mark.asyncio
+async def test_nudger_skips_edge_while_machine_polls_commands():
+    """A live commands.json poll loop drains on its own — no edge PUT.
+    Live evidence: polls every ~1-2 s while PUTs rained at ~1/s."""
+    state = await _live_state()
+    settings = ServerSettings(
+        server_settings_path="",
+        nudger_poll_interval=0.03,
+        nudger_renudge_seconds=60,  # isolate the edge path
+        commands_poll_active_seconds=0.08,
+        session_register_timeout_seconds=0.3,
+    )
+    state.settings = settings
+    adapter = SpyAdapter(settings=settings)
+    stop = asyncio.Event()
+    job = asyncio.create_task(nudger_job(state, adapter, settings, stop))
+    try:
+        # Machine is mid-poll-loop: a fresh enqueue earns no PUT.
+        state.mark_commands_poll()
+        await state.queue_command("frame-1")
+        await asyncio.sleep(0.05)  # still within the active window
+        assert adapter._client.calls == []
+        # Poll loop went silent (idle/backoff): the stall edge fires.
+        await asyncio.sleep(0.1)
+        assert adapter._client.calls
+    finally:
+        stop.set()
+        await job
+
+
+@pytest.mark.asyncio
+async def test_nudger_edges_but_never_renudges_while_machine_asleep():
+    """Standby gate: an enqueue edge nudges promptly, the re-nudge stays off.
+
+    Live-observed (2026-10): ~120 PUT local_reg nudges in 4 min after the
+    standby transition — the 1 s nudger kept pushing a sleeping machine.
+    But a fully silent standby made queued wake frames wait for the next
+    keepalive PUT (~20 s) — observed as a very slow power-on. Newly
+    enqueued work is user intent and earns one edge PUT even in standby;
+    the app-cadence re-nudge stays off while the queue drains.
+    """
+    state = await _live_state()
+    settings = ServerSettings(
+        server_settings_path="",
+        nudger_poll_interval=0.03,
+        nudger_poll_interval_standby=5.0,  # prompt only via work_enqueued
+        nudger_renudge_seconds=0.05,  # would fire constantly if not gated
+        session_register_timeout_seconds=0.3,
+    )
+    state.settings = settings
+    adapter = SpyAdapter(settings=settings)
+    stop = asyncio.Event()
+    job = asyncio.create_task(nudger_job(state, adapter, settings, stop))
+    try:
+        state.set_machine_asleep(True)
+        await asyncio.sleep(0.1)  # settle into the standby tick
+        assert adapter._client.calls == []
+        # An enqueue during standby sleep is delivered promptly — the
+        # work_enqueued event cuts the 5 s tick short, then one edge PUT.
+        await state.queue_command("wake-frame")
+        await asyncio.sleep(0.15)
+        methods = [m for m, _ in adapter._client.calls]
+        assert methods == ["PUT"]
+        # The re-nudge does NOT fire in standby even with pending work:
+        # renudge_due is gated on the awake state.
+        async with state.lock:
+            state.command_queue.clear()  # drained by the machine
+        await asyncio.sleep(0.1)
+        assert len(adapter._client.calls) == 1
+        # Wake transition still nudges for work queued during the sleep.
+        await state.queue_command("post-wake-frame")
+        state.set_machine_asleep(False)
+        await asyncio.sleep(0.15)
+        assert len(adapter._client.calls) >= 2
+    finally:
+        stop.set()
+        await job
+
+
+@pytest.mark.asyncio
+async def test_monitor_job_slows_to_standby_interval_when_asleep():
+    """After a just-served monitor the next queue waits out the standby
+    interval instead of the normal one — the wake transition is still
+    caught within the slower tick."""
+    state = await _live_state()
+    settings = ServerSettings(
+        server_settings_path="",
+        monitor_poll_interval=0.03,
+        monitor_poll_interval_standby=0.3,
+    )
+    state.set_machine_asleep(True)
+    stop = asyncio.Event()
+    job = asyncio.create_task(monitor_job(state, settings, stop))
+    try:
+        await asyncio.sleep(0.1)
+        assert len(state.command_queue) == 1  # first tick queues once
+        # Simulate the answer being served: queue drained, pending
+        # cleared, sent-at just now — next queue is due at interval
+        # distance, which is the standby one while asleep.
+        async with state.lock:
+            state.command_queue.clear()
+            state._monitor_request_pending = False
+            state.last_monitor_command_sent_at = time.monotonic()
+        await asyncio.sleep(0.15)
+        assert len(state.command_queue) == 0
+        state.set_machine_asleep(False)
+        await asyncio.sleep(0.1)
+        assert len(state.command_queue) == 1
+    finally:
+        stop.set()
+        await job
+
+
+@pytest.mark.asyncio
 async def test_commands_poll_marks_liveness():
     """commands.json polls advance last_commands_poll_at for the probe."""
     state = await _live_state()
@@ -406,3 +633,143 @@ async def test_commands_poll_marks_liveness():
     assert await state.wait_for_commands_poll(0.05, since=since) is False
     state.mark_commands_poll()
     assert await state.wait_for_commands_poll(0.05, since=since) is True
+
+
+class _WakeSpyAdapter(SpyAdapter):
+    """Failing adapter with the cloud announce stubbed to a recorder."""
+
+    def __init__(self, settings=None, **kwargs):
+        super().__init__(settings=settings, **kwargs)
+        self.wakes = []
+        self.wake_error: Exception | None = None
+        self._client = _TimeoutClient()
+
+    def _cloud_announce_sync(self, dsn):
+        if self.wake_error is not None:
+            raise self.wake_error
+        self.wakes.append(dsn)
+
+
+def _wake_settings(**kwargs) -> ServerSettings:
+    return ServerSettings(
+        server_settings_path="",
+        enable_device_register=True,
+        cloud_token_path="/tmp/fake-token.json",
+        # No defer window — each register call is a real POST attempt.
+        session_register_timeout_seconds=0,
+        **kwargs,
+    )
+
+
+@pytest.mark.asyncio
+async def test_cloud_wake_fires_at_failure_threshold():
+    """Mirrors AylaLanModule$9's MAX_CONNECTION_ATTEMPTS=2: the third
+    consecutive local_reg failure triggers the cloud announce."""
+    adapter = _WakeSpyAdapter(settings=_wake_settings())
+    state = await _configured_state()
+    for _ in range(2):
+        with pytest.raises(ConnectionError):
+            await adapter.register_with_device(state)
+    assert adapter.wakes == []
+    with pytest.raises(ConnectionError):
+        await adapter.register_with_device(state)
+    assert adapter.wakes == ["dsn-1"]
+
+
+@pytest.mark.asyncio
+async def test_cloud_wake_skipped_without_token():
+    """No cloud token configured — failures only keep the LAN retries."""
+    settings = ServerSettings(
+        server_settings_path="",
+        enable_device_register=True,
+        session_register_timeout_seconds=0,
+    )
+    adapter = _WakeSpyAdapter(settings=settings)
+    state = await _configured_state()
+    for _ in range(5):
+        with pytest.raises(ConnectionError):
+            await adapter.register_with_device(state)
+    assert adapter.wakes == []
+
+
+@pytest.mark.asyncio
+async def test_cloud_wake_throttled_to_interval():
+    """One announce per interval, not one per retry."""
+    adapter = _WakeSpyAdapter(
+        settings=_wake_settings(
+            cloud_wake_threshold=1, cloud_wake_interval_seconds=0.05
+        )
+    )
+    state = await _configured_state()
+    for _ in range(3):
+        with pytest.raises(ConnectionError):
+            await adapter.register_with_device(state)
+    assert adapter.wakes == ["dsn-1"]
+    await asyncio.sleep(0.06)
+    with pytest.raises(ConnectionError):
+        await adapter.register_with_device(state)
+    assert adapter.wakes == ["dsn-1", "dsn-1"]
+
+
+@pytest.mark.asyncio
+async def test_cloud_wake_counter_resets_on_success():
+    """Failures are consecutive — a successful register re-arms the count."""
+    adapter = _WakeSpyAdapter(settings=_wake_settings())
+    state = await _configured_state()
+    for _ in range(2):
+        with pytest.raises(ConnectionError):
+            await adapter.register_with_device(state)
+    adapter._client = _SpyHttpClient()  # machine answers again
+    await adapter.register_with_device(state)
+    adapter._client = _TimeoutClient()  # ...then dies again
+    for _ in range(2):
+        with pytest.raises(ConnectionError):
+            await adapter.register_with_device(state)
+    assert adapter.wakes == []
+
+
+@pytest.mark.asyncio
+async def test_cloud_wake_failure_does_not_mask_register_error(caplog):
+    """A failing announce logs cloud_announce_failed and must not shadow
+    the original local_reg ConnectionError."""
+    adapter = _WakeSpyAdapter(settings=_wake_settings(cloud_wake_threshold=1))
+    adapter.wake_error = RuntimeError("cloud down")
+    state = await _configured_state()
+    with caplog.at_level(logging.INFO, logger="test_session"):
+        with pytest.raises(ConnectionError, match="local_reg failed"):
+            await adapter.register_with_device(state)
+    assert any("cloud_announce_failed" in r.getMessage() for r in caplog.records)
+
+
+@pytest.mark.asyncio
+async def test_wait_for_datapoint_wakes_on_seq_bump():
+    """`wait_for_datapoint` blocks until any datapoint bumps the seq."""
+    state = await _live_state()
+    seq0 = await state.wait_for_datapoint(-1, timeout=0.01)
+    assert seq0 == 0
+
+    async def land():
+        await asyncio.sleep(0.05)
+        await state.handle_datapoint(
+            {"data": {"name": "d040_1_rec_regular", "value": "AAAA"}}
+        )
+
+    task = asyncio.create_task(land())
+    seq1 = await state.wait_for_datapoint(seq0, timeout=2.0)
+    await task
+    assert seq1 == 1
+    assert await state.get_property_value("d040_1_rec_regular") is not None
+    # a second wait on the same seq returns immediately
+    assert await state.wait_for_datapoint(0, timeout=0.01) == 1
+    # timeout returns the unchanged seq
+    assert await state.wait_for_datapoint(1, timeout=0.05) == 1
+
+
+@pytest.mark.asyncio
+async def test_wait_for_datapoint_tracks_monitor_and_mailbox():
+    """Monitor pushes and data_response entries also bump the seq."""
+    state = await _live_state()
+    await state.handle_datapoint({"data": {"value": "bW9uaXRvcg=="}})
+    assert await state.wait_for_datapoint(-1, timeout=0.01) == 1
+    await state.handle_datapoint({"data": {"name": "data_response", "value": "QUJD"}})
+    assert await state.wait_for_datapoint(-1, timeout=0.01) == 2

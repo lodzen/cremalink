@@ -12,7 +12,10 @@
     "time_settings": false,
     "water_hardness_settings": true
   },
-  "catalog_datapoints": [],
+  "catalog_datapoints": [
+    "d051_profile_name1_3",
+    "d052_profile_name4"
+  ],
   "command_map": {
     "americano": {
       "accessory": 2,
@@ -92,7 +95,7 @@
       "beverage_id": 1,
       "name": "Espresso",
       "profile_slot": 1,
-      "recipe": "01007e1b0302020400"
+      "recipe": ""
     },
     "espresso_macchiato": {
       "accessory": 2,
@@ -178,6 +181,27 @@
     "recipe_declaration": "STRIKER_BEST",
     "type": "ECAM452.57.G"
   },
+  "monitor_bits": {
+    "exclude": [
+      "choco_tank_present",
+      "preground_door_opened",
+      "beans_empty_hopper_2",
+      "bean_hopper_absent",
+      "grinding_unit_2_problem",
+      "tank_too_full",
+      "coffee_jug_present"
+    ],
+    "disabled_by_default": [
+      "water_spout",
+      "motor_up",
+      "motor_down",
+      "knob",
+      "door_opened",
+      "heater_probe_failure",
+      "infuser_motor_not_working",
+      "steamer_probe_failure"
+    ]
+  },
   "monitor_profile": {
     "enums": {
       "accessory": {
@@ -256,12 +280,13 @@
     "monitor": "d302_monitor_machine"
   },
   "settings_datapoints": [
-    "d280_mchn_sett_pin",
-    "d281_mchn_sett_temp",
-    "d282_mchn_sett_aoff",
-    "d283_mchn_sett_water",
-    "d284_mchn_sett_user_conf",
-    "d285_mchn_sett_radio_conf"
+    "d280_mach_sett_pin",
+    "d281_mach_sett_temperature",
+    "d282_mach_sett_auto_off",
+    "d283_mach_sett_water_hard",
+    "d284_mach_sett_user_conf",
+    "d285_mach_sett_radio_conf",
+    "d286_mach_sett_profile"
   ],
   "statistics_datapoints": [
     "d551_cnt_coffee_fondi",
@@ -272,7 +297,6 @@
     "d556_water_hardness",
     "d701_tot_bev_b",
     "d702_tot_bev_other",
-    "d703_tot_bev_w",
     "d704_tot_bev_espressi",
     "d705_tot_id1_espr",
     "d706_tot_id2_coffee",
@@ -290,17 +314,13 @@
     "d718_id16_hotwater",
     "d719_id22_tea",
     "d720_tot_id23_coffee_pot",
-    "d727_id24_cortado",
-    "d728_id25_long_black",
-    "d729_id26_travel_mug",
     "d730_tot_id27_brew_over_ice",
     "d731_tot_mug_hot",
     "d732_tot_mug_cold",
     "d735_iced_bev",
     "d736_mug_bev",
     "d737_mug_iced_bev",
-    "d738_cold_brew_bev",
-    "d825_descale_status"
+    "d738_cold_brew_bev"
   ],
   "statistics_source": "cloud_counters",
   "support": {
