@@ -158,6 +158,10 @@ class Device:
     statistics_datapoints: list[str] = field(default_factory=list)
     settings_datapoints: list[str] = field(default_factory=list)
     catalog_datapoints: list[str] = field(default_factory=list)
+    #: Per-model monitor-bit policy from the device map: ``exclude`` (bits the
+    #: model does not have) and ``disabled_by_default`` (bits that may exist
+    #: but are unverified). Empty = every documented bit applies.
+    monitor_bits: dict[str, list[str]] = field(default_factory=dict)
     model_ref: dict[str, Any] = field(default_factory=dict)
     # Recipe index -> beverage id, in machine order (verified Soul table).
     recipe_beverage_order: list[int] = field(default_factory=list)
@@ -321,6 +325,7 @@ class Device:
             statistics_datapoints=list(map_data.get("statistics_datapoints") or []),
             settings_datapoints=list(map_data.get("settings_datapoints") or []),
             catalog_datapoints=list(map_data.get("catalog_datapoints") or []),
+            monitor_bits=dict(map_data.get("monitor_bits") or {}),
             model_ref=map_data.get("model_ref") or {},
             recipe_beverage_order=list(map_data.get("recipe_beverage_order") or []),
             **kwargs,
