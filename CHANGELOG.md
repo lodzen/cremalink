@@ -25,6 +25,9 @@ Changes since 2.0.0.dev9:
 
 Changes since 2.0.0.dev8:
 
+- **Milk counters (Eletta):** `total_milk_drinks` (hot milk: `d702` milk
+  drinks + milk only) and `total_iced_milk_drinks` (`d733`), matching the
+  machine's "total with hot / cold milk" statistics lines.
 - **ECAM452 recipe catalogue from the cloud** (merge of KindOfNerdy's
   #17 — details in its entry below): cloud-seeded recipe index, cold
   brew drinks, custom slots and `Device.custom_recipe_names()`.

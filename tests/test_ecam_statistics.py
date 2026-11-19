@@ -248,6 +248,9 @@ def test_resolve_eletta_maintenance_and_usage_counters():
                 "tot_bev_w_iced": "0",
             }
         ),
+        "d702_tot_bev_other": json.dumps(
+            {"tot_bev_bw": "127", "tot_bev_other": "438", "tot_bev_w": "35"}
+        ),
         "d734_tot_bev_usage": json.dumps(
             {"taste_b_bw": "9159", "bev_abort_cnt": "184", "bev_2x_cnt": "4"}
         ),
@@ -263,6 +266,9 @@ def test_resolve_eletta_maintenance_and_usage_counters():
     assert counters["iced_beverages"] == 24
     assert counters["aborted_beverages"] == 184
     assert counters["cold_brew_beverages"] == 5
+    # machine statistics screen: 162 with hot milk, 13 with cold milk
+    assert counters["total_milk_drinks"] == 162
+    assert counters["total_iced_milk_drinks"] == 13
 
     breakdowns = resolve_cloud_breakdowns(props)
     assert "tot_mug_hot_small" not in breakdowns["iced_beverages"]

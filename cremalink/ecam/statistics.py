@@ -159,7 +159,12 @@ CLOUD_COUNTER_CANDIDATES: dict[str, list[str]] = {
     "total_beverages": ["d700_tot_bev_b", "d701_tot_bev_b"],
     "total_other_beverages": ["d702_tot_bev_other"],
     "total_espresso": ["d704_tot_bev_espressi"],
-    "total_milk_drinks": ["d701_tot_bev_bw"],
+    # Soul: plain counter; Eletta: milk drinks + milk only from the d702
+    # JSON (sum = the machine's "total with hot milk" statistics line).
+    "total_milk_drinks": [
+        "d701_tot_bev_bw",
+        "d702_tot_bev_other#tot_bev_bw,tot_bev_w",
+    ],
     "total_milk_only": ["d703_tot_bev_w"],
     "espresso": ["d705_tot_id1_espr"],
     "coffee": ["d706_tot_id2_coffee"],
@@ -197,6 +202,8 @@ CLOUD_COUNTER_CANDIDATES: dict[str, list[str]] = {
         "tot_bev_other_iced,tot_bev_w_iced"
     ],
     "cold_brew_beverages": ["d738_cold_brew_bev"],
+    # "total with cold milk" statistics line (Eletta, d733 JSON).
+    "total_iced_milk_drinks": ["d733_tot_bev_counters#tot_bev_bw_iced,tot_bev_w_iced"],
 }
 
 #: Logical counters that are percentages as published by the machine
