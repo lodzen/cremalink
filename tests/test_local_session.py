@@ -587,6 +587,47 @@ async def test_nudger_edges_but_never_renudges_while_machine_asleep():
 
 
 @pytest.mark.asyncio
+async def test_nudger_edges_on_enqueue_after_drain_between_standby_ticks():
+    """Regression (2026-11-19): a tick that observes pending work must not
+    mark it "seen" forever. In standby the machine drained between two
+    ~30 s ticks — the pending flag never read empty again, so
+    ``prev_pending``-style edge detection treated the next enqueue as
+    already pending and no nudge went out: the wake frame sat ~9.4 s
+    until the session keepalive carried notify:1. ``enqueue_seq`` is the
+    edge signal — every append counts, drain-visibility optional."""
+    state = await _live_state()
+    settings = ServerSettings(
+        server_settings_path="",
+        nudger_poll_interval=0.03,
+        nudger_poll_interval_standby=5.0,  # prompt only via work_enqueued
+        nudger_renudge_seconds=60,
+        session_register_timeout_seconds=0.3,
+    )
+    state.settings = settings
+    adapter = SpyAdapter(settings=settings)
+    stop = asyncio.Event()
+    job = asyncio.create_task(nudger_job(state, adapter, settings, stop))
+    try:
+        state.set_machine_asleep(True)
+        await asyncio.sleep(0.1)  # settle into the standby tick
+        # A tick observes pending work and edge-nudges it.
+        await state.queue_command("monitor-get")
+        await asyncio.sleep(0.15)
+        assert len(adapter._client.calls) == 1
+        # The machine drains between standby ticks — no tick observes the
+        # empty queue (the production failure mode).
+        async with state.lock:
+            state.command_queue.clear()
+        # Newly enqueued work must still edge promptly — enqueue_seq moved.
+        await state.queue_command("wake-frame")
+        await asyncio.sleep(0.15)
+        assert len(adapter._client.calls) == 2
+    finally:
+        stop.set()
+        await job
+
+
+@pytest.mark.asyncio
 async def test_monitor_job_slows_to_standby_interval_when_asleep():
     """After a just-served monitor the next queue waits out the standby
     interval instead of the normal one — the wake transition is still

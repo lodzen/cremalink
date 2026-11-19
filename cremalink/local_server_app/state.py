@@ -84,6 +84,11 @@ class LocalServerState:
         #: once — queued work (e.g. a wake frame during standby) is edge-
         #: detected within a tick instead of waiting out a 30 s interval.
         self.work_enqueued = asyncio.Event()
+        #: Incremented alongside work_enqueued on every queue_* append —
+        #: the nudger's edge check compares against the value seen at its
+        #: previous tick, so enqueues landing between standby ticks count
+        #: as fresh work even when the queue never read empty in between.
+        self.enqueue_seq = 0
         # Names of property GETs still sitting in the queue — identical
         # GETs are idempotent (the republish answers every waiter), so a
         # second request for a name already queued is a no-op. Keeps
@@ -412,6 +417,7 @@ class LocalServerState:
             payload_str = json.dumps(payload, separators=(",", ":"))
             self.command_queue.append(payload_str)
             self.last_command = command
+            self.enqueue_seq += 1
             self.work_enqueued.set()
         self.log("queue_command", {"command": command}, level=logging.DEBUG)
 
@@ -442,6 +448,7 @@ class LocalServerState:
             if len(self.command_queue) >= self.settings.queue_max_size:
                 raise OverflowError("Command queue is full")
             self.command_queue.append(json.dumps(payload, separators=(",", ":")))
+            self.enqueue_seq += 1
             self.work_enqueued.set()
         self.log("queue_property_set", {"name": name})
 
@@ -477,6 +484,7 @@ class LocalServerState:
                 )
             )
             self._property_get_pending.add(name)
+            self.enqueue_seq += 1
             self.work_enqueued.set()
         self.log("queue_property_get", {"name": name}, level=logging.DEBUG)
 
@@ -507,6 +515,7 @@ class LocalServerState:
             self.command_queue.append(payload)
             self._monitor_command_payloads.add(payload)
             self._monitor_request_pending = True
+            self.enqueue_seq += 1
             self.work_enqueued.set()
         self.log("queue_monitor", level=logging.DEBUG)
 
@@ -537,6 +546,7 @@ class LocalServerState:
                 )
             )
             self._properties_request_pending = True
+            self.enqueue_seq += 1
             self.work_enqueued.set()
         self.log("queue_properties")
 

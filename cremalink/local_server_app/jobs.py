@@ -53,18 +53,33 @@ async def nudger_job(
     ``commands.json`` on its own ~1.3 s loop once notified, so faster
     PUTs cannot drain the queue any quicker (live-observed ~1 PUT/s
     while pending vs. the app's ~1 PUT/10 s). A fresh PUT still goes out
-    immediately on the empty→non-empty edge so user writes keep ~1-tick
-    latency.
+    immediately on an enqueue edge (``enqueue_seq`` moved — appends
+    between standby ticks count, queue-empty sightings are not needed)
+    so user writes keep ~1-tick latency.
     """
-    prev_pending = False
     prev_polling = False
     prev_asleep = False
+    # The enqueue counter is the edge: a queue append between two ticks
+    # must count as fresh work. Deriving "new" from the pending flag
+    # seen at the previous tick breaks in standby — ticks are ~30 s
+    # apart, so a queue that filled and drained between ticks keeps
+    # prev_pending=True and every later enqueue reads as "already
+    # pending" (observed 2026-11-19: wake frames sat ~9.4 s until the
+    # session keepalive finally carried notify:1).
+    # None = no tick yet: work pending at the first evaluation counts as
+    # fresh (an enqueue can land before this task's first line runs).
+    last_seen_enqueues: int | None = None
     # Start "now": the re-nudge window counts real pending time, not a
     # zero epoch that would fire on the first tick regardless.
     last_nudged_at = time.monotonic()
     while not stop_event.is_set():
-        pending = prev_pending
         try:
+            # Snapshot first: an append landing mid-tick still counts as
+            # new work at the next evaluation, never silently consumed.
+            enqueues_at_tick = st.enqueue_seq
+            new_enqueues = (
+                last_seen_enqueues is None or enqueues_at_tick != last_seen_enqueues
+            )
             # Nudge (PUT, notify) when the live session has commands waiting.
             # A dead session is re-registered (POST, new key exchange) by the
             # session job — here it is only retried at register-timeout
@@ -80,7 +95,7 @@ async def nudger_job(
             now = time.monotonic()
             # An active commands.json poll loop drains the queue on its
             # own ~1-2 s cadence — a notify PUT is only worth sending
-            # when the loop looks stopped: an edge (queue/stall/wake) or
+            # when the loop looks stopped: an edge (enqueue/stall/wake) or
             # the app-cadence re-nudge while the loop stays dead. While
             # the machine polls, pending work drains anyway.
             machine_polling = (
@@ -94,7 +109,7 @@ async def nudger_job(
             edge = (
                 pending
                 and not machine_polling
-                and (not prev_pending or prev_polling or woke)
+                and (new_enqueues or prev_polling or woke)
             )
             renudge_due = (
                 not machine_polling
@@ -113,7 +128,7 @@ async def nudger_job(
             if should_nudge:
                 await adapter.register_with_device(st)
                 last_nudged_at = now
-            prev_pending = pending
+            last_seen_enqueues = enqueues_at_tick
             prev_polling = machine_polling
             prev_asleep = st.machine_asleep
         except Exception as exc:
