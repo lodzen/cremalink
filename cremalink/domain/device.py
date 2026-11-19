@@ -12,6 +12,7 @@ import re
 import threading
 import time
 from base64 import b64decode, b64encode
+from datetime import datetime
 from collections.abc import Callable, Collection, Mapping
 from dataclasses import dataclass, field
 from typing import Any, ClassVar, Literal
@@ -35,6 +36,20 @@ from cremalink.parsing.monitor.view import MonitorView
 from cremalink.transports.base import DeviceTransport
 
 logger = logging.getLogger(__name__)
+
+
+def _note_updated_at(
+    target: dict[str, float] | None, name: str, prop: Mapping[str, Any]
+) -> None:
+    """Record a datapoint's cloud ``data_updated_at`` (ISO-8601) as epoch."""
+    stamp = prop.get("data_updated_at")
+    if target is None or not isinstance(stamp, str):
+        return
+    try:
+        target[name] = datetime.fromisoformat(stamp).timestamp()
+    except ValueError:
+        pass
+
 
 #: Monitor ``status`` enum names of the standby family (device-map enums).
 _STANDBY_STATUS_NAMES = frozenset(
@@ -1019,8 +1034,15 @@ class Device:
                 break
         return props
 
-    def _properties_by_name(self) -> dict[str, Any]:
-        """Flatten the transport's property snapshot to ``{name: value}``."""
+    def _properties_by_name(
+        self, updated_at: dict[str, float] | None = None
+    ) -> dict[str, Any]:
+        """Flatten the transport's property snapshot to ``{name: value}``.
+
+        With ``updated_at`` the cloud's ``data_updated_at`` of each
+        datapoint is collected as ``{name: epoch}`` where the snapshot
+        carries it.
+        """
         props = self._upstream_call(self.transport.get_properties)
         raw = getattr(props, "raw", props)
         out: dict[str, Any] = {}
@@ -1029,6 +1051,7 @@ class Device:
                 prop = entry.get("property") if isinstance(entry, dict) else None
                 if isinstance(prop, dict):
                     out[prop.get("name") or key] = prop.get("value")
+                    _note_updated_at(updated_at, prop.get("name") or key, prop)
                 elif isinstance(entry, dict) and "name" in entry:
                     out[entry["name"]] = entry.get("value")
                 elif isinstance(entry, dict) and "value" in entry:
@@ -1040,6 +1063,7 @@ class Device:
                 prop = entry.get("property") if isinstance(entry, dict) else None
                 if isinstance(prop, dict) and prop.get("name"):
                     out[prop["name"]] = prop.get("value")
+                    _note_updated_at(updated_at, prop["name"], prop)
         return out
 
     def _recipe_property_name(self, profile_slot: int, beverage_id: int) -> str | None:
@@ -1630,10 +1654,12 @@ class Device:
         counters against the transport's property snapshot.
         """
         if self.statistics_source == "cloud_counters":
-            props = self._properties_by_name()
+            updated_at: dict[str, float] = {}
+            props = self._properties_by_name(updated_at)
             report = ecam_statistics.interpret(
                 [], source="cloud_counters", complete=True
             )
+            report.data_updated_at = ecam_statistics.newest_update(updated_at)
             report.cloud_counters = ecam_statistics.resolve_cloud_counters(props)
             report.breakdowns = ecam_statistics.resolve_cloud_breakdowns(props)
             return report

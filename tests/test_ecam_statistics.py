@@ -2,6 +2,7 @@
 
 import base64
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -277,3 +278,39 @@ def test_candidate_datapoint_strips_keys():
         candidate_datapoint("d734_tot_bev_usage#bev_abort_cnt") == "d734_tot_bev_usage"
     )
     assert candidate_datapoint("d552_cnt_calc_tot") == "d552_cnt_calc_tot"
+
+
+def test_get_statistics_reports_newest_datapoint_update():
+    props = {
+        "d701": {
+            "property": {
+                "name": "d701_tot_bev_b",
+                "value": '{"1": 5}',
+                "data_updated_at": "2026-11-18T15:08:09Z",
+            }
+        },
+        "d553": {
+            "property": {
+                "name": "d553_water_tot_qty",
+                "value": "100000",
+                "data_updated_at": "2026-11-18T15:30:00Z",
+            }
+        },
+        # Not a statistics datapoint: newer, but must not count.
+        "d302": {
+            "property": {
+                "name": "d302_monitor_machine",
+                "value": "AAAA",
+                "data_updated_at": "2026-11-18T16:00:00Z",
+            }
+        },
+    }
+    report = _cloud_device(props).get_statistics()
+    assert report.data_updated_at == pytest.approx(
+        datetime(2026, 11, 18, 15, 30, tzinfo=timezone.utc).timestamp()
+    )
+
+
+def test_get_statistics_without_datapoint_times_has_none():
+    report = _cloud_device({"d553_water_tot_qty": "100000"}).get_statistics()
+    assert report.data_updated_at is None
