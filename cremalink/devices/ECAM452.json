@@ -175,6 +175,7 @@
   },
   "device_type": "ECAM452",
   "machine_profile": "striker",
+  "model_name": "Eletta Explore",
   "model_ref": {
     "appModelId": "STRIKER_GOOD",
     "product_code": "0132217071",

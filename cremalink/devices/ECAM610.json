@@ -380,6 +380,7 @@
   },
   "device_type": "ECAM610",
   "machine_profile": "non_striker",
+  "model_name": "PrimaDonna Soul",
   "model_ref": {
     "appModelId": "PD_SOUL",
     "product_code": "0132217055",
