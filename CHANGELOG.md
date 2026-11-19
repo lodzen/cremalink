@@ -151,6 +151,9 @@ Changes since 2.0.0.dev5:
   (`CLOUD_COUNTER_PERCENTAGES`), aborted, iced and cold brew beverage totals.
   A counter candidate can name keys of a JSON datapoint
   (`d734_tot_bev_usage#bev_abort_cnt`); `candidate_datapoint()` strips them.
+- **Firmware versions:** `Device.firmware_info()` returns the machine
+  firmware (`software_version` datapoint) and, over the cloud, the Wi-Fi
+  module firmware with the date the cloud last updated it.
 - **Standby quiet mode for the embedded server** (`local_server_app`,
   research.md R16): `LocalServerState.machine_asleep` (set via
   `EmbeddedLocalServer.set_machine_asleep`, logged as

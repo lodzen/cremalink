@@ -384,6 +384,36 @@ class Device:
         actual_name = self.resolve_property(name, default=name)
         return self.transport.get_property(actual_name)
 
+    def firmware_info(self) -> dict[str, str]:
+        """Firmware versions the cloud knows, without asking the machine.
+
+        ``machine``: the machine's own firmware (``software_version``
+        datapoint, e.g. ``Striker_cb_demo 1.1.0 Oct 18 2022``);
+        ``wifi_module`` and ``wifi_module_updated_at``: the Wi-Fi module's
+        firmware and when the cloud last updated it (cloud transport only).
+        Keys whose value is unknown are left out.
+        """
+        info: dict[str, str] = {}
+        try:
+            value = self._entry_value(
+                self.transport.get_property(
+                    self.property_map.get("software_version", "software_version")
+                )
+            )
+        except (OSError, ValueError, RuntimeError, NotImplementedError) as err:
+            logger.debug("software_version not readable: %s", err)
+            value = None
+        if isinstance(value, str) and value.strip():
+            info["machine"] = " ".join(value.split())
+        for key, attr in (
+            ("wifi_module", "sw_version"),
+            ("wifi_module_updated_at", "module_updated_at"),
+        ):
+            extra = getattr(self.transport, attr, None)
+            if isinstance(extra, str) and extra.strip():
+                info[key] = extra.strip()
+        return info
+
     def health(self) -> Any:
         """Checks the health of the device connection."""
         return self.transport.health()
