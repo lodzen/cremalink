@@ -177,6 +177,12 @@ Changes since 2.0.0.dev5:
 - **Firmware versions:** `Device.firmware_info()` returns the machine
   firmware (`software_version` datapoint) and, over the cloud, the Wi-Fi
   module firmware with the date the cloud last updated it.
+- **ECAM452 recipe catalogue from the cloud:** bundled JSON descriptors
+  (`d002_rec_default_1` …) are unpacked, profile recipes are found by blob
+  content (their names follow no formula), menu orders use the striker
+  names (`d26N_recipe_priority_N`), cold brew drinks and programmed custom
+  slots join `beverage_catalog`, and `Device.custom_recipe_names()` returns
+  the custom recipe names.
 - **Standby quiet mode for the embedded server** (`local_server_app`,
   research.md R16): `LocalServerState.machine_asleep` (set via
   `EmbeddedLocalServer.set_machine_asleep`, logged as

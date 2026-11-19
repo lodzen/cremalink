@@ -13,8 +13,21 @@
     "water_hardness_settings": true
   },
   "catalog_datapoints": [
+    "d002_rec_default_1",
+    "d003_rec_default_2",
+    "d004_rec_default_3",
+    "d005_rec_default_4",
+    "d006_rec_default_5",
+    "d007_rec_default_6",
+    "d008_rec_default_7",
     "d051_profile_name1_3",
-    "d052_profile_name4"
+    "d052_profile_name4",
+    "d053_custom_name_13",
+    "d054_custom_name_46",
+    "d261_recipe_priority_1",
+    "d262_recipe_priority_2",
+    "d263_recipe_priority_3",
+    "d264_recipe_priority_4"
   ],
   "command_map": {
     "americano": {

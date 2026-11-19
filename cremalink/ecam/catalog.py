@@ -261,14 +261,69 @@ def decode_text(payload: bytes) -> str | None:
     return name or None
 
 
+def decode_custom_names(payload: bytes) -> dict[int, str]:
+    """Slot → name from an ``aa f0`` custom-recipe names payload.
+
+    Layout (ECAM452 cloud ``d053_custom_name_13`` / ``d054_custom_name_46``):
+    ``<first slot> <last slot>`` then per slot 20 bytes UTF-16BE name and
+    one icon byte. Slots without a readable name are skipped.
+    """
+    if len(payload) < 2:
+        return {}
+    first, last = payload[0], payload[1]
+    out: dict[int, str] = {}
+    for i, slot in enumerate(range(first, last + 1)):
+        chunk = payload[2 + i * 21 : 2 + i * 21 + 20]
+        if len(chunk) < 20:
+            break
+        name = chunk.decode("utf-16-be", errors="ignore").split("\x00", 1)[0].strip()
+        if name:
+            out[slot] = name
+    return out
+
+
+def _bundled_blobs(value: Any) -> dict[str, str] | None:
+    """Inner values of a JSON bundle datapoint, or ``None``.
+
+    Striker machines (ECAM452) publish their factory descriptors bundled:
+    ``d002_rec_default_1`` … ``d008_rec_default_7`` hold a JSON object
+    ``{"<recipe label>": "<base64 blob>", ...}``, plain or base64-encoded.
+    """
+    if not isinstance(value, str):
+        return None
+    text = value.strip()
+    if not text.startswith("{"):
+        raw = _b64_bytes(text)
+        if raw is None or not raw.lstrip().startswith(b"{"):
+            return None
+        text = raw.decode("utf-8", "replace")
+    try:
+        data = json.loads(text)
+    except ValueError:
+        return None
+    if not isinstance(data, dict):
+        return None
+    return {str(k): v for k, v in data.items() if isinstance(v, str)}
+
+
 def iter_blobs(properties: dict) -> Iterator[tuple[str, dict]]:
-    """Yield ``(property_name, decoded_blob)`` for every machine blob."""
+    """Yield ``(property_name, decoded_blob)`` for every machine blob.
+
+    Blobs inside a JSON bundle datapoint are yielded one by one as
+    ``<property_name>/<key>``.
+    """
     for name in sorted(properties):
         prop = properties.get(name)
         value = prop.get("value") if isinstance(prop, dict) else prop
         blob = decode_blob(value)
         if blob is not None:
             yield name, blob
+            continue
+        bundle = _bundled_blobs(value) or {}
+        for key in sorted(bundle):
+            inner = decode_blob(bundle[key])
+            if inner is not None:
+                yield f"{name}/{key}", inner
 
 
 def _slot_is_defined(params: dict[int, int]) -> bool:
