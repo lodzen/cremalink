@@ -238,7 +238,7 @@ def _select_keys(val: Any, keys: list[str]) -> Any:
     return json.dumps(picked) if picked else None
 
 
-#: Logical counters that carry millilitres (converted to litres).
+#: Logical counters that carry half-millilitres (converted to litres).
 _COUNTER_MEASUREMENTS: dict[str, str] = {
     "water_total_quantity": MEASUREMENT_WATER_LITERS,
     "water_filter_quantity": MEASUREMENT_WATER_LITERS,
@@ -295,11 +295,15 @@ def counter_breakdown(val: Any) -> dict | None:
 
 
 def parse_water_volume_liters(val: Any) -> float | None:
-    """Convert a millilitre counter value to litres."""
-    milliliters = parse_counter_value(val)
-    if milliliters is None:
+    """Convert a water counter (half-millilitres, ``raw / 2000``) to litres.
+
+    Same unit as the app's LAN statistics (``STAT_LABELS`` unit ``l``);
+    checked on an Eletta Explore: raw 1782545 = 891 l on its display.
+    """
+    raw = parse_counter_value(val)
+    if raw is None:
         return None
-    return round(milliliters / 1000, 3)
+    return round(raw / 2000, 3)
 
 
 def resolve_cloud_counters(properties: dict[str, Any]) -> dict[str, int | float | None]:

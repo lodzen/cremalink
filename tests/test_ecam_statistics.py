@@ -202,8 +202,8 @@ def test_parse_counter_value_shapes():
 
 
 def test_water_volume_liters():
-    assert parse_water_volume_liters(2_427_590) == pytest.approx(2427.59)
-    assert parse_water_volume_liters("1500") == 1.5
+    assert parse_water_volume_liters(1_782_545) == pytest.approx(891.273)
+    assert parse_water_volume_liters("1500") == 0.75
     assert parse_water_volume_liters("junk") is None
 
 
@@ -215,7 +215,7 @@ def test_resolve_cloud_counters_candidates():
     }
     counters = resolve_cloud_counters(props)
     assert counters["total_beverages"] == 15
-    assert counters["water_total_quantity"] == pytest.approx(2.0)
+    assert counters["water_total_quantity"] == pytest.approx(1.0)
     assert counters["descales"] == 3
     # absent candidates produce no key (never fabricated zeroes)
     assert "espresso" not in counters
@@ -229,7 +229,7 @@ def test_get_statistics_cloud_counters_report():
     report = _cloud_device(props).get_statistics()
     assert report.source == "cloud_counters"
     assert report.cloud_counters["total_beverages"] == 15
-    assert report.cloud_counters["water_total_quantity"] == pytest.approx(100.0)
+    assert report.cloud_counters["water_total_quantity"] == pytest.approx(50.0)
     assert report.breakdowns["total_beverages"] == {"1": 5, "2": 10}
 
 
