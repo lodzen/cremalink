@@ -290,6 +290,9 @@
     "d286_mach_sett_profile"
   ],
   "statistics_datapoints": [
+    "d510_ground_cnt_percentage",
+    "d512_percentage_to_deca",
+    "d513_percentage_usage_fltr",
     "d551_cnt_coffee_fondi",
     "d552_cnt_calc_tot",
     "d553_water_tot_qty",
@@ -318,6 +321,8 @@
     "d730_tot_id27_brew_over_ice",
     "d731_tot_mug_hot",
     "d732_tot_mug_cold",
+    "d733_tot_bev_counters",
+    "d734_tot_bev_usage",
     "d735_iced_bev",
     "d736_mug_bev",
     "d737_mug_iced_bev",

@@ -8,9 +8,11 @@ import pytest
 from cremalink.domain.device import Device
 from cremalink.ecam.answers import decode_a2_page, is_sync_timeout
 from cremalink.ecam.statistics import (
+    candidate_datapoint,
     counter_breakdown,
     parse_counter_value,
     parse_water_volume_liters,
+    resolve_cloud_breakdowns,
     resolve_cloud_counters,
 )
 
@@ -228,3 +230,50 @@ def test_get_statistics_cloud_counters_report():
     assert report.cloud_counters["total_beverages"] == 15
     assert report.cloud_counters["water_total_quantity"] == pytest.approx(100.0)
     assert report.breakdowns["total_beverages"] == {"1": 5, "2": 10}
+
+
+def test_resolve_eletta_maintenance_and_usage_counters():
+    """Values as an Eletta Explore publishes them."""
+    props = {
+        "d510_ground_cnt_percentage": 72,
+        "d512_percentage_to_deca": 26,
+        "d513_percentage_usage_fltr": 86,
+        "d733_tot_bev_counters": json.dumps(
+            {
+                "tot_mug_hot_small": "1",
+                "tot_bev_b_iced": "9",
+                "tot_bev_bw_iced": "13",
+                "tot_bev_other_iced": "2",
+                "tot_bev_w_iced": "0",
+            }
+        ),
+        "d734_tot_bev_usage": json.dumps(
+            {"taste_b_bw": "9159", "bev_abort_cnt": "184", "bev_2x_cnt": "4"}
+        ),
+        "d738_cold_brew_bev": json.dumps(
+            {"tot_id120_cold_brew_coffee": "3", "tot_id122_cold_brew_coffee_pot": "2"}
+        ),
+    }
+    counters = resolve_cloud_counters(props)
+    assert counters["grounds_container_percentage"] == 72
+    assert counters["descale_percentage"] == 26
+    assert counters["filter_percentage"] == 86
+    # only the listed keys count, the mug counter in the same object does not
+    assert counters["iced_beverages"] == 24
+    assert counters["aborted_beverages"] == 184
+    assert counters["cold_brew_beverages"] == 5
+
+    breakdowns = resolve_cloud_breakdowns(props)
+    assert "tot_mug_hot_small" not in breakdowns["iced_beverages"]
+
+
+def test_keyed_candidate_without_its_keys_is_unknown():
+    counters = resolve_cloud_counters({"d734_tot_bev_usage": '{"bev_2x_cnt": "4"}'})
+    assert counters["aborted_beverages"] is None
+
+
+def test_candidate_datapoint_strips_keys():
+    assert (
+        candidate_datapoint("d734_tot_bev_usage#bev_abort_cnt") == "d734_tot_bev_usage"
+    )
+    assert candidate_datapoint("d552_cnt_calc_tot") == "d552_cnt_calc_tot"

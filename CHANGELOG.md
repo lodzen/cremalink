@@ -146,6 +146,11 @@ Changes since 2.0.0.dev5:
     `Device` logs catalogue seeds and `recipe_params` sources.
 - **Model names in device maps:** each bundled map carries a `model_name`
   (e.g. "Eletta Explore") so front-ends can label the map choice.
+- **ECAM452 maintenance and usage counters:** grounds container, descale
+  and filter percentages as the machine publishes them
+  (`CLOUD_COUNTER_PERCENTAGES`), aborted, iced and cold brew beverage totals.
+  A counter candidate can name keys of a JSON datapoint
+  (`d734_tot_bev_usage#bev_abort_cnt`); `candidate_datapoint()` strips them.
 - **Standby quiet mode for the embedded server** (`local_server_app`,
   research.md R16): `LocalServerState.machine_asleep` (set via
   `EmbeddedLocalServer.set_machine_asleep`, logged as

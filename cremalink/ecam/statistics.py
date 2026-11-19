@@ -27,10 +27,12 @@ from cremalink.ecam.answers import decode_a2_page
 
 __all__ = [
     "CLOUD_COUNTER_CANDIDATES",
+    "CLOUD_COUNTER_PERCENTAGES",
     "MEASUREMENT_WATER_LITERS",
     "STAT_LABELS",
     "StatisticEntry",
     "StatisticsReport",
+    "candidate_datapoint",
     "counter_breakdown",
     "decode_a2_page",
     "interpret",
@@ -172,7 +174,55 @@ CLOUD_COUNTER_CANDIDATES: dict[str, list[str]] = {
     "water_filter_quantity": ["d555_water_filter_qty"],
     "descale_status": ["d825_descale_status"],
     "water_hardness": ["d556_water_hardness"],
+    "grounds_container_percentage": ["d510_ground_cnt_percentage"],
+    "descale_percentage": ["d512_percentage_to_deca"],
+    "filter_percentage": ["d513_percentage_usage_fltr"],
+    "aborted_beverages": ["d734_tot_bev_usage#bev_abort_cnt"],
+    "iced_beverages": [
+        "d733_tot_bev_counters#tot_bev_b_iced,tot_bev_bw_iced,"
+        "tot_bev_other_iced,tot_bev_w_iced"
+    ],
+    "cold_brew_beverages": ["d738_cold_brew_bev"],
 }
+
+#: Logical counters that are percentages as published by the machine
+#: (maintenance levels), not lifetime counts.
+CLOUD_COUNTER_PERCENTAGES = frozenset(
+    {"grounds_container_percentage", "descale_percentage", "filter_percentage"}
+)
+
+
+def candidate_datapoint(candidate: str) -> str:
+    """Datapoint name of a counter candidate.
+
+    A candidate is a datapoint name, optionally followed by ``#key,key``
+    to count only those keys of a JSON object datapoint.
+    """
+    return candidate.split("#", 1)[0]
+
+
+def _candidate_keys(candidate: str) -> list[str] | None:
+    if "#" not in candidate:
+        return None
+    return [k for k in candidate.split("#", 1)[1].split(",") if k]
+
+
+def _select_keys(val: Any, keys: list[str]) -> Any:
+    """Restrict a JSON object value to ``keys``; ``None`` if none are there."""
+    if val is None or isinstance(val, (int, bool)):
+        return None
+    val_str = str(val).strip()
+    if not _looks_like_json_object(val_str):
+        return None
+    try:
+        data = json.loads(val_str)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(data, dict):
+        return None
+    picked = {k: data[k] for k in keys if k in data}
+    return json.dumps(picked) if picked else None
+
 
 #: Logical counters that carry millilitres (converted to litres).
 _COUNTER_MEASUREMENTS: dict[str, str] = {
@@ -247,12 +297,16 @@ def resolve_cloud_counters(properties: dict[str, Any]) -> dict[str, int | float 
     """
     out: dict[str, int | float | None] = {}
     for logical, candidates in CLOUD_COUNTER_CANDIDATES.items():
-        for name in candidates:
+        for candidate in candidates:
+            name = candidate_datapoint(candidate)
             if name not in properties:
                 continue
             raw = properties[name]
             if isinstance(raw, dict):
                 raw = raw.get("value")
+            keys = _candidate_keys(candidate)
+            if keys is not None:
+                raw = _select_keys(raw, keys)
             if _COUNTER_MEASUREMENTS.get(logical) == MEASUREMENT_WATER_LITERS:
                 out[logical] = parse_water_volume_liters(raw)
             else:
@@ -265,12 +319,16 @@ def resolve_cloud_breakdowns(properties: dict[str, Any]) -> dict[str, dict]:
     """Per-counter JSON breakdowns, keyed by logical counter."""
     out: dict[str, dict] = {}
     for logical, candidates in CLOUD_COUNTER_CANDIDATES.items():
-        for name in candidates:
+        for candidate in candidates:
+            name = candidate_datapoint(candidate)
             if name not in properties:
                 continue
             raw = properties[name]
             if isinstance(raw, dict):
                 raw = raw.get("value")
+            keys = _candidate_keys(candidate)
+            if keys is not None:
+                raw = _select_keys(raw, keys)
             breakdown = counter_breakdown(raw)
             if breakdown is not None:
                 out[logical] = breakdown
