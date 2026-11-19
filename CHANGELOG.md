@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+Changes since 2.0.0.dev7:
+
+- **Standby wake frames really do deliver promptly now** (`local_server_app`,
+  protocol.md §15 — production-log verified 2026-11-19): the enqueue edge
+  was derived from the queue state at the previous nudger tick, so with
+  ~30 s standby ticks a queue that filled and drained between ticks kept
+  "already pending" and a wake frame sat ~9.4 s until the keepalive PUT
+  carried `notify:1` (observed trigger→`waking_up` ≈ 14 s, felt ~30 s).
+  `LocalServerState.enqueue_seq` now counts every `queue_*` append and
+  the nudger compares against the last seen value — an enqueue between
+  ticks is always fresh; work pending at the job's first tick counts as
+  fresh too.
+- **Model names, firmware info, cloud-counter additions, statistics
+  freshness** — merges of KindOfNerdy's #16, #18, #19 and #20 (details
+  in their entries below): `model_name` in the bundled maps,
+  `Device.firmware_info()`, ECAM452 maintenance/usage counters with
+  `#key` candidates, and `StatisticsReport.data_updated_at`.
+
 Changes since 2.0.0.dev6:
 
 - **Statistics report knows how fresh it is:** `StatisticsReport.data_updated_at`
