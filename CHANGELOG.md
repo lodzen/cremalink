@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+Changes since 2.0.0.dev10:
+
+- **`firmware_info()` works on LAN:** the machine firmware
+  (`software_version` datapoint) is not in the server's property store
+  until the machine republishes it, so a miss now triggers one
+  `request_property` round-trip instead of returning `{}` — the Soul
+  answers with the same string the cloud mirrors (`Millcore_demo 2.0.0
+  Jun 18 2020 15:41:06`, protocol.md §14.7,
+  `captures/lan_software_version.json`). Cloud transports keep reading
+  the store only (`request_property` is LAN-only).
+- **`Device.model_name`:** the device map's `model_name` key (e.g.
+  "PrimaDonna Soul", "Eletta Explore") is now exposed on the device —
+  the HA integration puts it on the device registry's `model` field.
+
 Changes since 2.0.0.dev9:
 
 - **Cloud water counters in litres:** `water_total_quantity` and

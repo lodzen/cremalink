@@ -181,6 +181,9 @@ class Device:
     #: but are unverified). Empty = every documented bit applies.
     monitor_bits: dict[str, list[str]] = field(default_factory=dict)
     model_ref: dict[str, Any] = field(default_factory=dict)
+    #: Display name from the device map (``model_name`` key) — e.g.
+    #: "PrimaDonna Soul". ``None`` for maps that do not name the model.
+    model_name: str | None = None
     # Recipe index -> beverage id, in machine order (verified Soul table).
     recipe_beverage_order: list[int] = field(default_factory=list)
     # Tunables for the data_response mailbox polling loop.
@@ -363,6 +366,7 @@ class Device:
             catalog_datapoints=list(map_data.get("catalog_datapoints") or []),
             monitor_bits=dict(map_data.get("monitor_bits") or {}),
             model_ref=map_data.get("model_ref") or {},
+            model_name=map_data.get("model_name"),
             recipe_beverage_order=list(map_data.get("recipe_beverage_order") or []),
             **kwargs,
         )
@@ -418,24 +422,34 @@ class Device:
         return self.transport.get_property(actual_name)
 
     def firmware_info(self) -> dict[str, str]:
-        """Firmware versions the cloud knows, without asking the machine.
+        """Firmware versions — machine datapoint plus cloud module data.
 
         ``machine``: the machine's own firmware (``software_version``
         datapoint, e.g. ``Striker_cb_demo 1.1.0 Oct 18 2022``);
         ``wifi_module`` and ``wifi_module_updated_at``: the Wi-Fi module's
         firmware and when the cloud last updated it (cloud transport only).
         Keys whose value is unknown are left out.
+
+        On LAN the datapoint lands in the server's property store only
+        after the machine republishes it, so a miss triggers one
+        ``request_property`` round-trip — verified: the Soul answers a
+        ``software_version`` GET with the same string the cloud mirrors
+        (protocol.md §14.7, captures/lan_software_version.json). Cloud
+        transports cannot request properties and read the store only.
         """
         info: dict[str, str] = {}
+        firmware_name = self.property_map.get(
+            "software_version", "software_version"
+        )
         try:
-            value = self._entry_value(
-                self.transport.get_property(
-                    self.property_map.get("software_version", "software_version")
-                )
-            )
+            value = self._entry_value(self.transport.get_property(firmware_name))
         except (OSError, ValueError, RuntimeError, NotImplementedError) as err:
             logger.debug("software_version not readable: %s", err)
             value = None
+        if value is None:
+            value = self._collect_named_properties(
+                [firmware_name], settle=3.0
+            ).get(firmware_name)
         if isinstance(value, str) and value.strip():
             info["machine"] = " ".join(value.split())
         for key, attr in (
