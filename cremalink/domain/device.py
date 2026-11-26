@@ -245,6 +245,10 @@ class Device:
     #: Custom recipe names by beverage id (``0xE6``–``0xEB``) from a cloud
     #: snapshot's ``aa f0`` blobs.
     _custom_names: dict[int, str] = field(default_factory=dict, init=False, repr=False)
+    #: Profile -> favourite beverage ids (``0xAC``), from a cloud snapshot.
+    _favorite_cache: dict[int, list[int]] = field(
+        default_factory=dict, init=False, repr=False
+    )
     _fetch_lock: threading.RLock = field(
         default_factory=threading.RLock, init=False, repr=False
     )
@@ -2486,6 +2490,7 @@ class Device:
                 if order
             }
             self._priority_cache.update(priorities)
+            self._favorite_cache.update(catalog.favorite_lists)
         logger.debug(
             "cloud catalogue seed: %d descriptors cached, %d priority "
             "lists %s, beverages parsed=%d, stats=%s",
@@ -2556,6 +2561,17 @@ class Device:
         # Soul: ``dNNN_<p>_rec_priority``; striker: ``dNNN_recipe_priority_<p>``.
         suffixes = (f"_{profile_slot}_rec_priority", f"_recipe_priority_{profile_slot}")
         return next((n for n in self.catalog_datapoints if n.endswith(suffixes)), None)
+
+    def favorite_beverages(self, profile_slot: int | None = None) -> list[int] | None:
+        """The profile's favourite drinks in favourite order, or ``None``.
+
+        Read from the cloud snapshot (``dNNN_favorite_priority_<p>``, family
+        ``0xAC``) together with the catalogue seed — no machine request.
+        ``None`` means unknown (no such datapoint, or no snapshot yet); an
+        empty list means the profile has no favourites.
+        """
+        favorites = self._favorite_cache.get(profile_slot or self.current_profile or 1)
+        return None if favorites is None else list(favorites)
 
     def recipe_priority_loaded(self, profile_slot: int | None = None) -> bool:
         """Whether the profile's drink-menu order has been read already."""
