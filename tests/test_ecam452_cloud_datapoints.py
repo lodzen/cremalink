@@ -123,11 +123,19 @@ def test_settings_read_from_ecam452_named_properties():
         {
             "d282_mach_sett_auto_off": _b64(_setting_blob(0x003E, 3)),
             "d283_mach_sett_water_hard": _b64(_setting_blob(0x0032, 2)),
+            "d281_mach_sett_temperature": _b64(_setting_blob(0x003D, 1)),
         }
     )
     settings = dev.get_settings()
     assert settings["auto_off"] == 3
     assert settings["water_hardness"] == 2
+    assert settings["temperature"] == 1
+
+
+def test_temperature_hint_matches_soul_and_ecam452_names():
+    hint = SETTING_OPTION_MAPS["temperature"].datapoint_hint
+    assert hint in "d281_mchn_sett_temp"
+    assert hint in "d281_mach_sett_temperature"
 
 
 def test_profiles_read_from_ecam452_profile_name_properties():

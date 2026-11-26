@@ -15,6 +15,9 @@ Changes since 2.0.0.dev10:
 - **`Device.model_name`:** the device map's `model_name` key (e.g.
   "PrimaDonna Soul", "Eletta Explore") is now exposed on the device —
   the HA integration puts it on the device registry's `model` field.
+- **Coffee temperature setting** (`temperature`, param `0x003D`, `d281`):
+  readable/writable like water hardness, levels low/medium/high,
+  gated by the map's `globalTemperature` flag.
 
 Changes since 2.0.0.dev9:
 
