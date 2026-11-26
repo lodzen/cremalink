@@ -438,18 +438,16 @@ class Device:
         transports cannot request properties and read the store only.
         """
         info: dict[str, str] = {}
-        firmware_name = self.property_map.get(
-            "software_version", "software_version"
-        )
+        firmware_name = self.property_map.get("software_version", "software_version")
         try:
             value = self._entry_value(self.transport.get_property(firmware_name))
         except (OSError, ValueError, RuntimeError, NotImplementedError) as err:
             logger.debug("software_version not readable: %s", err)
             value = None
         if value is None:
-            value = self._collect_named_properties(
-                [firmware_name], settle=3.0
-            ).get(firmware_name)
+            value = self._collect_named_properties([firmware_name], settle=3.0).get(
+                firmware_name
+            )
         if isinstance(value, str) and value.strip():
             info["machine"] = " ".join(value.split())
         for key, attr in (

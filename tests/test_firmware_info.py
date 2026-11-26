@@ -78,9 +78,7 @@ def test_lan_republished_software_version():
     transport = FakeLanRepublish(
         {"d302_monitor": "..."},
     )
-    transport.pending["software_version"] = (
-        "Millcore_demo 2.0.0 Jun 18 2020 15:41:06"
-    )
+    transport.pending["software_version"] = "Millcore_demo 2.0.0 Jun 18 2020 15:41:06"
     dev = _device(transport, "ECAM612.json")
 
     assert dev.firmware_info() == {
