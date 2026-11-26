@@ -156,10 +156,24 @@ def interpret(
 #: present on the device wins (Soul ``d700_*`` vs Eletta ``d701_*`` are
 #: not the same counters — see the reference integration's const.py).
 CLOUD_COUNTER_CANDIDATES: dict[str, list[str]] = {
-    "total_beverages": ["d700_tot_bev_b", "d701_tot_bev_b"],
-    "total_other_beverages": ["d702_tot_bev_other"],
+    # Eletta: the machine's "total coffee" line also counts iced coffees (d733).
+    # Other beverages: tea, hot water and coffee pot only; the d702 JSON also
+    # carries the milk drinks (counted by ``total_milk_drinks``).
+    "total_beverages": [
+        "d700_tot_bev_b",
+        "d701_tot_bev_b+d733_tot_bev_counters#tot_bev_b_iced",
+    ],
+    "total_other_beverages": [
+        "d702_tot_bev_other#tot_bev_other",
+        "d702_tot_bev_other",
+    ],
     "total_espresso": ["d704_tot_bev_espressi"],
-    "total_milk_drinks": ["d701_tot_bev_bw"],
+    # Soul: plain counter; Eletta: milk drinks + milk only from the d702
+    # JSON (sum = the machine's "total with hot milk" statistics line).
+    "total_milk_drinks": [
+        "d701_tot_bev_bw",
+        "d702_tot_bev_other#tot_bev_bw,tot_bev_w",
+    ],
     "total_milk_only": ["d703_tot_bev_w"],
     "espresso": ["d705_tot_id1_espr"],
     "coffee": ["d706_tot_id2_coffee"],
@@ -197,6 +211,8 @@ CLOUD_COUNTER_CANDIDATES: dict[str, list[str]] = {
         "tot_bev_other_iced,tot_bev_w_iced"
     ],
     "cold_brew_beverages": ["d738_cold_brew_bev"],
+    # "total with cold milk" statistics line (Eletta, d733 JSON).
+    "total_iced_milk_drinks": ["d733_tot_bev_counters#tot_bev_bw_iced,tot_bev_w_iced"],
 }
 
 #: Logical counters that are percentages as published by the machine
@@ -210,15 +226,42 @@ def candidate_datapoint(candidate: str) -> str:
     """Datapoint name of a counter candidate.
 
     A candidate is a datapoint name, optionally followed by ``#key,key``
-    to count only those keys of a JSON object datapoint.
+    to count only those keys of a JSON object datapoint, and optionally
+    joined with ``+`` to further parts that are added to the counter (the
+    first part names the candidate's datapoint).
     """
-    return candidate.split("#", 1)[0]
+    return candidate.split("+", 1)[0].split("#", 1)[0]
 
 
 def _candidate_keys(candidate: str) -> list[str] | None:
-    if "#" not in candidate:
+    first = candidate.split("+", 1)[0]
+    if "#" not in first:
         return None
-    return [k for k in candidate.split("#", 1)[1].split(",") if k]
+    return [k for k in first.split("#", 1)[1].split(",") if k]
+
+
+def _part_raw(part: str, properties: dict[str, Any]) -> Any:
+    """Raw value of one candidate part (``name`` or ``name#key,key``)."""
+    name = part.split("#", 1)[0]
+    if name not in properties:
+        return None
+    raw = properties[name]
+    if isinstance(raw, dict):
+        raw = raw.get("value")
+    keys = [k for k in part.split("#", 1)[1].split(",") if k] if "#" in part else None
+    return _select_keys(raw, keys) if keys is not None else raw
+
+
+def _candidate_value(candidate: str, properties: dict[str, Any]) -> int | None:
+    """Counter value of a ``+``-joined candidate: the sum of its present parts."""
+    total = 0
+    found = False
+    for part in candidate.split("+"):
+        value = parse_counter_value(_part_raw(part, properties))
+        if value is not None:
+            total += value
+            found = True
+    return total if found else None
 
 
 def _select_keys(val: Any, keys: list[str]) -> Any:
@@ -315,20 +358,21 @@ def resolve_cloud_counters(properties: dict[str, Any]) -> dict[str, int | float 
     """
     out: dict[str, int | float | None] = {}
     for logical, candidates in CLOUD_COUNTER_CANDIDATES.items():
-        for candidate in candidates:
-            name = candidate_datapoint(candidate)
-            if name not in properties:
-                continue
-            raw = properties[name]
-            if isinstance(raw, dict):
-                raw = raw.get("value")
-            keys = _candidate_keys(candidate)
-            if keys is not None:
-                raw = _select_keys(raw, keys)
-            if _COUNTER_MEASUREMENTS.get(logical) == MEASUREMENT_WATER_LITERS:
-                out[logical] = parse_water_volume_liters(raw)
+        present = [c for c in candidates if candidate_datapoint(c) in properties]
+        for position, candidate in enumerate(present):
+            if "+" in candidate:
+                value: int | float | None = _candidate_value(candidate, properties)
             else:
-                out[logical] = parse_counter_value(raw)
+                raw = _part_raw(candidate, properties)
+                if _COUNTER_MEASUREMENTS.get(logical) == MEASUREMENT_WATER_LITERS:
+                    value = parse_water_volume_liters(raw)
+                else:
+                    value = parse_counter_value(raw)
+            # A keyed candidate whose keys are missing (plain-int datapoint on
+            # another model) falls through to the next present candidate.
+            if value is None and position < len(present) - 1:
+                continue
+            out[logical] = value
             break
     return out
 

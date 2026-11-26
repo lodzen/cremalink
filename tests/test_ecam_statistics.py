@@ -248,6 +248,9 @@ def test_resolve_eletta_maintenance_and_usage_counters():
                 "tot_bev_w_iced": "0",
             }
         ),
+        "d702_tot_bev_other": json.dumps(
+            {"tot_bev_bw": "127", "tot_bev_other": "438", "tot_bev_w": "35"}
+        ),
         "d734_tot_bev_usage": json.dumps(
             {"taste_b_bw": "9159", "bev_abort_cnt": "184", "bev_2x_cnt": "4"}
         ),
@@ -263,14 +266,47 @@ def test_resolve_eletta_maintenance_and_usage_counters():
     assert counters["iced_beverages"] == 24
     assert counters["aborted_beverages"] == 184
     assert counters["cold_brew_beverages"] == 5
+    # machine statistics screen: 162 with hot milk, 13 with cold milk
+    assert counters["total_milk_drinks"] == 162
+    assert counters["total_iced_milk_drinks"] == 13
+    # tea + hot water + pot only; the milk drinks in the same JSON are not "other"
+    assert counters["total_other_beverages"] == 438
 
     breakdowns = resolve_cloud_breakdowns(props)
     assert "tot_mug_hot_small" not in breakdowns["iced_beverages"]
 
 
+def test_total_beverages_adds_the_iced_coffees():
+    """Eletta display "total coffee" = d701 + iced coffees from d733."""
+    props = {
+        "d701_tot_bev_b": 2189,
+        "d733_tot_bev_counters": json.dumps(
+            {"tot_bev_b_iced": "9", "tot_mug_hot_small": "1"}
+        ),
+    }
+    assert resolve_cloud_counters(props)["total_beverages"] == 2198
+    # without the d733 datapoint the plain d701 value stays
+    assert resolve_cloud_counters({"d701_tot_bev_b": 2189})["total_beverages"] == 2189
+
+
+def test_other_beverages_fall_back_to_a_plain_counter():
+    """Soul style d702 is a plain number, not a JSON object."""
+    assert (
+        resolve_cloud_counters({"d702_tot_bev_other": 12})["total_other_beverages"]
+        == 12
+    )
+
+
 def test_keyed_candidate_without_its_keys_is_unknown():
     counters = resolve_cloud_counters({"d734_tot_bev_usage": '{"bev_2x_cnt": "4"}'})
     assert counters["aborted_beverages"] is None
+
+
+def test_candidate_datapoint_takes_the_first_part():
+    assert (
+        candidate_datapoint("d701_tot_bev_b+d733_tot_bev_counters#tot_bev_b_iced")
+        == "d701_tot_bev_b"
+    )
 
 
 def test_candidate_datapoint_strips_keys():

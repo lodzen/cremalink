@@ -15,6 +15,12 @@ Changes since 2.0.0.dev10:
 - **`Device.model_name`:** the device map's `model_name` key (e.g.
   "PrimaDonna Soul", "Eletta Explore") is now exposed on the device —
   the HA integration puts it on the device registry's `model` field.
+- **Eletta statistics counters match the machine's screen:** `total_milk_drinks`
+  (hot milk: `d702` milk drinks + milk only) and the new
+  `total_iced_milk_drinks` (`d733`) match its "total with hot / cold milk"
+  lines; `total_beverages` also counts the iced coffees (`d701` + `d733`,
+  new `+` candidate syntax that adds datapoints); `total_other_beverages`
+  is tea, hot water and pot only (the `d702` JSON also holds the milk drinks).
 
 Changes since 2.0.0.dev9:
 
